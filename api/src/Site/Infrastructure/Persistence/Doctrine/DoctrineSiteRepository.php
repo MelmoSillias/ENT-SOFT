@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Site\Infrastructure\Persistence\Doctrine;
+
+use App\Site\Domain\Entity\Site;
+use App\Site\Domain\Repository\SiteRepositoryInterface;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
+
+/** @extends ServiceEntityRepository<Site> */
+class DoctrineSiteRepository extends ServiceEntityRepository implements SiteRepositoryInterface
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, Site::class);
+    }
+
+    public function save(Site $site): void
+    {
+        $this->getEntityManager()->persist($site);
+        $this->getEntityManager()->flush();
+    }
+
+    public function findById(Uuid $id): ?Site
+    {
+        return $this->find($id);
+    }
+
+    public function findAllEnabled(?string $search = null): array
+    {
+        $qb = $this->createQueryBuilder('s')
+            ->andWhere('s.isEnabled = :enabled')
+            ->setParameter('enabled', true)
+            ->orderBy('s.title', 'ASC');
+
+        if ($search !== null && trim($search) !== '') {
+            $qb->andWhere('s.title LIKE :search OR s.code LIKE :search')
+                ->setParameter('search', '%'.trim($search).'%');
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function findByIds(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('s')
+            ->andWhere('s.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
+}

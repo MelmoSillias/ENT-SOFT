@@ -1,0 +1,111 @@
+# yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
+
+parameters:
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/**/Domain/Entity/'
+            - '../src/**/Domain/Enum/'
+            - '../src/**/Domain/Exception/'
+            - '../src/**/Domain/Event/'
+            - '../src/**/Domain/ValueObject/'
+            - '../src/**/Domain/Trait/'
+            - '../src/**/Application/**/Command/*Command.php'
+            - '../src/**/Application/**/Query/*Query.php'
+            - '../src/**/Application/**/Dto/'
+
+    App\SharedKernel\Application\Event\DomainEventDispatcherInterface:
+        alias: App\SharedKernel\Infrastructure\Event\SymfonyDomainEventDispatcher
+
+    App\IdentityAccess\Domain\Repository\UtilisateurRepositoryInterface:
+        alias: App\IdentityAccess\Infrastructure\Persistence\Doctrine\DoctrineUtilisateurRepository
+
+    App\IdentityAccess\Domain\Repository\RefreshTokenRepositoryInterface:
+        alias: App\IdentityAccess\Infrastructure\Persistence\Doctrine\DoctrineRefreshTokenRepository
+
+    App\IdentityAccess\Application\Service\AccessTokenService:
+        arguments:
+            $appSecret: '%env(JWT_ACCESS_SECRET)%'
+
+    App\IdentityAccess\Infrastructure\Security\UtilisateurUserProvider:
+        tags: ['security.user_provider']
+
+    App\IdentityAccess\Security\UserEnabledChecker:
+        tags: ['security.user_checker']
+
+    App\AccessAudit\Domain\Repository\PermissionRepositoryInterface:
+        alias: App\AccessAudit\Infrastructure\Persistence\Doctrine\DoctrinePermissionRepository
+
+    App\AccessAudit\Domain\Repository\RolePermissionRepositoryInterface:
+        alias: App\AccessAudit\Infrastructure\Persistence\Doctrine\DoctrineRolePermissionRepository
+
+    App\AccessAudit\Domain\Repository\UtilisateurPermissionRepositoryInterface:
+        alias: App\AccessAudit\Infrastructure\Persistence\Doctrine\DoctrineUtilisateurPermissionRepository
+
+    App\AccessAudit\Domain\Repository\HistoriqueActionRepositoryInterface:
+        alias: App\AccessAudit\Infrastructure\Persistence\Doctrine\DoctrineHistoriqueActionRepository
+
+    App\Referentiel\Domain\Repository\ReferenceSequenceRepositoryInterface:
+        alias: App\Referentiel\Infrastructure\Persistence\Doctrine\DoctrineReferenceSequenceRepository
+
+    App\Configuration\Domain\Repository\SettingRepositoryInterface:
+        alias: App\Configuration\Infrastructure\Persistence\Doctrine\DoctrineSettingRepository
+
+    App\Configuration\Domain\Repository\HistoriqueSettingRepositoryInterface:
+        alias: App\Configuration\Infrastructure\Persistence\Doctrine\DoctrineHistoriqueSettingRepository
+
+    App\Configuration\Application\Service\AgenceLogoUploadService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Client\Domain\Repository\ClientRepositoryInterface:
+        alias: App\Client\Infrastructure\Persistence\Doctrine\DoctrineClientRepository
+
+    App\Client\Domain\Repository\ClientCommentRepositoryInterface:
+        alias: App\Client\Infrastructure\Persistence\Doctrine\DoctrineClientCommentRepository
+
+    App\Site\Domain\Repository\SiteRepositoryInterface:
+        alias: App\Site\Infrastructure\Persistence\Doctrine\DoctrineSiteRepository
+
+    App\Project\Domain\Repository\ProjectRepositoryInterface:
+        alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectRepository
+
+    App\Project\Domain\Repository\ProjectSiteRepositoryInterface:
+        alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectSiteRepository
+
+    App\Project\Domain\Repository\ProjectEventRepositoryInterface:
+        alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectEventRepository
+
+    App\Employee\Domain\Repository\EmployeeRepositoryInterface:
+        alias: App\Employee\Infrastructure\Persistence\Doctrine\DoctrineEmployeeRepository
+
+    App\Task\Domain\Repository\TaskRepositoryInterface:
+        alias: App\Task\Infrastructure\Persistence\Doctrine\DoctrineTaskRepository
+
+    App\Finance\Domain\Repository\InvoiceRepositoryInterface:
+        alias: App\Finance\Infrastructure\Persistence\Doctrine\DoctrineInvoiceRepository
+
+    App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface:
+        alias: App\Finance\Infrastructure\Persistence\Doctrine\DoctrineFinancialTransactionRepository
+
+    App\Stock\Domain\Repository\EquipmentRepositoryInterface:
+        alias: App\Stock\Infrastructure\Persistence\Doctrine\DoctrineEquipmentRepository
+
+    App\Stock\Domain\Repository\StockMovementRepositoryInterface:
+        alias: App\Stock\Infrastructure\Persistence\Doctrine\DoctrineStockMovementRepository
+
+    App\Document\Domain\Repository\DocumentRepositoryInterface:
+        alias: App\Document\Infrastructure\Persistence\Doctrine\DoctrineDocumentRepository
+
+    App\Document\Application\Service\DocumentUploadService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Stock\Domain\Repository\StockMovementLineRepositoryInterface:
+        alias: App\Stock\Infrastructure\Persistence\Doctrine\DoctrineStockMovementLineRepository

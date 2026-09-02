@@ -1,0 +1,25 @@
+# Super Cargo — stack Docker complète (API + frontend + MySQL)
+# Voir : ../docker-compose.yml et ../docs/deploiement-dokploy.md (à la racine du dépôt)
+
+services:
+###> doctrine/doctrine-bundle ###
+  database:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-!ChangeMe!}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-super_cargo}
+      MYSQL_USER: ${MYSQL_USER:-super_cargo}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-!ChangeMe!}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u${MYSQL_USER:-super_cargo}", "-p${MYSQL_PASSWORD:-!ChangeMe!}"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - database_data:/var/lib/mysql
+###< doctrine/doctrine-bundle ###
+
+volumes:
+###> doctrine/doctrine-bundle ###
+  database_data:
+###< doctrine/doctrine-bundle ###

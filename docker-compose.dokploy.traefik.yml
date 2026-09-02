@@ -1,0 +1,15 @@
+# Optionnel — labels Traefik manuels (alternative à l'onglet Domains Dokploy).
+# Compose Path Dokploy : Symfony&Vue/docker-compose.dokploy.traefik.yml
+# Variable obligatoire : APP_DOMAIN=cargo.example.com
+
+include:
+  - path: docker-compose.dokploy.yml
+
+services:
+  web:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.super-cargo-web.rule=Host(`${APP_DOMAIN:?APP_DOMAIN is required}`)
+      - traefik.http.routers.super-cargo-web.entrypoints=websecure
+      - traefik.http.routers.super-cargo-web.tls.certresolver=letsencrypt
+      - traefik.http.services.super-cargo-web.loadbalancer.server.port=80

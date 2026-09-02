@@ -1,0 +1,177 @@
+.auth-light-surface {
+  --mkt-primary: var(--layout-accent, #1a3066);
+  --mkt-primary-strong: var(--layout-accent-strong, #122248);
+  --mkt-primary-soft: var(--layout-accent-soft, rgba(26, 48, 102, 0.12));
+  --mkt-text: var(--layout-text-color, #1a2744);
+  --mkt-text-muted: var(--layout-text-muted, #5c6b82);
+  --mkt-border: var(--layout-panel-border, #d8e0ec);
+  --mkt-surface: var(--layout-panel-bg, #ffffff);
+  --mkt-surface-muted: color-mix(in srgb, var(--layout-page-bg, #eef2f8) 72%, white);
+  --mkt-radius: var(--layout-radius, 0.75rem);
+  --mkt-radius-sm: var(--layout-radius-sm, 0.5rem);
+  --mkt-shadow: var(--layout-shadow-panel, 0 8px 32px rgba(15, 23, 42, 0.06));
+
+  --p-content-background: var(--mkt-surface);
+  --p-content-hover-background: var(--mkt-surface-muted);
+  --p-content-border-color: var(--mkt-border);
+  --p-content-color: var(--mkt-text);
+  --p-text-color: var(--mkt-text);
+  --p-text-muted-color: var(--mkt-text-muted);
+  --p-text-hover-color: var(--mkt-text);
+  --p-form-field-background: var(--mkt-surface);
+  --p-form-field-disabled-background: var(--mkt-border);
+  --p-form-field-filled-background: var(--mkt-surface-muted);
+  --p-form-field-filled-hover-background: var(--mkt-surface-muted);
+  --p-form-field-filled-focus-background: var(--mkt-surface-muted);
+  --p-form-field-border-color: var(--mkt-border);
+  --p-form-field-hover-border-color: color-mix(in srgb, var(--mkt-text-muted) 55%, white);
+  --p-form-field-color: var(--mkt-text);
+  --p-form-field-placeholder-color: var(--mkt-text-muted);
+  --p-form-field-icon-color: var(--mkt-text-muted);
+  --p-form-field-shadow: none;
+  --p-primary-color: var(--mkt-primary);
+  --p-primary-contrast-color: #ffffff;
+  --p-primary-hover-color: var(--mkt-primary-strong);
+  --p-primary-active-color: var(--mkt-primary-strong);
+  --p-surface-0: var(--mkt-surface);
+  --p-surface-50: var(--mkt-surface-muted);
+  --p-surface-100: var(--mkt-surface-muted);
+  --p-surface-200: var(--mkt-border);
+  --p-surface-300: var(--mkt-border);
+  --p-surface-400: var(--mkt-text-muted);
+  --p-surface-500: var(--mkt-text-muted);
+  --p-surface-600: color-mix(in srgb, var(--mkt-text) 72%, white);
+  --p-surface-700: color-mix(in srgb, var(--mkt-text) 84%, white);
+  --p-surface-800: color-mix(in srgb, var(--mkt-text) 92%, black);
+  --p-surface-900: var(--mkt-text);
+  --p-button-secondary-background: var(--mkt-surface-muted);
+  --p-button-secondary-hover-background: var(--mkt-border);
+  --p-button-secondary-active-background: var(--mkt-border);
+  --p-button-secondary-border-color: var(--mkt-border);
+  --p-button-secondary-color: var(--mkt-text);
+  --p-button-outlined-secondary-border-color: var(--mkt-border);
+  --p-button-outlined-secondary-color: var(--mkt-text);
+  --p-stepper-step-number-background: var(--mkt-surface);
+  --p-stepper-step-number-active-background: var(--mkt-surface);
+  --p-stepper-step-number-border-color: var(--mkt-border);
+  --p-stepper-step-number-active-border-color: var(--mkt-primary);
+  --p-stepper-step-number-color: var(--mkt-text-muted);
+  --p-stepper-step-number-active-color: var(--mkt-primary-strong);
+  --p-stepper-step-title-color: var(--mkt-text-muted);
+  --p-stepper-step-title-active-color: var(--mkt-text);
+  --p-stepper-separator-background: var(--mkt-border);
+  --p-stepper-separator-active-background: var(--mkt-primary);
+  --p-stepper-steppanel-background: transparent;
+  --p-stepper-steppanel-color: var(--mkt-text);
+
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-radius: var(--mkt-radius);
+  border: 1px solid var(--mkt-border);
+  background: var(--mkt-surface);
+  box-shadow: 0 18px 40px rgba(26, 48, 102, 0.08);
+  color: var(--mkt-text);
+  color-scheme: light;
+}
+
+/* Override global app PrimeVue styles inside auth pages */
+.auth-light-surface .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-secondary) {
+  background: var(--mkt-primary);
+  border: 1px solid var(--mkt-primary);
+  color: #ffffff;
+  box-shadow: none;
+  border-radius: var(--mkt-radius-sm);
+  font-weight: 600;
+  transform: none;
+}
+
+.auth-light-surface .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-secondary):not(.p-disabled):hover {
+  background: var(--mkt-primary-strong);
+  border-color: var(--mkt-primary-strong);
+  transform: none;
+}
+
+.auth-light-surface .p-button.p-button-secondary,
+.auth-light-surface .p-button.p-button-outlined {
+  background: var(--mkt-surface);
+  border: 1px solid var(--mkt-border);
+  color: var(--mkt-text);
+  box-shadow: none;
+  border-radius: var(--mkt-radius-sm);
+  font-weight: 600;
+  transform: none;
+}
+
+.auth-light-surface .p-button.p-button-secondary:not(.p-disabled):hover,
+.auth-light-surface .p-button.p-button-outlined:not(.p-disabled):hover {
+  background: var(--mkt-surface-muted);
+  border-color: color-mix(in srgb, var(--mkt-text-muted) 55%, white);
+  transform: none;
+}
+
+.auth-light-surface .p-button.p-button-text {
+  color: var(--mkt-text-muted);
+  box-shadow: none;
+  transform: none;
+}
+
+.auth-light-surface .p-button.p-button-text:not(.p-disabled):hover {
+  background: var(--mkt-surface-muted);
+  color: var(--mkt-text);
+  transform: none;
+}
+
+.auth-light-surface .p-selectbutton {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.auth-light-surface .p-togglebutton {
+  flex: 1 1 0;
+  min-width: 0;
+  background: var(--mkt-surface);
+  border: 1px solid var(--mkt-border) !important;
+  color: var(--mkt-text-muted);
+  box-shadow: none;
+  border-radius: var(--mkt-radius-sm) !important;
+  font-weight: 500;
+  transform: none;
+}
+
+.auth-light-surface .p-togglebutton:not(.p-disabled):hover {
+  background: var(--mkt-surface-muted) !important;
+  border-color: color-mix(in srgb, var(--mkt-text-muted) 55%, white) !important;
+  transform: none;
+}
+
+.auth-light-surface .p-togglebutton.p-togglebutton-checked {
+  background: var(--mkt-primary-soft) !important;
+  border-color: var(--mkt-primary) !important;
+  color: var(--mkt-primary-strong) !important;
+  font-weight: 600;
+}
+
+.auth-light-surface .p-togglebutton .p-togglebutton-content,
+.auth-light-surface .p-togglebutton .p-togglebutton-label {
+  color: inherit;
+}
+
+.auth-light-surface .p-inputtext:enabled:focus,
+.auth-light-surface .p-password-input:enabled:focus,
+.auth-light-surface .p-select:not(.p-disabled).p-focus {
+  border-color: var(--mkt-primary);
+  box-shadow: 0 0 0 2px var(--mkt-primary-soft);
+}
+
+@media (max-width: 400px) {
+  .auth-light-surface {
+    padding: 1.125rem;
+  }
+}

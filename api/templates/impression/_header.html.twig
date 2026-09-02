@@ -1,0 +1,24 @@
+<div class="doc-header">
+    <div class="doc-header__left">
+        {% if profile.show_logo and profile.logo_url %}
+            <img class="doc-header__logo" src="{{ profile.logo_url }}" alt="{{ profile.shop_name }}">
+        {% endif %}
+    </div>
+    <div class="doc-header__center">
+        <strong class="doc-header__name">{{ profile.shop_name }}</strong>
+    </div>
+    <div class="doc-header__right">
+        {% for line in profile.address_lines %}
+            <div class="doc-header__meta">{{ line }}</div>
+        {% endfor %}
+        {% if profile.phones|length > 0 %}
+            <div class="doc-header__meta">Tél : {{ profile.phones|join(' · ') }}</div>
+        {% endif %}
+        {% if profile.email %}
+            <div class="doc-header__meta">{{ profile.email }}</div>
+        {% endif %}
+        {% if profile.website %}
+            <div class="doc-header__meta">{{ profile.website }}</div>
+        {% endif %}
+    </div>
+</div>

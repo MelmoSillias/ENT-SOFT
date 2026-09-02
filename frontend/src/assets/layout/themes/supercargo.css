@@ -1,0 +1,89 @@
+:root[data-layout-theme='supercargo'] {
+  --layout-accent: #1a3066;
+  --layout-accent-strong: #122248;
+  --layout-accent-soft: rgba(26, 48, 102, 0.12);
+  --layout-page-bg: #eef2f8;
+  --layout-shell-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(238, 242, 248, 0.96));
+  --layout-sidebar-bg: linear-gradient(180deg, #ffffff, #f0f4fa);
+  --layout-sidebar-bg-hover: rgba(26, 48, 102, 0.06);
+  --layout-sidebar-border: rgba(26, 48, 102, 0.12);
+  --layout-sidebar-text: rgba(26, 39, 68, 0.92);
+  --layout-sidebar-text-muted: rgba(92, 107, 130, 0.72);
+  --layout-topbar-bg: rgba(255, 255, 255, 0.92);
+  --layout-panel-bg: #ffffff;
+  --layout-panel-border: #d8e0ec;
+  --layout-text-color: #1a2744;
+  --layout-text-muted: #5c6b82;
+  --layout-logo-bg: #ffffff;
+  --layout-logo-border: rgba(26, 48, 102, 0.12);
+  --layout-auth-bg:
+    radial-gradient(circle at top, rgba(26, 48, 102, 0.14), transparent 42%),
+    linear-gradient(180deg, #eef2f8 0%, #f8fafc 100%);
+  --layout-auth-brand-color: #122248;
+}
+
+:root.app-dark[data-layout-theme='supercargo'] {
+  --layout-accent: #6ea8ff;
+  --layout-accent-strong: #b8d9ff;
+  --layout-accent-soft: rgba(110, 168, 255, 0.18);
+  --layout-page-bg: #0a1228;
+  --layout-shell-bg:
+    radial-gradient(circle at top left, rgba(56, 178, 172, 0.1), transparent 28%),
+    linear-gradient(180deg, rgba(10, 18, 40, 0.98), rgba(18, 34, 72, 0.98));
+  --layout-sidebar-bg: linear-gradient(180deg, rgba(18, 34, 72, 0.98), rgba(26, 48, 102, 0.94));
+  --layout-sidebar-bg-hover: rgba(255, 255, 255, 0.06);
+  --layout-sidebar-border: rgba(148, 163, 184, 0.14);
+  --layout-sidebar-text: rgba(241, 245, 249, 0.95);
+  --layout-sidebar-text-muted: rgba(148, 163, 184, 0.78);
+  --layout-topbar-bg: rgba(18, 34, 72, 0.92);
+  --layout-panel-bg: #121f3d;
+  --layout-panel-border: rgba(148, 163, 184, 0.14);
+  --layout-text-color: rgba(241, 245, 249, 0.95);
+  --layout-text-muted: rgba(148, 163, 184, 0.78);
+  --layout-logo-bg: #ffffff;
+  --layout-logo-border: rgba(255, 255, 255, 0.12);
+  --layout-auth-brand-color: #b8d9ff;
+}
+
+:root[data-layout-gradient='solid'][data-layout-theme='supercargo'] {
+  --layout-shell-bg: #eef2f8;
+  --layout-sidebar-bg: #ffffff;
+}
+
+:root.app-dark[data-layout-gradient='solid'][data-layout-theme='supercargo'] {
+  --layout-shell-bg: #0a1228;
+  --layout-sidebar-bg: #122248;
+}
+
+:root[data-layout-theme='supercargo'] .app-sidebar__logo-mark--brand {
+  width: 5.5rem;
+  height: 5.5rem;
+  max-width: 5.5rem;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(26, 48, 102, 0.1);
+}
+
+:root[data-layout-theme='supercargo'] .app-sidebar--collapsed .app-sidebar__logo-mark--brand {
+  width: 3.5rem;
+  height: 3.5rem;
+  max-width: 3.5rem;
+}
+
+:root[data-layout-theme='supercargo'] .app-sidebar__logo--stacked .app-sidebar__brand {
+  font-size: var(--layout-font-size-sm);
+  line-height: 1.25;
+}
+
+:root[data-layout-theme='supercargo'] .app-sidebar__logo--stacked .app-sidebar__tagline {
+  font-size: 0.72rem;
+}
+
+:root[data-layout-theme='supercargo'] .auth-page__brand-visual {
+  width: 9.5rem;
+  height: 9.5rem;
+  padding: 0.55rem;
+}
+
+:root[data-layout-theme='supercargo'] .auth-page__brand-logo {
+  transform: scale(1.08);
+}

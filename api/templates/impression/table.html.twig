@@ -1,0 +1,40 @@
+{% extends 'impression/_layout.html.twig' %}
+
+{% block content %}
+    <div class="doc-title-band">
+        <div>
+            <p class="doc-title">{{ data.title }}</p>
+            {% if data.filters_summary %}
+                <div class="doc-meta">{{ data.filters_summary }}</div>
+            {% endif %}
+        </div>
+        <div class="doc-date">
+            Généré le {{ "now"|date('d/m/Y H:i') }}<br>
+            {{ data.rows|length }} ligne(s)
+        </div>
+    </div>
+
+    <table class="doc-table">
+        <thead>
+            <tr>
+                {% for col in data.columns %}
+                    <th>{{ col.label }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data.rows %}
+                <tr>
+                    {% for col in data.columns %}
+                        {% set val = row[col.key]|default('') %}
+                        <td class="{{ col.key matches '/montant|taux|source|destination/' ? 'col-num' : '' }}">{{ val }}</td>
+                    {% endfor %}
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="{{ data.columns|length }}" class="empty">Aucune donnée</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

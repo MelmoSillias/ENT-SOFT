@@ -1,0 +1,139 @@
+{% extends 'impression/_layout.html.twig' %}
+
+{% block extra_styles %}
+<style>
+    .recu-title {
+        text-align: center;
+        font-size: 18px;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin: 8px 0 16px;
+        letter-spacing: 0.04em;
+    }
+
+    .recu-grid {
+        display: flex;
+        gap: 0;
+        width: 100%;
+    }
+    .recu-box {
+        flex: 1;
+        border: 2px solid #111;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+        min-height: 160px;
+        font-size: 13px;
+    }
+    .recu-box + .recu-box { border-left: none; }
+    .recu-box .line {
+        border-bottom: 1px dashed #333;
+        padding: 6px 0;
+    }
+    .recu-box .line:last-child { border-bottom: none; }
+    .recu-box .line span { font-weight: 700; }
+
+    .recu-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-top: 18px;
+        padding: 0 8px;
+        font-size: 11px;
+    }
+    .recu-footer .sig {
+        min-width: 120px;
+        text-align: center;
+    }
+    .recu-footer .sig::after {
+        content: '';
+        display: block;
+        margin-top: 28px;
+        border-bottom: 1px solid #333;
+    }
+
+    body.is-portrait .recu-grid {
+        flex-direction: column;
+        gap: 10px;
+    }
+    body.is-portrait .recu-box + .recu-box {
+        border-left: 2px solid #111;
+    }
+    body.is-portrait .recu-box { min-height: auto; }
+
+    body.format-a4 .recu-title { font-size: 22px; margin: 14px 0 22px; }
+    body.format-a4 .recu-box { font-size: 15px; min-height: 200px; padding: 16px 18px; }
+    body.format-a4 .recu-box .line { padding: 8px 0; }
+
+    body.format-a5.is-landscape .recu-box { font-size: 14px; min-height: 170px; }
+
+    body.receipt-80mm .recu-title {
+        font-size: 12px;
+        margin: 6px 0;
+        color: #000;
+    }
+    body.receipt-80mm .recu-grid { flex-direction: column; gap: 0; }
+    body.receipt-80mm .recu-box {
+        border: none;
+        border-top: 1px dashed #000;
+        border-bottom: 1px dashed #000;
+        padding: 6px 0;
+        min-height: auto;
+        font-size: 11px;
+    }
+    body.receipt-80mm .recu-box + .recu-box {
+        border-left: none;
+        border-top: none;
+    }
+    body.receipt-80mm .recu-box .line {
+        border-bottom: 1px dotted #000;
+        padding: 3px 0;
+    }
+    body.receipt-80mm .recu-footer {
+        flex-direction: column;
+        gap: 8px;
+        text-align: center;
+        align-items: center;
+        margin-top: 10px;
+    }
+    body.receipt-80mm .recu-footer .sig::after { display: none; }
+</style>
+{% endblock %}
+
+{% block footer %}{% endblock %}
+
+{% block content %}
+    <div class="recu-title">
+        {{ data.titre_recu }} N° {{ data.numero_recu }}
+    </div>
+
+    <div class="recu-grid">
+        <div class="recu-box">
+            <div class="line">Date : <span>{{ data.date_heure }}</span></div>
+            <div class="line">Nom Client : <span>{{ data.client_nom }}</span></div>
+            {% if data.client_telephone %}
+                <div class="line">Tél. client : <span>{{ data.client_telephone }}</span></div>
+            {% endif %}
+            <div class="line">Destinataire : <span>{{ data.beneficiaire_nom }}</span></div>
+            {% if data.beneficiaire_telephone %}
+                <div class="line">Tél. destinataire : <span>{{ data.beneficiaire_telephone }}</span></div>
+            {% endif %}
+            <div class="line">Destination : <span>{{ data.destination }}{% if data.destination_code %} ({{ data.destination_code }}){% endif %}</span></div>
+        </div>
+
+        <div class="recu-box">
+            <div class="line">Montant envoyé : <span>{{ data.montant_source_label }}</span></div>
+            <div class="line">Montant réception : <span>{{ data.montant_destination_label }}</span></div>
+            <div class="line">Taux : <span>{{ data.taux_label|default('—') }}</span></div>
+            <div class="line">Frais : <span>{{ data.montant_frais_label|default('—') }}</span></div>
+            <div class="line">Total remis : <span>{{ data.montant_total_label|default(data.montant_source_label) }}</span></div>
+        </div>
+    </div>
+
+    <div class="recu-footer">
+        <div class="sig">Signature Client</div>
+        <div>{{ profile.footer_text|default('Merci pour votre confiance !') }}</div>
+        <div class="sig">Délivré par : {{ data.operateur|default('—') }}</div>
+    </div>
+{% endblock %}

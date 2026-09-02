@@ -1,0 +1,220 @@
+/*
+ * PrimeVue component color overrides (dark + light).
+ * Color properties only — background, color, border-color, outline-color, fill, stroke.
+ * `!important` is used ONLY on color properties, scoped to this file, to win the cascade
+ * over PrimeVue's runtime-injected Aura styles without wrapping Aura in a CSS layer
+ * (which would also strip priority from its non-color/structural rules).
+ */
+
+/* Breadcrumb */
+.p-breadcrumb {
+  background: var(--pv-surface-bg) !important;
+  color: var(--pv-text) !important;
+}
+
+.p-breadcrumb-item-link {
+  color: var(--pv-text-muted) !important;
+}
+
+.p-breadcrumb-item-link:hover .p-breadcrumb-item-label {
+  color: var(--pv-text) !important;
+}
+
+.p-breadcrumb-item-label {
+  color: inherit !important;
+}
+
+.p-breadcrumb-item-icon {
+  color: var(--pv-text-muted) !important;
+}
+
+.p-breadcrumb-item-link:hover .p-breadcrumb-item-icon {
+  color: var(--pv-accent-strong) !important;
+}
+
+.p-breadcrumb-separator,
+.p-breadcrumb-separator-icon {
+  color: var(--pv-text-muted) !important;
+}
+
+/* Tabs */
+.p-tablist,
+.p-tablist-tab-list {
+  background: transparent !important;
+  border-color: var(--pv-surface-border) !important;
+}
+
+.p-tab {
+  color: var(--pv-text-muted) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.p-tab:not(.p-disabled):not(.p-tab-active):hover {
+  color: var(--pv-text) !important;
+  background: color-mix(in srgb, var(--pv-surface-bg) 80%, var(--pv-accent-soft)) !important;
+  border-color: transparent !important;
+}
+
+.p-tab-active,
+.p-tab.p-tab-active {
+  color: var(--pv-accent-strong) !important;
+  background: color-mix(in srgb, var(--pv-accent) 10%, var(--pv-surface-bg)) !important;
+  border-color: color-mix(in srgb, var(--pv-accent) 28%, transparent) !important;
+}
+
+.p-tabpanels,
+.p-tabpanel {
+  background: transparent !important;
+  color: var(--pv-text) !important;
+}
+
+.p-tablist-active-bar {
+  background: var(--pv-accent) !important;
+}
+
+.p-tablist-nav-button {
+  background: var(--pv-surface-bg) !important;
+  color: var(--pv-text-muted) !important;
+}
+
+.p-tablist-nav-button:hover {
+  color: var(--pv-text) !important;
+}
+
+/* Skeleton */
+.p-skeleton {
+  background: color-mix(in srgb, var(--pv-surface-muted) 85%, var(--pv-surface-border)) !important;
+}
+
+.p-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--pv-accent-soft) 55%, var(--pv-surface-bg)),
+    transparent
+  ) !important;
+}
+
+.app-dark .p-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--pv-accent-soft) 65%, var(--pv-surface-border)),
+    transparent
+  ) !important;
+}
+
+/* Accordion */
+.p-accordionpanel {
+  border-color: var(--pv-surface-border) !important;
+}
+
+.p-accordionheader {
+  color: var(--pv-text) !important;
+  background: var(--pv-surface-bg) !important;
+  border-color: var(--pv-surface-border) !important;
+}
+
+.p-accordionpanel:not(.p-accordionpanel-active):not(.p-disabled) > .p-accordionheader:hover {
+  color: var(--pv-text) !important;
+  background: color-mix(in srgb, var(--pv-accent-soft) 45%, var(--pv-surface-bg)) !important;
+}
+
+.p-accordionpanel:not(.p-disabled).p-accordionpanel-active > .p-accordionheader,
+.p-accordionpanel:not(.p-disabled).p-accordionpanel-active > .p-accordionheader:hover {
+  color: var(--pv-accent-strong) !important;
+  background: color-mix(in srgb, var(--pv-accent-soft) 55%, var(--pv-surface-bg)) !important;
+}
+
+.p-accordionheader-toggle-icon {
+  color: var(--pv-text-muted) !important;
+}
+
+.p-accordionpanel:not(.p-accordionpanel-active):not(.p-disabled) .p-accordionheader:hover .p-accordionheader-toggle-icon {
+  color: var(--pv-text) !important;
+}
+
+.p-accordionpanel:not(.p-disabled).p-accordionpanel-active > .p-accordionheader .p-accordionheader-toggle-icon,
+.p-accordionpanel:not(.p-disabled).p-accordionpanel-active > .p-accordionheader:hover .p-accordionheader-toggle-icon {
+  color: var(--pv-accent-strong) !important;
+}
+
+.p-accordioncontent-content {
+  background-color: color-mix(in srgb, var(--pv-surface-bg) 92%, transparent) !important;
+  color: var(--pv-text) !important;
+  border-color: var(--pv-surface-border) !important;
+}
+
+/* Fieldset */
+.p-fieldset {
+  background: var(--pv-surface-bg) !important;
+  border-color: var(--pv-surface-border) !important;
+  color: var(--pv-text) !important;
+}
+
+.p-fieldset-legend {
+  background: color-mix(in srgb, var(--pv-surface-bg) 96%, var(--pv-accent-soft)) !important;
+  border-color: var(--pv-surface-border) !important;
+  color: var(--pv-text) !important;
+}
+
+.p-fieldset-toggleable > .p-fieldset-legend:hover {
+  color: var(--pv-accent-strong) !important;
+  background: color-mix(in srgb, var(--pv-accent-soft) 45%, var(--pv-surface-bg)) !important;
+}
+
+.p-fieldset-toggle-icon {
+  color: var(--pv-text-muted) !important;
+}
+
+.p-fieldset-toggleable > .p-fieldset-legend:hover .p-fieldset-toggle-icon {
+  color: var(--pv-accent-strong) !important;
+}
+
+/* InputGroup */
+.p-inputgroupaddon {
+  background: color-mix(in srgb, var(--pv-surface-bg) 88%, var(--pv-accent-soft)) !important;
+  color: var(--pv-text-muted) !important;
+  border-block-start-color: var(--pv-surface-border) !important;
+  border-block-end-color: var(--pv-surface-border) !important;
+}
+
+.p-inputgroupaddon:first-child,
+.p-inputgroupaddon + .p-inputgroupaddon {
+  border-inline-start-color: var(--pv-surface-border) !important;
+}
+
+.p-inputgroupaddon:last-child {
+  border-inline-end-color: var(--pv-surface-border) !important;
+}
+
+/* Chip */
+.p-chip {
+  background: var(--pv-accent-soft) !important;
+  color: var(--pv-accent-strong) !important;
+}
+
+.p-chip-icon,
+.p-chip-remove-icon {
+  color: var(--pv-accent-strong) !important;
+}
+
+/* SplitButton — inherits button colors; ensure dropdown trigger matches */
+.p-splitbutton .p-button.p-button-outlined,
+.p-splitbutton .p-button.p-button-secondary {
+  background: var(--pv-surface-bg) !important;
+  border-color: var(--pv-surface-border) !important;
+  color: var(--pv-text) !important;
+}
+
+.p-splitbutton .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-secondary) {
+  background: var(--pv-accent) !important;
+  border-color: var(--pv-accent) !important;
+  color: #fff !important;
+}
+
+/* SpeedDial — uses Button internally; mask overlay color */
+.p-speeddial-mask {
+  background: var(--p-mask-background) !important;
+}

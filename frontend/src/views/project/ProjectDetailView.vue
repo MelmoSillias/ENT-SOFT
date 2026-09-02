@@ -1,0 +1,143 @@
+<script setup>
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import Card from 'primevue/card'
+import Button from 'primevue/button'
+import Tag from 'primevue/tag'
+import TabView from 'primevue/tabview'
+import TabPanel from 'primevue/tabpanel'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import { getProjectDetail } from '@/domains/project/services/projectService'
+import { formatDateFr, formatDateTimeFr, projectStatusLabel, projectStatusSeverity } from '@/domains/shared/utils/entLabels'
+import { formatMontant } from '@/domains/shared/utils/formatMontant'
+
+const route = useRoute()
+const router = useRouter()
+
+const project = ref(null)
+const loading = ref(true)
+const error = ref(null)
+
+async function load() {
+  loading.value = true
+  error.value = null
+  try {
+    project.value = await getProjectDetail(route.params.id)
+  } catch (e) {
+    error.value = e.response?.data?.error || 'Impossible de charger le projet.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
+</script>
+
+<template>
+  <section class="dashboard-page">
+    <div v-if="loading" class="dashboard-page__state">Chargement…</div>
+    <div v-else-if="error" class="dashboard-page__state">{{ error }}</div>
+
+    <Card v-else-if="project" class="dashboard-panel">
+      <template #title>
+        <div class="detail-header">
+          <div>
+            <span class="detail-header__code">{{ project.code }}</span>
+            <h1 class="detail-header__title">{{ project.title }}</h1>
+            <Tag :value="projectStatusLabel(project.status)" :severity="projectStatusSeverity(project.status)" />
+          </div>
+          <Button label="Retour" icon="pi pi-arrow-left" text @click="router.push({ name: 'projects' })" />
+        </div>
+      </template>
+      <template #content>
+        <TabView>
+          <TabPanel header="Informations">
+            <dl class="detail-dl">
+              <div><dt>Client</dt><dd>{{ project.clientTitle || project.clientId }}</dd></div>
+              <div><dt>Objet</dt><dd>{{ project.object || '—' }}</dd></div>
+              <div><dt>Budget</dt><dd>{{ formatMontant(project.budget, { code: 'EUR' }) }}</dd></div>
+              <div><dt>Date début</dt><dd>{{ formatDateFr(project.dateDebut) }}</dd></div>
+              <div><dt>Date fin</dt><dd>{{ formatDateFr(project.dateFin) }}</dd></div>
+            </dl>
+          </TabPanel>
+          <TabPanel :header="`Sites (${project.sites?.length ?? 0})`">
+            <DataTable v-if="project.sites?.length" :value="project.sites" striped-rows>
+              <Column field="siteTitle" header="Site" />
+              <Column field="role" header="Rôle" />
+              <Column header="Début">
+                <template #body="{ data }">{{ formatDateFr(data.dateDebut) }}</template>
+              </Column>
+              <Column header="Fin">
+                <template #body="{ data }">{{ formatDateFr(data.dateFin) }}</template>
+              </Column>
+            </DataTable>
+            <p v-else class="dashboard-page__state">Aucun site associé.</p>
+          </TabPanel>
+          <TabPanel :header="`Événements (${project.events?.length ?? 0})`">
+            <DataTable v-if="project.events?.length" :value="project.events" striped-rows>
+              <Column field="title" header="Titre" />
+              <Column field="type" header="Type" />
+              <Column header="Date">
+                <template #body="{ data }">{{ formatDateTimeFr(data.dateEvent) }}</template>
+              </Column>
+            </DataTable>
+            <p v-else class="dashboard-page__state">Aucun événement.</p>
+          </TabPanel>
+          <TabPanel header="Documents">
+            <p class="dashboard-page__state">Gestion documentaire — bientôt disponible.</p>
+          </TabPanel>
+        </TabView>
+      </template>
+    </Card>
+  </section>
+</template>
+
+<style scoped>
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+}
+
+.detail-header__code {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--layout-text-muted);
+  text-transform: uppercase;
+}
+
+.detail-header__title {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.detail-dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.detail-dl div {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.5rem;
+}
+
+.detail-dl dt {
+  font-weight: 600;
+  color: var(--layout-text-muted);
+}
+
+.detail-dl dd {
+  margin: 0;
+}
+
+.dashboard-page__state {
+  padding: 2rem;
+  text-align: center;
+  color: var(--layout-text-muted);
+}
+</style>

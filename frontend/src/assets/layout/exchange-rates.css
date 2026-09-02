@@ -1,0 +1,492 @@
+/* Dashboard home — refined, theme-aware */
+
+.dashboard-home .dashboard-panel--sober,
+.dashboard-home .dashboard-panel--sober:hover {
+  box-shadow: none;
+  backdrop-filter: none;
+  background: var(--layout-panel-bg, transparent);
+}
+
+.dashboard-home .dashboard-panel--sober:hover {
+  border-color: var(--layout-panel-border, var(--layout-border));
+}
+
+.dashboard-home .dashboard-panel--sober .p-card-title {
+  background: transparent;
+}
+
+/* Section headers */
+.dashboard-home .dashboard-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--layout-font-size-sm, 0.875rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.dashboard-home .dashboard-panel__title::before {
+  content: '';
+  width: 3px;
+  height: 1rem;
+  border-radius: 999px;
+  background: var(--layout-accent-strong);
+  flex-shrink: 0;
+}
+
+/* Exchange rates panel */
+.exchange-rates-panel .p-card-title {
+  background: transparent;
+  border-bottom: 1px solid var(--layout-panel-border, var(--layout-border));
+  padding-bottom: 0.85rem;
+}
+
+.exchange-rates-panel .dashboard-section-header {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+}
+
+.exchange-rates-panel .dashboard-section-header__leading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex: 0 1 auto;
+}
+
+.exchange-rates-panel .dashboard-section-header__trailing {
+  margin-left: auto;
+}
+
+.exchange-rates-panel .dashboard-section-header__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  background: var(--layout-accent-soft);
+  color: var(--layout-accent-strong);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.exchange-rates-panel .dashboard-section-header__title {
+  margin: 0;
+  font-size: var(--layout-font-size-sm, 0.875rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.exchange-rates-panel .dashboard-section-header__subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  color: var(--layout-text-muted);
+}
+
+/* Tabs */
+.exchange-rates-panel .p-tablist-tab-list {
+  border: none;
+  background: transparent;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  margin-bottom: 1.25rem;
+  border-bottom: none;
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  background: color-mix(in srgb, var(--layout-accent-soft) 35%, transparent);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.exchange-rates-panel .p-tab {
+  border: none;
+  border-radius: calc(var(--layout-radius-sm, 0.5rem) - 2px);
+  background: transparent;
+  color: var(--layout-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.45rem 0.85rem;
+  margin-bottom: 0;
+  box-shadow: none;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.exchange-rates-panel .p-tab:hover {
+  color: var(--layout-text);
+  background: color-mix(in srgb, var(--layout-panel-bg) 70%, transparent);
+}
+
+.exchange-rates-panel .p-tab[data-p-active='true'],
+.exchange-rates-panel .p-tab.p-tab-active {
+  color: var(--layout-accent-strong);
+  font-weight: 600;
+  background: var(--layout-panel-bg);
+  border-bottom: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.exchange-rates-panel .p-tabpanels {
+  padding: 0;
+  background: transparent;
+}
+
+/* Rate tiles */
+.exchange-tile {
+  position: relative;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--layout-panel-border, var(--layout-border));
+  border-radius: var(--layout-radius-md, 0.75rem);
+  background: var(--layout-panel-bg, transparent);
+}
+
+.exchange-tile:hover {
+  border-color: var(--layout-panel-border, var(--layout-border));
+}
+
+.exchange-tile__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.exchange-tile__pair {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--layout-text-muted);
+}
+
+.exchange-tile__code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--layout-accent-strong);
+  background: var(--layout-accent-soft);
+}
+
+.exchange-tile__value {
+  margin: 0.5rem 0 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--layout-text);
+}
+
+/* Chart */
+.exchange-chart {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem 0.85rem;
+  border: 1px solid var(--layout-panel-border, var(--layout-border));
+  border-radius: var(--layout-radius-md, 0.75rem);
+  background: var(--layout-panel-bg, transparent);
+}
+
+.exchange-chart__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.exchange-chart__intro {
+  min-width: 0;
+}
+
+.exchange-chart__title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--layout-text);
+}
+
+.exchange-chart__subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  color: var(--layout-text-muted);
+}
+
+.exchange-chart__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.65rem;
+  margin: 0;
+}
+
+.exchange-chart__stat {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 4.5rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--layout-panel-border, var(--layout-border));
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  background: color-mix(in srgb, var(--layout-panel-bg) 88%, var(--layout-accent-soft));
+}
+
+.exchange-chart__stat dt {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--layout-text-muted);
+}
+
+.exchange-chart__stat dd {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--layout-text);
+  white-space: nowrap;
+}
+
+.exchange-chart__stat--delta dd {
+  color: var(--layout-text-muted);
+}
+
+.exchange-chart__stat--up dd {
+  color: var(--layout-accent-strong);
+}
+
+.exchange-chart__stat--down dd {
+  color: var(--content-tone-danger, #dc2626);
+}
+
+.exchange-chart__plot {
+  height: 240px;
+  position: relative;
+  margin: 0 -0.15rem;
+}
+
+.exchange-chart__footer {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--layout-panel-border, var(--layout-border));
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--layout-text-muted);
+}
+
+.exchange-chart__footer-line {
+  flex: 1;
+  height: 1px;
+  background: var(--layout-panel-border, var(--layout-border));
+}
+
+.exchange-chart__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 180px;
+  font-size: 0.8125rem;
+  color: var(--layout-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .exchange-chart__stats {
+    width: 100%;
+  }
+
+  .exchange-chart__stat {
+    flex: 1 1 calc(50% - 0.35rem);
+    min-width: calc(50% - 0.35rem);
+  }
+
+  .exchange-chart__plot {
+    height: 210px;
+  }
+}
+
+/* Stats / compare blocks */
+.exchange-stat {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--layout-panel-border, var(--layout-border));
+  border-radius: var(--layout-radius-md, 0.75rem);
+  background: var(--layout-panel-bg, transparent);
+}
+
+.exchange-stat:hover {
+  border-color: var(--layout-panel-border, var(--layout-border));
+}
+
+.exchange-stat--highlight {
+  border-color: var(--layout-panel-border, var(--layout-border));
+  background: color-mix(in srgb, var(--layout-accent-soft) 40%, var(--layout-panel-bg));
+}
+
+.exchange-stat__label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--layout-text-muted);
+}
+
+.exchange-stat__value {
+  margin: 0.4rem 0 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--layout-text);
+}
+
+.exchange-stat__value--accent {
+  color: var(--layout-accent-strong);
+}
+
+.exchange-stat__meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  color: var(--layout-text-muted);
+}
+
+.exchange-field-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--layout-text-muted);
+}
+
+.exchange-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--layout-panel-border, var(--layout-border));
+}
+
+.exchange-toolbar__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--layout-accent-strong);
+  background: var(--layout-accent-soft);
+}
+
+.exchange-toolbar__meta::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--layout-accent);
+}
+
+.exchange-period-toggle :deep(.p-togglebutton) {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.7rem;
+}
+
+.exchange-period-toggle :deep(.p-togglebutton-checked) {
+  background: var(--layout-panel-bg);
+  color: var(--layout-accent-strong);
+  border-color: var(--layout-panel-border, var(--layout-border));
+}
+
+.exchange-viewer__count {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  color: var(--layout-text-muted);
+}
+
+.exchange-rates-panel__attribution {
+  margin: 1.25rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--layout-panel-border, var(--layout-border));
+  font-size: 0.7rem;
+  color: var(--layout-text-muted);
+  text-align: center;
+}
+
+.exchange-rates-panel__attribution a {
+  color: var(--layout-accent-strong);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.exchange-rates-panel__attribution a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* KPI cards on dashboard */
+.dashboard-home .stats-card {
+  overflow: hidden;
+  position: relative;
+}
+
+.dashboard-home .stats-card__icon-wrap {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  background: var(--layout-accent-soft);
+  color: var(--layout-accent-strong);
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.dashboard-home .stats-card__value {
+  color: var(--layout-text);
+}
+
+/* Etats grid */
+.dashboard-home .dashboard-etats li:hover {
+  border-color: var(--layout-panel-border, var(--layout-border));
+}
+
+.dashboard-home .dashboard-etats__item--active {
+  background: color-mix(in srgb, var(--layout-accent-soft) 35%, var(--layout-panel-bg));
+  border-color: var(--layout-panel-border, var(--layout-border));
+}
+
+.dashboard-home .dashboard-etats__value--active {
+  color: var(--layout-accent-strong);
+}
+
+@media (max-width: 640px) {
+  .exchange-rates-panel .dashboard-section-header__trailing {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .exchange-rates-panel .p-tablist-tab-list {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .exchange-rates-panel .p-tab {
+    flex: 1;
+    justify-content: center;
+  }
+}

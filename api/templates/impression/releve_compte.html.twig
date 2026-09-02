@@ -1,0 +1,68 @@
+{% extends 'impression/_layout.html.twig' %}
+
+{% block content %}
+    <div class="doc-title-band">
+        <div>
+            <p class="doc-title">{{ data.title }}</p>
+            <div class="doc-meta">{{ data.periode }}</div>
+        </div>
+        <div class="doc-date">
+            Généré le {{ "now"|date('d/m/Y H:i') }}
+        </div>
+    </div>
+
+    <div class="recu-box" style="border: 1px solid #111; padding: 12px; margin-bottom: 16px;">
+        <div><strong>Client :</strong> {{ data.client_nom }}</div>
+        <div><strong>Téléphone :</strong> {{ data.client_telephone }}</div>
+        <div><strong>N° compte :</strong> {{ data.numero_compte }}</div>
+    </div>
+
+    {% if data.soldes is not empty %}
+        <p style="font-weight: 700; margin: 0 0 8px;">Soldes actuels</p>
+        <table class="doc-table" style="margin-bottom: 18px;">
+            <thead>
+                <tr>
+                    <th>Devise</th>
+                    <th>Solde</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in data.soldes %}
+                    <tr>
+                        <td>{{ s.devise }}{% if s.isPrincipale %} (principale){% endif %}</td>
+                        <td class="col-num">{{ s.solde }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    <table class="doc-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Référence</th>
+                <th>Type</th>
+                <th>Sens</th>
+                <th>Montant</th>
+                <th>Libellé</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data.rows %}
+                <tr>
+                    <td>{{ row.date }}</td>
+                    <td>{{ row.reference }}</td>
+                    <td>{{ row.type }}</td>
+                    <td>{{ row.sens }}</td>
+                    <td class="col-num">{{ row.montant }}</td>
+                    <td>{{ row.libelle }}</td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="6" class="empty">Aucune opération</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

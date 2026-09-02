@@ -1,0 +1,30 @@
+# Git
+**/.git
+**/.gitignore
+
+# Dependencies
+**/node_modules
+**/vendor
+
+# Symfony runtime
+**/var/cache
+**/var/log
+**/var/share
+
+# Local env files
+**/.env
+**/.env.local
+**/.env.*.local
+
+# IDE / OS
+**/.idea
+**/.vscode
+**/.DS_Store
+**/Thumbs.db
+
+# Tests & docs (not needed in images)
+**/tests
+**/phpunit.dist.xml
+
+# Spring Boot (hors stack Symfony&Vue)
+../SpringBoot
