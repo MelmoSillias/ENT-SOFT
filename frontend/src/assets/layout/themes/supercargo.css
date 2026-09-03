@@ -14,7 +14,7 @@
   --layout-panel-border: #d8e0ec;
   --layout-text-color: #1a2744;
   --layout-text-muted: #5c6b82;
-  --layout-logo-bg: #ffffff;
+  --layout-logo-bg: #000000;
   --layout-logo-border: rgba(26, 48, 102, 0.12);
   --layout-auth-bg:
     radial-gradient(circle at top, rgba(26, 48, 102, 0.14), transparent 42%),
@@ -40,7 +40,7 @@
   --layout-panel-border: rgba(148, 163, 184, 0.14);
   --layout-text-color: rgba(241, 245, 249, 0.95);
   --layout-text-muted: rgba(148, 163, 184, 0.78);
-  --layout-logo-bg: #ffffff;
+  --layout-logo-bg: #000000;
   --layout-logo-border: rgba(255, 255, 255, 0.12);
   --layout-auth-brand-color: #b8d9ff;
 }
@@ -78,12 +78,13 @@
   font-size: 0.72rem;
 }
 
-:root[data-layout-theme='supercargo'] .auth-page__brand-visual:not(.auth-page__brand-visual--lockup) {
+:root[data-layout-theme='supercargo'] .auth-page__brand-visual {
   width: 9.5rem;
   height: 9.5rem;
-  padding: 0.55rem;
+  padding: 0.2rem;
+  background: #000000;
 }
 
-:root[data-layout-theme='supercargo'] .auth-page__brand-logo:not(.auth-page__brand-logo--lockup) {
-  transform: scale(1.08);
+:root[data-layout-theme='supercargo'] .auth-page__brand-logo {
+  transform: none;
 }

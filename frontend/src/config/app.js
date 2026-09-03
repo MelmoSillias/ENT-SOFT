@@ -17,7 +17,6 @@ export const appConfig = {
     shortName: 'ENT',
     tagline: 'CONNECTER • ALIMENTER • ÉQUIPER • INNOVER',
     logoUrl: '/branding/logo.png',
-    authLogoUrl: '/branding/logo-full.png',
     supportEmail: 'support@ent-soft.local',
   },
   connectivity: {

@@ -139,7 +139,7 @@
   object-fit: contain;
   object-position: center;
   padding: 0;
-  transform: scale(1.08);
+  transform: none;
 }
 
 .app-sidebar__logo-image {

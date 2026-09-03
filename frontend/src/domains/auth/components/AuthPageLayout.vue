@@ -2,21 +2,17 @@
   <div class="auth-page">
     <section class="auth-page__section">
       <div class="auth-page__container">
-        <div class="auth-page__brand" :class="{ 'auth-page__brand--lockup': Boolean(authLogoUrl) }">
-          <div
-            class="auth-page__brand-visual"
-            :class="{ 'auth-page__brand-visual--lockup': Boolean(authLogoUrl) }"
-          >
+        <div class="auth-page__brand">
+          <div class="auth-page__brand-visual">
             <img
-              v-if="authLogoUrl || brand.logoUrl"
-              :src="authLogoUrl || brand.logoUrl"
+              v-if="brand.logoUrl"
+              :src="brand.logoUrl"
               :alt="brand.name"
               class="auth-page__brand-logo"
-              :class="{ 'auth-page__brand-logo--lockup': Boolean(authLogoUrl) }"
             />
             <span v-else class="auth-page__brand-mark">{{ brand.shortName }}</span>
           </div>
-          <div v-if="!authLogoUrl" class="auth-page__brand-text">
+          <div class="auth-page__brand-text">
             <span class="auth-page__brand-name">{{ brand.name }}</span>
             <span v-if="brand.tagline" class="auth-page__brand-tagline">{{ brand.tagline }}</span>
           </div>
@@ -53,7 +49,6 @@ defineProps({
 useLayoutTheme()
 
 const brand = appConfig.branding
-const authLogoUrl = brand.authLogoUrl || ''
 </script>
 
 <style scoped>
@@ -81,34 +76,19 @@ const authLogoUrl = brand.authLogoUrl || ''
   gap: 1rem;
 }
 
-.auth-page__brand--lockup {
-  gap: 0;
-}
-
 .auth-page__brand-visual {
   display: grid;
   place-items: center;
   width: 9rem;
   height: 9rem;
   border-radius: 999px;
-  background: var(--layout-logo-bg, #ffffff);
+  background: #000000;
   border: 1px solid var(--layout-logo-border, rgba(26, 48, 102, 0.12));
   box-shadow:
     0 16px 40px rgba(26, 48, 102, 0.12),
     0 0 0 6px color-mix(in srgb, var(--layout-accent-soft, rgba(26, 48, 102, 0.12)) 65%, transparent);
-  padding: 0.55rem;
-}
-
-.auth-page__brand-visual--lockup {
-  width: min(22rem, 100%);
-  height: auto;
-  min-height: 0;
-  border-radius: 1.25rem;
-  padding: 0.85rem 1rem;
-  background: #f7f5ef;
-  box-shadow:
-    0 16px 40px rgba(26, 48, 102, 0.1),
-    0 0 0 1px rgba(26, 48, 102, 0.08);
+  padding: 0.2rem;
+  overflow: hidden;
 }
 
 .auth-page__brand-logo {
@@ -117,14 +97,6 @@ const authLogoUrl = brand.authLogoUrl || ''
   object-fit: contain;
   object-position: center;
   flex-shrink: 0;
-  transform: scale(1.08);
-}
-
-.auth-page__brand-logo--lockup {
-  width: 100%;
-  height: auto;
-  max-height: 16rem;
-  transform: none;
 }
 
 .auth-page__brand-text {
