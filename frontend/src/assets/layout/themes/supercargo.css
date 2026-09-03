@@ -78,12 +78,12 @@
   font-size: 0.72rem;
 }
 
-:root[data-layout-theme='supercargo'] .auth-page__brand-visual {
+:root[data-layout-theme='supercargo'] .auth-page__brand-visual:not(.auth-page__brand-visual--lockup) {
   width: 9.5rem;
   height: 9.5rem;
   padding: 0.55rem;
 }
 
-:root[data-layout-theme='supercargo'] .auth-page__brand-logo {
+:root[data-layout-theme='supercargo'] .auth-page__brand-logo:not(.auth-page__brand-logo--lockup) {
   transform: scale(1.08);
 }

@@ -13,7 +13,7 @@ final class HealthController extends AbstractController
     {
         return $this->json([
             'status' => 'ok',
-            'app' => 'super-cargo-api',
+            'app' => 'ent-soft-api',
             'version' => '0.1.0',
         ]);
     }

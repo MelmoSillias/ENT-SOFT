@@ -21,10 +21,11 @@ export default defineConfig({
         'pwa-maskable-512x512.png',
       ],
       manifest: {
-        id: 'super-cargo',
-        name: 'Super Cargo Services',
-        short_name: 'SCS',
-        description: "Application métier conçue pour Super Cargo Services — gestion des transferts d'argent internationaux.",
+        id: 'ent-soft',
+        name: 'ENT-SOFT',
+        short_name: 'ENT',
+        description:
+          'Application métier pour Entreprise Network Technologies — télécoms, réseaux, solaires et solutions.',
         lang: 'fr',
         dir: 'ltr',
         start_url: '/',
@@ -34,7 +35,7 @@ export default defineConfig({
         orientation: 'any',
         background_color: '#eef2f8',
         theme_color: '#1a3066',
-        categories: ['finance', 'business'],
+        categories: ['business', 'productivity'],
         icons: [
           {
             src: '/pwa-192x192.png',

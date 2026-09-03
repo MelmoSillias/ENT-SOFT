@@ -19,7 +19,7 @@ export const themeDefaultAccents = {
 
 export const layoutOptionSets = {
   themes: [
-    { label: 'Super Cargo', value: 'supercargo' },
+    { label: 'ENT', value: 'supercargo' },
     { label: 'LafiaSugu', value: 'lafiasugu' },
     { label: 'Graphite', value: 'graphite' },
     { label: 'Ocean', value: 'ocean' },

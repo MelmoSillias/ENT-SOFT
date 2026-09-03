@@ -1,6 +1,6 @@
 {
-    "name": "super-cargo/api",
-    "description": "API REST de l'application métier conçue pour Super Cargo Services (Symfony, modular monolith DDD)",
+    "name": "ent-soft/api",
+    "description": "API REST de l'application métier ENT-SOFT pour Entreprise Network Technologies (Symfony, modular monolith DDD)",
     "type": "project",
     "license": "proprietary",
     "minimum-stability": "stable",

@@ -20,7 +20,7 @@ const routes = [
         component: () => import('@/views/dashboard/DashboardView.vue'),
         meta: {
           title: 'Tableau de bord',
-          section: 'ENT-SOFT',
+          section: 'ENT',
           requiredPermission: 'dashboard.view',
         },
       },

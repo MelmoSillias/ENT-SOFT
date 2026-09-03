@@ -88,8 +88,8 @@ function goTo(routeName) {
 <template>
   <section class="dashboard-page dashboard-home">
     <div class="dashboard-home__intro">
-      <p class="dashboard-home__period-title">Vue d'ensemble ENT-SOFT</p>
-      <p class="dashboard-home__period-hint">Installations télécom & solaire</p>
+      <p class="dashboard-home__period-title">Vue d'ensemble ENT</p>
+      <p class="dashboard-home__period-hint">CONNECTER • ALIMENTER • ÉQUIPER • INNOVER</p>
     </div>
 
     <DashboardSkeleton v-if="loading" :show-exchange-rates="false" />

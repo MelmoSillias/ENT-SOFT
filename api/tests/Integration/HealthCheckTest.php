@@ -19,6 +19,6 @@ final class HealthCheckTest extends WebTestCase
         $payload = json_decode($client->getResponse()->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
 
         self::assertSame('ok', $payload['status']);
-        self::assertSame('super-cargo-api', $payload['app']);
+        self::assertSame('ent-soft-api', $payload['app']);
     }
 }

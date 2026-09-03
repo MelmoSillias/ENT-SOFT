@@ -49,7 +49,7 @@ const { pending: loading, run: runLogin } = useAsyncAction(async () => {
     toast.add({
       severity: 'success',
       summary: 'Connexion réussie',
-      detail: 'Bienvenue sur ENT-SOFT.',
+      detail: 'Bienvenue sur ENT.',
     })
     await router.replace({ name: 'dashboard' })
   } catch (e) {
@@ -61,7 +61,7 @@ const { pending: loading, run: runLogin } = useAsyncAction(async () => {
 <template>
   <AuthPageLayout
     title="Connexion"
-    subtitle="Accédez à votre espace ENT-SOFT."
+    subtitle="Accédez à votre espace Entreprise Network Technologies."
   >
     <section class="auth-light-surface">
       <form class="login-form" @submit.prevent="submit">
