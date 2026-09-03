@@ -17,4 +17,7 @@ interface ProjectSiteRepositoryInterface
     public function findByProjectAndSite(Uuid $projectId, Uuid $siteId): ?ProjectSite;
 
     public function remove(ProjectSite $projectSite): void;
+
+    /** @return array<string, int> Map projectId (RFC4122) → nombre de sites */
+    public function countByProjectIds(array $projectIds): array;
 }

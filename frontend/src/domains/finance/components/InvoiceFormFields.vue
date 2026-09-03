@@ -3,6 +3,7 @@ import Select from 'primevue/select'
 import DatePicker from 'primevue/datepicker'
 import InputNumber from 'primevue/inputnumber'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
+import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import { INVOICE_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
 
 const form = defineModel({ type: Object, required: true })
@@ -25,7 +26,7 @@ const statusOptions = INVOICE_STATUS_OPTIONS
     </div>
     <div class="field">
       <label>Montant <span class="required">*</span></label>
-      <InputNumber v-model="form.amount" mode="currency" currency="EUR" locale="fr-FR" :invalid="Boolean(errors.amount)" fluid />
+      <InputNumber v-model="form.amount" mode="currency" :currency="DEVISE_APP.code" locale="fr-FR" :min-fraction-digits="0" :max-fraction-digits="0" :invalid="Boolean(errors.amount)" fluid />
       <AppFieldError :message="errors.amount" />
     </div>
     <div class="field">

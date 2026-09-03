@@ -17,13 +17,14 @@ final readonly class ProjectResponseDto
         public float $budget,
         public string $clientId,
         public array $sitesInformations,
+        public int $nbSites,
         public bool $isEnabled,
         public string $createdAt,
         public string $updatedAt,
     ) {
     }
 
-    public static function fromEntity(Project $project): self
+    public static function fromEntity(Project $project, int $nbSites = 0): self
     {
         return new self(
             id: (string) $project->getId(),
@@ -36,6 +37,7 @@ final readonly class ProjectResponseDto
             budget: $project->getBudget(),
             clientId: (string) $project->getClientId(),
             sitesInformations: $project->getSitesInformations(),
+            nbSites: $nbSites,
             isEnabled: $project->isEnabled(),
             createdAt: $project->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $project->getUpdatedAt()->format(\DateTimeInterface::ATOM),
@@ -56,6 +58,7 @@ final readonly class ProjectResponseDto
             'budget' => $this->budget,
             'clientId' => $this->clientId,
             'sitesInformations' => $this->sitesInformations,
+            'nbSites' => $this->nbSites,
             'isEnabled' => $this->isEnabled,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,

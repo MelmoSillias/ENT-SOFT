@@ -21,6 +21,7 @@ import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
+import { DEVISE_APP } from '@/domains/shared/constants/devise'
 
 const toast = useAppToast()
 const confirm = useConfirm()
@@ -204,7 +205,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
             </Column>
             <Column header="Montant">
-              <template #body="{ data }">{{ formatMontant(data.amount, { code: 'EUR' }) }}</template>
+              <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
             </Column>
             <Column header="Statut">
               <template #body="{ data }">

@@ -4,6 +4,7 @@ namespace App\Project\Infrastructure\Persistence\Doctrine;
 
 use App\Project\Domain\Entity\ProjectEvent;
 use App\Project\Domain\Repository\ProjectEventRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -24,11 +25,11 @@ class DoctrineProjectEventRepository extends ServiceEntityRepository implements 
 
     public function findByProjectId(Uuid $projectId): array
     {
-        return $this->createQueryBuilder('e')
+        $qb = $this->createQueryBuilder('e')
             ->andWhere('e.projectId = :projectId')
-            ->setParameter('projectId', $projectId, 'uuid')
-            ->orderBy('e.date', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('e.date', 'DESC');
+        UuidQueryParameter::bind($qb, 'projectId', $projectId);
+
+        return $qb->getQuery()->getResult();
     }
 }

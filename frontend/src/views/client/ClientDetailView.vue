@@ -21,6 +21,7 @@ import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
+import { DEVISE_APP } from '@/domains/shared/constants/devise'
 
 const route = useRoute()
 const router = useRouter()
@@ -172,7 +173,7 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async () => {
                   <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
                 </Column>
                 <Column header="Montant">
-                  <template #body="{ data }">{{ formatMontant(data.amount, { code: 'EUR' }) }}</template>
+                  <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
                 </Column>
                 <Column header="Statut">
                   <template #body="{ data }">

@@ -11,6 +11,7 @@ import Column from 'primevue/column'
 import { getProjectDetail } from '@/domains/project/services/projectService'
 import { formatDateFr, formatDateTimeFr, projectStatusLabel, projectStatusSeverity } from '@/domains/shared/utils/entLabels'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
+import { DEVISE_APP } from '@/domains/shared/constants/devise'
 
 const route = useRoute()
 const router = useRouter()
@@ -56,7 +57,7 @@ onMounted(load)
             <dl class="detail-dl">
               <div><dt>Client</dt><dd>{{ project.clientTitle || project.clientId }}</dd></div>
               <div><dt>Objet</dt><dd>{{ project.object || '—' }}</dd></div>
-              <div><dt>Budget</dt><dd>{{ formatMontant(project.budget, { code: 'EUR' }) }}</dd></div>
+              <div><dt>Budget</dt><dd>{{ formatMontant(project.budget, DEVISE_APP) }}</dd></div>
               <div><dt>Date début</dt><dd>{{ formatDateFr(project.dateDebut) }}</dd></div>
               <div><dt>Date fin</dt><dd>{{ formatDateFr(project.dateFin) }}</dd></div>
             </dl>

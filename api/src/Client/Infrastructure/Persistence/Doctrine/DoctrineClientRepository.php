@@ -4,6 +4,7 @@ namespace App\Client\Infrastructure\Persistence\Doctrine;
 
 use App\Client\Domain\Entity\Client;
 use App\Client\Domain\Repository\ClientRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -24,7 +25,11 @@ class DoctrineClientRepository extends ServiceEntityRepository implements Client
 
     public function findById(Uuid $id): ?Client
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('c')
+            ->andWhere('c.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findAllEnabled(?string $search = null): array

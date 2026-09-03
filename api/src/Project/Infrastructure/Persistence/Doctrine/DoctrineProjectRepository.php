@@ -5,6 +5,7 @@ namespace App\Project\Infrastructure\Persistence\Doctrine;
 use App\Project\Domain\Entity\Project;
 use App\Project\Domain\Enum\ProjectStatus;
 use App\Project\Domain\Repository\ProjectRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -25,7 +26,11 @@ class DoctrineProjectRepository extends ServiceEntityRepository implements Proje
 
     public function findById(Uuid $id): ?Project
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('p')
+            ->andWhere('p.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findAllEnabled(?string $search = null): array
@@ -45,14 +50,14 @@ class DoctrineProjectRepository extends ServiceEntityRepository implements Proje
 
     public function countByClientId(Uuid $clientId): int
     {
-        return (int) $this->createQueryBuilder('p')
+        $qb = $this->createQueryBuilder('p')
             ->select('COUNT(p.id)')
             ->andWhere('p.clientId = :clientId')
             ->andWhere('p.isEnabled = :enabled')
-            ->setParameter('clientId', $clientId, 'uuid')
-            ->setParameter('enabled', true)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('enabled', true);
+        UuidQueryParameter::bind($qb, 'clientId', $clientId);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     public function countByStatus(ProjectStatus $status): int

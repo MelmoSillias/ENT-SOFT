@@ -5,6 +5,7 @@ import Select from 'primevue/select'
 import DatePicker from 'primevue/datepicker'
 import InputNumber from 'primevue/inputnumber'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
+import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import { PROJECT_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
 
 const form = defineModel({ type: Object, required: true })
@@ -62,7 +63,7 @@ const statusOptions = PROJECT_STATUS_OPTIONS
     </div>
     <div class="field">
       <label>Budget</label>
-      <InputNumber v-model="form.budget" mode="currency" currency="EUR" locale="fr-FR" fluid />
+      <InputNumber v-model="form.budget" mode="currency" :currency="DEVISE_APP.code" locale="fr-FR" :min-fraction-digits="0" :max-fraction-digits="0" fluid />
     </div>
   </div>
 </template>

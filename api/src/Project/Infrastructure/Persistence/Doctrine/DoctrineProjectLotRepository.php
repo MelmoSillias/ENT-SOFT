@@ -4,6 +4,7 @@ namespace App\Project\Infrastructure\Persistence\Doctrine;
 
 use App\Project\Domain\Entity\ProjectLot;
 use App\Project\Domain\Repository\ProjectLotRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -29,22 +30,22 @@ class DoctrineProjectLotRepository extends ServiceEntityRepository implements Pr
 
     public function findByProjectId(Uuid $projectId): array
     {
-        return $this->createQueryBuilder('l')
+        $qb = $this->createQueryBuilder('l')
             ->andWhere('l.projectId = :projectId')
-            ->setParameter('projectId', $projectId, 'uuid')
-            ->orderBy('l.code', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('l.code', 'ASC');
+        UuidQueryParameter::bind($qb, 'projectId', $projectId);
+
+        return $qb->getQuery()->getResult();
     }
 
     public function findByProjectAndCode(Uuid $projectId, string $code): ?ProjectLot
     {
-        return $this->createQueryBuilder('l')
+        $qb = $this->createQueryBuilder('l')
             ->andWhere('l.projectId = :projectId')
             ->andWhere('l.code = :code')
-            ->setParameter('projectId', $projectId, 'uuid')
-            ->setParameter('code', $code)
-            ->getQuery()
-            ->getOneOrNullResult();
+            ->setParameter('code', $code);
+        UuidQueryParameter::bind($qb, 'projectId', $projectId);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 }

@@ -4,6 +4,7 @@ namespace App\Site\Infrastructure\Persistence\Doctrine;
 
 use App\Site\Domain\Entity\Site;
 use App\Site\Domain\Repository\SiteRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -48,10 +49,10 @@ class DoctrineSiteRepository extends ServiceEntityRepository implements SiteRepo
             return [];
         }
 
-        return $this->createQueryBuilder('s')
-            ->andWhere('s.id IN (:ids)')
-            ->setParameter('ids', $ids)
-            ->getQuery()
-            ->getResult();
+        $qb = $this->createQueryBuilder('s')
+            ->andWhere('s.id IN (:ids)');
+        UuidQueryParameter::bindList($qb, 'ids', $ids);
+
+        return $qb->getQuery()->getResult();
     }
 }

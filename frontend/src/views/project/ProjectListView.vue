@@ -22,6 +22,7 @@ import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
+import { DEVISE_APP } from '@/domains/shared/constants/devise'
 
 const router = useRouter()
 const toast = useAppToast()
@@ -207,8 +208,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
                 <Tag :value="projectStatusLabel(data.status)" :severity="projectStatusSeverity(data.status)" />
               </template>
             </Column>
+            <Column header="Nb sites" field="nbSites" style="width: 6rem" />
             <Column header="Budget">
-              <template #body="{ data }">{{ formatMontant(data.budget, { code: 'EUR' }) }}</template>
+              <template #body="{ data }">{{ formatMontant(data.budget, DEVISE_APP) }}</template>
             </Column>
             <Column header="Début">
               <template #body="{ data }">{{ formatDateFr(data.dateDebut) }}</template>
