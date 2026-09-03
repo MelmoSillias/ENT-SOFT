@@ -1,4 +1,4 @@
 services:
-  web:
+  entsoft-web:
     ports:
       - "${WEB_PORT:-8080}:80"

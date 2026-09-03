@@ -7,7 +7,7 @@ server {
     gzip on;
     gzip_types text/plain text/css application/json application/javascript application/manifest+json text/xml application/xml;
 
-    # Résolution DNS Docker au runtime (évite 502 si api démarre après web)
+    # Résolution DNS Docker au runtime (évite 502 si entsoft-api démarre après entsoft-web)
     resolver 127.0.0.11 ipv6=off valid=10s;
     set $api_upstream ${API_UPSTREAM_HOST}:${API_UPSTREAM_PORT};
 

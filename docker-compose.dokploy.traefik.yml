@@ -6,7 +6,7 @@ include:
   - path: docker-compose.dokploy.yml
 
 services:
-  web:
+  entsoft-web:
     labels:
       - traefik.enable=true
       - traefik.http.routers.ent-soft-web.rule=Host(`${APP_DOMAIN:?APP_DOMAIN is required}`)

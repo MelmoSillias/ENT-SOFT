@@ -15,16 +15,17 @@ docker compose up -d
 ```
 
 Services :
-- **api** — Symfony + SQLite (`var/database/data.db` dans le volume `sqlite_data`)
-- **web** — nginx + frontend build (port 8080 par défaut)
+- **entsoft-api** — Symfony + SQLite (`var/database/data.db` dans le volume `entsoft_sqlite_data`)
+- **entsoft-web** — nginx + frontend build (port 8080 par défaut)
 
-Plus de service MySQL : la base est un fichier SQLite persisté via le volume Docker `sqlite_data`.
+Plus de service MySQL : la base est un fichier SQLite persisté via le volume Docker `entsoft_sqlite_data`.
 
 ### Dokploy
 
 Utiliser `docker-compose.dokploy.yml` (réseau externe `dokploy-network`).  
+Les services sont préfixés `entsoft-*` pour éviter les collisions DNS avec d'autres stacks sur le même réseau.  
 Variables minimales : `APP_SECRET`, optionnellement `RUN_LOAD_FIXTURES=true` au premier démarrage.  
-Le volume `sqlite_data` conserve la base entre redéploiements.
+Le volume `entsoft_sqlite_data` conserve la base entre redéploiements.
 
 ## Développement local
 
@@ -60,6 +61,7 @@ npm run dev
 | DATABASE_URL | `sqlite:////var/www/html/var/database/data.db` (Docker) ou chemin local |
 | SQLITE_DATABASE_PATH | Chemin fichier SQLite (Docker, optionnel) |
 | VITE_API_URL | `/api` ou URL API complète |
+| API_UPSTREAM_HOST | Hôte Docker de l'API (`entsoft-api` par défaut) |
 | RUN_MIGRATIONS | `true` en Docker pour auto-migrate |
 | RUN_LOAD_FIXTURES | `true` pour charger admin au premier démarrage |
 

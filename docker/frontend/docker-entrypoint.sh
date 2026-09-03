@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-export API_UPSTREAM_HOST="${API_UPSTREAM_HOST:-api}"
+export API_UPSTREAM_HOST="${API_UPSTREAM_HOST:-entsoft-api}"
 export API_UPSTREAM_PORT="${API_UPSTREAM_PORT:-80}"
 
 envsubst '${API_UPSTREAM_HOST} ${API_UPSTREAM_PORT}' \
