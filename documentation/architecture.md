@@ -51,5 +51,5 @@ ENT-SOFT/
 
 ## Stack
 
-- PHP 8.2+, Symfony 7.4, Doctrine ORM 3, MySQL 8
+- PHP 8.2+, Symfony 7.4, Doctrine ORM 3, SQLite
 - Vue 3.5, Vite 6, Pinia, PrimeVue 4, Axios

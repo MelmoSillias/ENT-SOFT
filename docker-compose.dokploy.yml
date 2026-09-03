@@ -1,46 +1,20 @@
-# Compose autonome pour Dokploy (calqué sur StockifyWeb multi-shop).
+# Compose autonome pour Dokploy.
 # Pas de "include" ni réseau bridge custom : tous les services sur dokploy-network.
+# Base SQLite persistée via volume sqlite_data (fichier /var/www/html/var/data.db).
 
 services:
-  mysql:
-    image: mysql:8.0
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-super_cargo}
-      MYSQL_USER: ${MYSQL_USER:-super_cargo}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
-    networks:
-      - dokploy-network
-
   api:
     build:
       context: .
       dockerfile: docker/api/Dockerfile
     restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
     environment:
       APP_ENV: ${APP_ENV:-prod}
       APP_DEBUG: ${APP_DEBUG:-0}
       APP_SECRET: ${APP_SECRET}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-${APP_SECRET}}
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_USER: ${MYSQL_USER:-super_cargo}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-super_cargo}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      DATABASE_URL: mysql://${MYSQL_USER:-super_cargo}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-super_cargo}?serverVersion=8.0&charset=utf8mb4
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////var/www/html/var/database/data.db}
+      SQLITE_DATABASE_PATH: ${SQLITE_DATABASE_PATH:-/var/www/html/var/database/data.db}
       DEFAULT_URI: ${DEFAULT_URI:-http://localhost}
       CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:-'^https?://(.*)$'}
       FRANKFURTER_API_URL: ${FRANKFURTER_API_URL:-https://api.frankfurter.dev}
@@ -51,6 +25,7 @@ services:
       SYMFONY_TRUSTED_HEADERS: ${SYMFONY_TRUSTED_HEADERS:-x-forwarded-for,x-forwarded-host,x-forwarded-proto}
     volumes:
       - api_uploads:/var/www/html/public/uploads
+      - sqlite_data:/var/www/html/var/database
     expose:
       - "80"
     healthcheck:
@@ -58,7 +33,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 180s
+      start_period: 120s
     networks:
       - dokploy-network
 
@@ -85,5 +60,5 @@ networks:
     external: true
 
 volumes:
-  mysql_data:
+  sqlite_data:
   api_uploads:

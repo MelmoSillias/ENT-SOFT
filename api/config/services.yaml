@@ -70,6 +70,9 @@ services:
     App\Client\Domain\Repository\ClientCommentRepositoryInterface:
         alias: App\Client\Infrastructure\Persistence\Doctrine\DoctrineClientCommentRepository
 
+    App\Client\Domain\Repository\ClientContactRepositoryInterface:
+        alias: App\Client\Infrastructure\Persistence\Doctrine\DoctrineClientContactRepository
+
     App\Site\Domain\Repository\SiteRepositoryInterface:
         alias: App\Site\Infrastructure\Persistence\Doctrine\DoctrineSiteRepository
 
@@ -78,6 +81,9 @@ services:
 
     App\Project\Domain\Repository\ProjectSiteRepositoryInterface:
         alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectSiteRepository
+
+    App\Project\Domain\Repository\ProjectLotRepositoryInterface:
+        alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectLotRepository
 
     App\Project\Domain\Repository\ProjectEventRepositoryInterface:
         alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectEventRepository

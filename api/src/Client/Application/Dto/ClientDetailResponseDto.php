@@ -6,7 +6,10 @@ use App\Client\Domain\Entity\Client;
 
 final readonly class ClientDetailResponseDto
 {
-    /** @param list<array<string, mixed>> $comments */
+    /**
+     * @param list<array<string, mixed>> $comments
+     * @param list<array<string, mixed>> $contacts
+     */
     public function __construct(
         public string $id,
         public string $code,
@@ -18,11 +21,17 @@ final readonly class ClientDetailResponseDto
         public int $projectCount,
         public int $invoiceCount,
         public array $comments,
+        public array $contacts,
     ) {
     }
 
-    public static function fromEntity(Client $client, int $projectCount, int $invoiceCount, array $comments): self
-    {
+    public static function fromEntity(
+        Client $client,
+        int $projectCount,
+        int $invoiceCount,
+        array $comments,
+        array $contacts = [],
+    ): self {
         return new self(
             id: (string) $client->getId(),
             code: $client->getCode(),
@@ -34,6 +43,7 @@ final readonly class ClientDetailResponseDto
             projectCount: $projectCount,
             invoiceCount: $invoiceCount,
             comments: $comments,
+            contacts: $contacts,
         );
     }
 
@@ -51,6 +61,7 @@ final readonly class ClientDetailResponseDto
             'projectCount' => $this->projectCount,
             'invoiceCount' => $this->invoiceCount,
             'comments' => $this->comments,
+            'contacts' => $this->contacts,
         ];
     }
 }

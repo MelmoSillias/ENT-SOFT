@@ -31,6 +31,25 @@ final class UpdateProjectSiteHandler
         if ($command->employeeIds !== null) {
             $projectSite->setEmployeeIds($command->employeeIds);
         }
+        if ($command->clearLotId) {
+            $projectSite->setLotId(null);
+        } elseif ($command->lotId !== null) {
+            $projectSite->setLotId($command->lotId !== '' ? Uuid::fromString($command->lotId) : null);
+        }
+        if ($command->clearTechnicianId) {
+            $projectSite->setTechnicianId(null);
+        } elseif ($command->technicianId !== null) {
+            $techId = $command->technicianId !== '' ? Uuid::fromString($command->technicianId) : null;
+            $projectSite->setTechnicianId($techId);
+            if ($techId !== null) {
+                $ids = $projectSite->getEmployeeIds();
+                $techStr = (string) $techId;
+                if (!in_array($techStr, $ids, true)) {
+                    $ids[] = $techStr;
+                    $projectSite->setEmployeeIds($ids);
+                }
+            }
+        }
 
         $this->projectSiteRepository->save($projectSite);
 

@@ -48,9 +48,9 @@ RUN apk add --no-cache \
         libpng \
         libwebp \
         libzip \
-        mysql-client \
         nginx \
         oniguruma \
+        sqlite-libs \
         wget \
         freetype-dev \
         libjpeg-turbo-dev \
@@ -58,6 +58,7 @@ RUN apk add --no-cache \
         libwebp-dev \
         libzip-dev \
         oniguruma-dev \
+        sqlite-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install \
         bcmath \
@@ -65,7 +66,7 @@ RUN apk add --no-cache \
         intl \
         mbstring \
         opcache \
-        pdo_mysql \
+        pdo_sqlite \
         zip \
     && apk del \
         freetype-dev \
@@ -75,6 +76,7 @@ RUN apk add --no-cache \
         libwebp-dev \
         libzip-dev \
         oniguruma-dev \
+        sqlite-dev \
     && rm -rf /var/cache/apk/*
 
 COPY docker/api/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
@@ -86,8 +88,9 @@ WORKDIR /var/www/html
 
 COPY --from=vendor /app /var/www/html
 
-RUN mkdir -p var/cache var/log var/share public/uploads/logos \
-    && chown -R www-data:www-data var public/uploads
+RUN mkdir -p var/cache var/log var/share var/database public/uploads/logos \
+    && chown -R www-data:www-data var public/uploads \
+    && chmod -R ug+rwX var
 
 EXPOSE 80
 

@@ -3,19 +3,19 @@ set -e
 
 cd /var/www/html
 
-build_database_url() {
-    export DATABASE_URL="$(php -r "
-        \$user = getenv('MYSQL_USER') ?: 'super_cargo';
-        \$pass = rawurlencode(getenv('MYSQL_PASSWORD') ?: '');
-        \$host = getenv('MYSQL_HOST') ?: 'mysql';
-        \$port = getenv('MYSQL_PORT') ?: '3306';
-        \$db = getenv('MYSQL_DATABASE') ?: 'super_cargo';
-        echo 'mysql://' . \$user . ':' . \$pass . '@' . \$host . ':' . \$port . '/' . \$db . '?serverVersion=8.0&charset=utf8mb4';
-    ")"
+resolve_database_url() {
+    if [ -n "${DATABASE_URL:-}" ]; then
+        export DATABASE_URL
+        return
+    fi
+
+    # Default: SQLite file under var/ (persisted via volume in compose)
+    db_path="${SQLITE_DATABASE_PATH:-/var/www/html/var/database/data.db}"
+    export DATABASE_URL="sqlite:///${db_path}"
 }
 
 write_env_file() {
-    build_database_url
+    resolve_database_url
 
     echo "Writing .env from container environment..."
     php <<'PHP'
@@ -51,64 +51,23 @@ PHP
     fi
 }
 
-mysql_ping() {
-    host="${MYSQL_HOST:-mysql}"
-    port="${MYSQL_PORT:-3306}"
-
-    if [ -n "${MYSQL_ROOT_PASSWORD:-}" ]; then
-        if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysqladmin ping \
-            -h "$host" \
-            -P "$port" \
-            -u root \
-            --silent 2>/dev/null
-        then
-            return 0
-        fi
-    fi
-
-    if [ -n "${MYSQL_PASSWORD:-}" ]; then
-        if MYSQL_PWD="${MYSQL_PASSWORD}" mysqladmin ping \
-            -h "$host" \
-            -P "$port" \
-            -u "${MYSQL_USER:-super_cargo}" \
-            --silent 2>/dev/null
-        then
-            return 0
-        fi
-    fi
-
-    return 1
-}
-
-wait_for_database() {
-    echo "Waiting for MySQL at ${MYSQL_HOST:-mysql}:${MYSQL_PORT:-3306}..."
-    attempt=0
-    max_attempts=90
-
-    if command -v getent >/dev/null 2>&1; then
-        echo "DNS mysql -> $(getent hosts "${MYSQL_HOST:-mysql}" 2>/dev/null || echo 'unresolved')"
-    fi
-
-    until mysql_ping; do
-        attempt=$((attempt + 1))
-        if [ "$attempt" -ge "$max_attempts" ]; then
-            echo "ERROR: MySQL not reachable after ${max_attempts} attempts."
-            echo "Host=${MYSQL_HOST:-mysql} user=${MYSQL_USER:-super_cargo}"
-            if [ -n "${MYSQL_ROOT_PASSWORD:-}" ]; then
-                MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mysqladmin ping \
-                    -h "${MYSQL_HOST:-mysql}" \
-                    -P "${MYSQL_PORT:-3306}" \
-                    -u root 2>&1 || true
+ensure_sqlite_dir() {
+    db_url="${DATABASE_URL:-}"
+    case "$db_url" in
+        sqlite:*)
+            # sqlite:////absolute/path or sqlite:///relative
+            db_path="$(php -r "
+                \$u = getenv('DATABASE_URL') ?: '';
+                if (preg_match('#^sqlite:///(.+)$#', \$u, \$m)) {
+                    echo \$m[1];
+                }
+            ")"
+            if [ -n "$db_path" ]; then
+                mkdir -p "$(dirname "$db_path")"
+                echo "SQLite database path: ${db_path}"
             fi
-            exit 1
-        fi
-        if [ $((attempt % 5)) -eq 0 ]; then
-            echo "Still waiting for MySQL... (attempt ${attempt}/${max_attempts})"
-        fi
-        sleep 2
-    done
-
-    echo "Database is ready."
+            ;;
+    esac
 }
 
 count_table_rows() {
@@ -119,10 +78,10 @@ count_table_rows() {
 }
 
 write_env_file
+ensure_sqlite_dir
 
-if [ "${RUN_MIGRATIONS:-true}" = "true" ] || [ "${RUN_LOAD_FIXTURES:-false}" = "true" ]; then
-    wait_for_database
-fi
+mkdir -p var/cache var/log var/share public/uploads/logos
+chown -R www-data:www-data var public/uploads 2>/dev/null || true
 
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
     echo "Running migrations..."

@@ -22,6 +22,12 @@ class ProjectSite
     #[ORM\Column(type: 'uuid')]
     private Uuid $siteId;
 
+    #[ORM\Column(type: 'uuid', nullable: true)]
+    private ?Uuid $lotId;
+
+    #[ORM\Column(type: 'uuid', nullable: true)]
+    private ?Uuid $technicianId;
+
     #[ORM\Column(enumType: ProjectSiteStatus::class)]
     private ProjectSiteStatus $status;
 
@@ -42,6 +48,8 @@ class ProjectSite
         ProjectSiteStatus $status = ProjectSiteStatus::PENDING,
         array $informationsValues = [],
         array $employeeIds = [],
+        ?Uuid $lotId = null,
+        ?Uuid $technicianId = null,
     ) {
         $this->initializeUuid();
         $this->initializeTimestamps();
@@ -51,10 +59,14 @@ class ProjectSite
         $this->dateAdded = new \DateTimeImmutable();
         $this->informationsValues = $informationsValues;
         $this->employeeIds = $employeeIds;
+        $this->lotId = $lotId;
+        $this->technicianId = $technicianId;
     }
 
     public function getProjectId(): Uuid { return $this->projectId; }
     public function getSiteId(): Uuid { return $this->siteId; }
+    public function getLotId(): ?Uuid { return $this->lotId; }
+    public function getTechnicianId(): ?Uuid { return $this->technicianId; }
     public function getStatus(): ProjectSiteStatus { return $this->status; }
     public function getDateAdded(): \DateTimeImmutable { return $this->dateAdded; }
     /** @return array<string, mixed> */
@@ -63,6 +75,8 @@ class ProjectSite
     public function getEmployeeIds(): array { return $this->employeeIds; }
 
     public function setStatus(ProjectSiteStatus $status): void { $this->status = $status; $this->touch(); }
+    public function setLotId(?Uuid $lotId): void { $this->lotId = $lotId; $this->touch(); }
+    public function setTechnicianId(?Uuid $technicianId): void { $this->technicianId = $technicianId; $this->touch(); }
     /** @param array<string, mixed> $informationsValues */
     public function setInformationsValues(array $informationsValues): void { $this->informationsValues = $informationsValues; $this->touch(); }
     /** @param list<string> $employeeIds */

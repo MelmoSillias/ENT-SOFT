@@ -1,5 +1,6 @@
 export const PROJECT_STATUS_OPTIONS = [
   { label: 'Brouillon', value: 'draft' },
+  { label: 'En attente', value: 'pending' },
   { label: 'Actif', value: 'active' },
   { label: 'Terminé', value: 'completed' },
   { label: 'Annulé', value: 'cancelled' },
@@ -38,6 +39,7 @@ export function invoiceStatusLabel(status) {
 export function projectStatusSeverity(status) {
   switch (status) {
     case 'active': return 'success'
+    case 'pending': return 'warn'
     case 'completed': return 'info'
     case 'cancelled': return 'danger'
     default: return 'secondary'

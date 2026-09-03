@@ -10,6 +10,8 @@ final readonly class AddSiteToProjectCommand
         public string $status = 'pending',
         public array $informationsValues = [],
         public array $employeeIds = [],
+        public ?string $lotId = null,
+        public ?string $technicianId = null,
     ) {
     }
 }

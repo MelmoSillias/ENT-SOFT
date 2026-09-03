@@ -31,12 +31,29 @@ final class AddSiteToProjectHandler
             throw new \InvalidArgumentException('Ce site est déjà associé au projet.');
         }
 
+        $technicianId = $command->technicianId !== null && $command->technicianId !== ''
+            ? Uuid::fromString($command->technicianId)
+            : null;
+        $lotId = $command->lotId !== null && $command->lotId !== ''
+            ? Uuid::fromString($command->lotId)
+            : null;
+
+        $employeeIds = $command->employeeIds;
+        if ($technicianId !== null) {
+            $techStr = (string) $technicianId;
+            if (!in_array($techStr, $employeeIds, true)) {
+                $employeeIds[] = $techStr;
+            }
+        }
+
         $projectSite = new ProjectSite(
             projectId: $projectId,
             siteId: $siteId,
             status: ProjectSiteStatus::from($command->status),
             informationsValues: $command->informationsValues,
-            employeeIds: $command->employeeIds,
+            employeeIds: $employeeIds,
+            lotId: $lotId,
+            technicianId: $technicianId,
         );
         $this->projectSiteRepository->save($projectSite);
 

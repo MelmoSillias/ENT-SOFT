@@ -110,6 +110,8 @@ final class ProjectController extends AbstractController
             status: $data['status'] ?? 'pending',
             informationsValues: $data['informationsValues'] ?? [],
             employeeIds: $data['employeeIds'] ?? [],
+            lotId: $data['lotId'] ?? null,
+            technicianId: $data['technicianId'] ?? null,
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -125,6 +127,10 @@ final class ProjectController extends AbstractController
             status: $data['status'] ?? null,
             informationsValues: $data['informationsValues'] ?? null,
             employeeIds: $data['employeeIds'] ?? null,
+            lotId: array_key_exists('lotId', $data) ? ($data['lotId'] ?? '') : null,
+            technicianId: array_key_exists('technicianId', $data) ? ($data['technicianId'] ?? '') : null,
+            clearLotId: array_key_exists('lotId', $data) && ($data['lotId'] === null || $data['lotId'] === ''),
+            clearTechnicianId: array_key_exists('technicianId', $data) && ($data['technicianId'] === null || $data['technicianId'] === ''),
         ));
 
         return $this->json($result->toArray());

@@ -67,7 +67,8 @@ doctrine:
 when@test:
     doctrine:
         dbal:
-            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+            # Fichier dédié pour les tests (évite le dbname_suffix MySQL-style sur SQLite)
+            url: 'sqlite:///%kernel.project_dir%/var/data_test.db'
 
 when@prod:
     doctrine:

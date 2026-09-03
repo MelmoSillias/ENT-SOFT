@@ -9,6 +9,10 @@ final readonly class UpdateProjectSiteCommand
         public ?string $status = null,
         public ?array $informationsValues = null,
         public ?array $employeeIds = null,
+        public ?string $lotId = null,
+        public ?string $technicianId = null,
+        public bool $clearLotId = false,
+        public bool $clearTechnicianId = false,
     ) {
     }
 }

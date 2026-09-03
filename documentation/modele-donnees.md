@@ -5,6 +5,7 @@
 ### Client
 - `code`, `title`, `description`
 - Commentaires via `ClientComment` (clientId, content)
+- Contacts via `ClientContact` (clientId, name, phone)
 
 ### Site
 - `code`, `title`, `description`
@@ -12,12 +13,17 @@
 
 ### Project
 - `code`, `title`, `object`, `dateDebut`, `dateFin`
-- `status` (draft, active, completed, cancelled)
+- `status` (draft, pending, active, completed, cancelled)
 - `budget`, `clientId`
 - `sitesInformations` (JSON — labels d'infos complémentaires)
 
+### ProjectLot
+- `projectId`, `code` (ex. LOT1), `title`
+- Unicité `(projectId, code)`
+
 ### ProjectSite
-- `projectId`, `siteId`, `status`, `dateAdded`
+- `projectId`, `siteId`, `lotId` (optionnel), `technicianId` (optionnel)
+- `status`, `dateAdded`
 - `informationsValues` (JSON), `employeeIds` (JSON)
 
 ### ProjectEvent
@@ -26,6 +32,7 @@
 ### Employee
 - `name`, `email`, `phone`, `address`, `function`
 - `userId` (optionnel)
+- Les techniciens de terrain sont des employés (`function = technicien`) liés via `ProjectSite.technicianId`
 
 ### Task
 - `title`, `description`, `dateCreation`, `dateDue`

@@ -21,7 +21,7 @@ Le projet consiste à créer une application web permettant de gérer les projet
 ## Technologies utilisées
 
 - PHP - Symfony
-- MySQL
+- SQLite
 - Vue.js
 
 On partira d'une base de code existante pour la partie backend et frontend.

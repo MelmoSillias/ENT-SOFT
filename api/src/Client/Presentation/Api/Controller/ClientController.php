@@ -6,6 +6,8 @@ use App\Client\Application\Command\CreateClient\CreateClientCommand;
 use App\Client\Application\Command\CreateClient\CreateClientHandler;
 use App\Client\Application\Command\CreateClientComment\CreateClientCommentCommand;
 use App\Client\Application\Command\CreateClientComment\CreateClientCommentHandler;
+use App\Client\Application\Command\CreateClientContact\CreateClientContactCommand;
+use App\Client\Application\Command\CreateClientContact\CreateClientContactHandler;
 use App\Client\Application\Command\DeleteClient\DeleteClientCommand;
 use App\Client\Application\Command\DeleteClient\DeleteClientHandler;
 use App\Client\Application\Command\UpdateClient\UpdateClientCommand;
@@ -89,6 +91,20 @@ final class ClientController extends AbstractController
         $result = $handler->handle(new CreateClientCommentCommand(
             clientId: $id,
             content: $data['content'] ?? '',
+        ));
+
+        return $this->json($result->toArray(), Response::HTTP_CREATED);
+    }
+
+    #[Route('/{id}/contacts', name: 'api_clients_contacts_create', methods: ['POST'])]
+    #[IsGranted('client.clients.update')]
+    public function createContact(string $id, Request $request, CreateClientContactHandler $handler): JsonResponse
+    {
+        $data = $request->toArray();
+        $result = $handler->handle(new CreateClientContactCommand(
+            clientId: $id,
+            name: $data['name'] ?? '',
+            phone: $data['phone'] ?? '',
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
