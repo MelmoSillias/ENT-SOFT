@@ -184,6 +184,10 @@ for row in ws1.iter_rows(min_row=2, max_row=44, values_only=True):
         continue
     code = str(code).strip().upper()
     add_site(code, cell(row, 2))
+    tech = norm_name(str(cell(row, 19) or ""))
+    phone = str(cell(row, 20)).strip() if cell(row, 20) else None
+    if tech and phone:
+        employees[tech] = phone
     vals = {
         "ville": cell(row,1), "config_2100_actuel": cell(row,4), "config_2100_planifie": cell(row,5),
         "configuration": cell(row,6), "swap_rru_2100": cell(row,7), "swap_rru_900": cell(row,8),
@@ -192,8 +196,9 @@ for row in ws1.iter_rows(min_row=2, max_row=44, values_only=True):
         "nombre_antenne_a_monter": cell(row,13), "nombre_jumper": cell(row,14),
         "longitude": cell(row,15), "latitude": cell(row,16),
         "start_date": excel_date(cell(row,17)), "end_date": excel_date(cell(row,18)),
+        "team_name": tech or None, "team_contact": phone,
     }
-    feuil1_rows.append({"lot": current_lot or "LOT1", "code": code, "vals": vals, "status": "pending"})
+    feuil1_rows.append({"lot": current_lot or "LOT1", "code": code, "vals": vals, "status": "pending", "tech": tech or None})
 
 ws2 = wb_p["Feuil2"]
 feuil2_t1 = []
@@ -410,12 +415,12 @@ infos1 = [{"key":k,"label":l} for k,l in [
 ("swap_rru_1800","Swap RRU 1800"),("swap_antenne","SWAP ANTENNE"),("nombre_rru_a_demonter","Nombre RRU a demonter"),
 ("nombre_rru_a_monter","Nombre RRU a monter"),("nombre_antenne_a_monter","Nombre d antenne a monter"),
 ("nombre_jumper","NOMBRE DE Jumper"),("longitude","Longitude"),("latitude","Latitude"),
-("start_date","Start Date"),("end_date","End Date")]]
+("start_date","Start Date"),("end_date","End Date"),("team_name","Team Name"),("team_contact","Team Contact")]]
 insert_project("proj:telecel-swap","PRJ-TELECEL-SWAP","Projet Telecel","pending","Swap/upgrade RRU — Planning Feuil1 (LOT1+LOT2)",None,None,infos1)
 insert_lot("proj:telecel-swap","LOT1","Lot 1")
 insert_lot("proj:telecel-swap","LOT2","Lot 2")
 for i,r in enumerate(feuil1_rows):
-    insert_ps("proj:telecel-swap", r["code"], r["status"], r["vals"], lot_code=r["lot"], idx=i)
+    insert_ps("proj:telecel-swap", r["code"], r["status"], r["vals"], tech=r.get("tech"), lot_code=r["lot"], idx=i)
 lines.append("")
 
 lines.append("-- === Installation PV 13 sites (Feuil2 T1) completed ===")

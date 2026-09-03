@@ -9,6 +9,7 @@ import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import { getProjectDetail } from '@/domains/project/services/projectService'
+import ProjectSitesTable from '@/domains/project/components/ProjectSitesTable.vue'
 import { formatDateFr, formatDateTimeFr, projectStatusLabel, projectStatusSeverity } from '@/domains/shared/utils/entLabels'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
@@ -63,17 +64,11 @@ onMounted(load)
             </dl>
           </TabPanel>
           <TabPanel :header="`Sites (${project.sites?.length ?? 0})`">
-            <DataTable v-if="project.sites?.length" :value="project.sites" striped-rows>
-              <Column field="siteTitle" header="Site" />
-              <Column field="role" header="Rôle" />
-              <Column header="Début">
-                <template #body="{ data }">{{ formatDateFr(data.dateDebut) }}</template>
-              </Column>
-              <Column header="Fin">
-                <template #body="{ data }">{{ formatDateFr(data.dateFin) }}</template>
-              </Column>
-            </DataTable>
-            <p v-else class="dashboard-page__state">Aucun site associé.</p>
+            <ProjectSitesTable
+              :sites="project.sites"
+              :sites-informations="project.sitesInformations"
+              :lots="project.lots"
+            />
           </TabPanel>
           <TabPanel :header="`Événements (${project.events?.length ?? 0})`">
             <DataTable v-if="project.events?.length" :value="project.events" striped-rows>
