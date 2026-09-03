@@ -1,0 +1,47 @@
+{% extends 'impression/_layout.html.twig' %}
+
+{% block content %}
+    <div class="doc-title-band">
+        <h1 class="doc-title">{{ data.statusLabel }}</h1>
+        <div>
+            <div class="doc-number-badge">{{ data.invoice.number }}</div>
+            <div class="doc-date">{{ data.invoice.date }}</div>
+        </div>
+    </div>
+
+    <div class="info-card">
+        <p class="doc-meta"><strong>Client :</strong> {{ data.clientName }}</p>
+        {% if data.projectName %}
+            <p class="doc-meta"><strong>Projet :</strong> {{ data.projectName }}</p>
+        {% endif %}
+        <p class="doc-meta"><strong>Statut :</strong> {{ data.statusLabel }}</p>
+    </div>
+
+    <table class="doc-table">
+        <thead>
+            <tr>
+                <th>Désignation</th>
+                <th class="col-num">Qté</th>
+                <th class="col-num">Prix unitaire</th>
+                <th class="col-num">Montant</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if data.invoice.lines is empty %}
+                <tr><td colspan="4" class="empty">Aucune ligne</td></tr>
+            {% else %}
+                {% for line in data.invoice.lines %}
+                    <tr>
+                        <td>{{ line.description }}</td>
+                        <td class="col-num">{{ line.quantity }}</td>
+                        <td class="col-num">{{ line.unitPrice }}</td>
+                        <td class="col-num">{{ line.amount }}</td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+
+    <p class="doc-meta" style="text-align:right"><strong>Total : {{ data.invoice.amount }}</strong></p>
+    <p class="doc-meta" style="text-align:right">Payé : {{ data.invoice.paidAmount }}</p>
+{% endblock %}

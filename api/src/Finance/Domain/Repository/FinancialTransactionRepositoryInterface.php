@@ -13,4 +13,7 @@ interface FinancialTransactionRepositoryInterface
 
     /** @return list<FinancialTransaction> */
     public function findAllEnabled(): array;
+
+    /** @return list<FinancialTransaction> */
+    public function findEnabledPaymentsByInvoiceId(Uuid $invoiceId): array;
 }

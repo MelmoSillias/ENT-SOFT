@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { appNavigation, appShellBrand, appShellDefaults } from '@/domains/layout/config/appLayout'
 import { useLayoutStore } from '@/domains/layout/stores/layout'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
+import { useAgencyBrandStore } from '@/domains/configuration/stores/agencyBrand'
 
 const HOME_ROUTE_NAME = 'dashboard'
 
@@ -234,8 +235,14 @@ export function useLayout() {
     { immediate: true }
   )
 
+  const agencyBrandStore = useAgencyBrandStore()
+  const brand = computed(() => ({
+    ...appShellBrand,
+    ...agencyBrandStore.branding,
+  }))
+
   return {
-    brand: appShellBrand,
+    brand,
     shellConfig,
     menuModel,
     pageTitle,

@@ -13,36 +13,44 @@ const props = defineProps({
 
 const GROUPS = [
   {
-    id: 'transfert',
-    label: 'Transferts',
-    prefixKey: 'REFERENCE_TRANSFERT_PREFIXE',
-    digitsKey: 'REFERENCE_TRANSFERT_NB_CHIFFRES',
-    titleKey: 'REFERENCE_TRANSFERT_TITRE_RECU',
-    defaultTitle: 'RECU DE TRANSFERT',
+    id: 'client',
+    label: 'Clients',
+    prefixKey: 'REFERENCE_CLIENT_PREFIXE',
+    digitsKey: 'REFERENCE_CLIENT_NB_CHIFFRES',
+    titleKey: 'REFERENCE_CLIENT_TITRE_RECU',
+    defaultTitle: 'CLIENT',
   },
   {
-    id: 'depot',
-    label: 'Dépôts client',
-    prefixKey: 'REFERENCE_DEPOT_PREFIXE',
-    digitsKey: 'REFERENCE_DEPOT_NB_CHIFFRES',
-    titleKey: 'REFERENCE_DEPOT_TITRE_RECU',
-    defaultTitle: 'RECU DE DEPOT',
+    id: 'project',
+    label: 'Projets',
+    prefixKey: 'REFERENCE_PROJECT_PREFIXE',
+    digitsKey: 'REFERENCE_PROJECT_NB_CHIFFRES',
+    titleKey: 'REFERENCE_PROJECT_TITRE_RECU',
+    defaultTitle: 'PROJET',
   },
   {
-    id: 'retrait',
-    label: 'Retraits client',
-    prefixKey: 'REFERENCE_RETRAIT_PREFIXE',
-    digitsKey: 'REFERENCE_RETRAIT_NB_CHIFFRES',
-    titleKey: 'REFERENCE_RETRAIT_TITRE_RECU',
-    defaultTitle: 'RECU DE RETRAIT',
+    id: 'site',
+    label: 'Sites',
+    prefixKey: 'REFERENCE_SITE_PREFIXE',
+    digitsKey: 'REFERENCE_SITE_NB_CHIFFRES',
+    titleKey: 'REFERENCE_SITE_TITRE_RECU',
+    defaultTitle: 'SITE',
   },
   {
-    id: 'change',
-    label: 'Changes client',
-    prefixKey: 'REFERENCE_CHANGE_PREFIXE',
-    digitsKey: 'REFERENCE_CHANGE_NB_CHIFFRES',
-    titleKey: 'REFERENCE_CHANGE_TITRE_RECU',
-    defaultTitle: 'RECU DE CHANGE',
+    id: 'equipment',
+    label: 'Équipements',
+    prefixKey: 'REFERENCE_EQUIPMENT_PREFIXE',
+    digitsKey: 'REFERENCE_EQUIPMENT_NB_CHIFFRES',
+    titleKey: 'REFERENCE_EQUIPMENT_TITRE_RECU',
+    defaultTitle: 'EQUIPEMENT',
+  },
+  {
+    id: 'invoice',
+    label: 'Factures',
+    prefixKey: 'REFERENCE_INVOICE_PREFIXE',
+    digitsKey: 'REFERENCE_INVOICE_NB_CHIFFRES',
+    titleKey: 'REFERENCE_INVOICE_TITRE_RECU',
+    defaultTitle: 'FACTURE',
   },
 ]
 
@@ -111,8 +119,7 @@ onMounted(load)
 <template>
   <div class="numerotation-settings">
     <p class="numerotation-settings__intro">
-      Chaque type d'opération possède sa propre suite de numéros. Les transferts depuis compte client
-      utilisent la même numérotation que les reçus de transfert.
+      Chaque type de fiche possède sa propre suite de numéros (client, projet, site, équipement, facture).
     </p>
     <Message v-if="error" severity="error" :closable="false">{{ error }}</Message>
     <Message v-if="success" severity="success" :closable="false">{{ success }}</Message>
@@ -162,7 +169,7 @@ onMounted(load)
             :readonly="!canEdit"
           />
           <small class="numerotation-settings__hint">
-            Texte affiché en haut du reçu imprimé.
+            Texte affiché comme libellé interne.
           </small>
         </div>
 

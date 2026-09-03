@@ -22,8 +22,34 @@ export const TASK_STATUS_OPTIONS = [
 
 export const INVOICE_STATUS_OPTIONS = [
   { label: 'Brouillon', value: 'draft' },
-  { label: 'Envoyée', value: 'sent' },
-  { label: 'Payée', value: 'paid' },
+  { label: 'Devis', value: 'quote' },
+  { label: 'Facturé', value: 'invoiced' },
+]
+
+export const STOCK_DIRECTION_OPTIONS = [
+  { label: 'Entrée', value: 'in' },
+  { label: 'Sortie', value: 'out' },
+]
+
+export const TRANSACTION_TYPE_OPTIONS = [
+  { label: 'Recette', value: 'income' },
+  { label: 'Dépense', value: 'expense' },
+]
+
+export const TRANSACTION_CATEGORY_OPTIONS = [
+  { label: 'Paiement facture', value: 'InvoicePayment' },
+  { label: 'Dépense projet', value: 'ProjetExpense' },
+  { label: 'Dépense site', value: 'SiteExpense' },
+  { label: 'Dépense matériel', value: 'MaterialExpense' },
+  { label: 'Dépense équipement', value: 'EquipmentExpense' },
+  { label: 'Autre dépense', value: 'OtherExpense' },
+]
+
+export const EXPENSE_CATEGORY_OPTIONS = TRANSACTION_CATEGORY_OPTIONS.filter((o) => o.value !== 'InvoicePayment')
+
+export const TRANSACTION_STATUS_OPTIONS = [
+  { label: 'En attente', value: 'pending' },
+  { label: 'Terminée', value: 'completed' },
   { label: 'Annulée', value: 'cancelled' },
 ]
 
@@ -78,10 +104,41 @@ export function taskStatusSeverity(status) {
 
 export function invoiceStatusSeverity(status) {
   switch (status) {
-    case 'sent': return 'warn'
-    case 'paid': return 'success'
-    case 'cancelled': return 'danger'
+    case 'quote': return 'warn'
+    case 'invoiced': return 'success'
     default: return 'secondary'
+  }
+}
+
+export function stockDirectionLabel(direction) {
+  return direction === 'out' ? 'Sortie' : 'Entrée'
+}
+
+export function stockDirectionSeverity(direction) {
+  return direction === 'out' ? 'warn' : 'success'
+}
+
+const transactionTypeMap = Object.fromEntries(TRANSACTION_TYPE_OPTIONS.map((o) => [o.value, o.label]))
+const transactionCategoryMap = Object.fromEntries(TRANSACTION_CATEGORY_OPTIONS.map((o) => [o.value, o.label]))
+const transactionStatusMap = Object.fromEntries(TRANSACTION_STATUS_OPTIONS.map((o) => [o.value, o.label]))
+
+export function transactionTypeLabel(type) {
+  return transactionTypeMap[type] ?? type ?? '—'
+}
+
+export function transactionCategoryLabel(category) {
+  return transactionCategoryMap[category] ?? category ?? '—'
+}
+
+export function transactionStatusLabel(status) {
+  return transactionStatusMap[status] ?? status ?? '—'
+}
+
+export function transactionStatusSeverity(status) {
+  switch (status) {
+    case 'completed': return 'success'
+    case 'cancelled': return 'danger'
+    default: return 'warn'
   }
 }
 

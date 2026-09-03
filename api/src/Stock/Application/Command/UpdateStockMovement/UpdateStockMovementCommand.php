@@ -9,9 +9,11 @@ final readonly class UpdateStockMovementCommand
         public ?string $date = null,
         public ?float $quantity = null,
         public ?string $unit = null,
+        public ?string $direction = null,
         public ?string $clientId = null,
         public ?string $projectId = null,
         public ?string $siteId = null,
+        public ?array $lines = null,
     ) {
     }
 }

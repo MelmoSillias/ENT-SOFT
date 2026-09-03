@@ -2,13 +2,14 @@
 
 namespace App\Finance\Application\Query\ListInvoices;
 
-use App\Finance\Application\Dto\InvoiceResponseDto;
+use App\Finance\Application\Service\InvoiceAssembler;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
 
 final class ListInvoicesHandler
 {
     public function __construct(
         private readonly InvoiceRepositoryInterface $invoiceRepository,
+        private readonly InvoiceAssembler $assembler,
     ) {
     }
 
@@ -16,7 +17,7 @@ final class ListInvoicesHandler
     public function handle(): array
     {
         return array_map(
-            static fn ($i) => InvoiceResponseDto::fromEntity($i)->toArray(),
+            fn ($invoice) => $this->assembler->toDto($invoice)->toArray(),
             $this->invoiceRepository->findAllEnabled(),
         );
     }

@@ -3,6 +3,7 @@
 namespace App\Finance\Infrastructure\Persistence\Doctrine;
 
 use App\Finance\Domain\Entity\FinancialTransaction;
+use App\Finance\Domain\Enum\TransactionCategory;
 use App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -32,6 +33,20 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
         return $this->createQueryBuilder('t')
             ->andWhere('t.isEnabled = :enabled')
             ->setParameter('enabled', true)
+            ->orderBy('t.date', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findEnabledPaymentsByInvoiceId(Uuid $invoiceId): array
+    {
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.invoiceId = :invoiceId')
+            ->andWhere('t.isEnabled = :enabled')
+            ->andWhere('t.category = :category')
+            ->setParameter('invoiceId', $invoiceId, 'uuid')
+            ->setParameter('enabled', true)
+            ->setParameter('category', TransactionCategory::INVOICE_PAYMENT)
             ->orderBy('t.date', 'DESC')
             ->getQuery()
             ->getResult();

@@ -5,6 +5,8 @@ namespace App\Stock\Application\Command\UpdateStockMovement;
 use App\SharedKernel\Domain\Validation\FieldValidator;
 use App\Stock\Application\Dto\StockMovementLineResponseDto;
 use App\Stock\Application\Dto\StockMovementResponseDto;
+use App\Stock\Domain\Entity\StockMovementLine;
+use App\Stock\Domain\Enum\StockMovementDirection;
 use App\Stock\Domain\Exception\StockMovementNotFoundException;
 use App\Stock\Domain\Repository\StockMovementLineRepositoryInterface;
 use App\Stock\Domain\Repository\StockMovementRepositoryInterface;
@@ -34,6 +36,9 @@ final class UpdateStockMovementHandler
         if ($command->unit !== null) {
             $movement->setUnit(FieldValidator::requireNonEmpty($command->unit, 'Unité'));
         }
+        if ($command->direction !== null) {
+            $movement->setDirection(StockMovementDirection::from($command->direction));
+        }
         if ($command->clientId !== null) {
             $movement->setClientId($command->clientId !== '' ? Uuid::fromString($command->clientId) : null);
         }
@@ -46,23 +51,25 @@ final class UpdateStockMovementHandler
 
         $this->movementRepository->save($movement);
 
+        if ($command->lines !== null) {
+            foreach ($this->lineRepository->findByMovementId($movement->getId()) as $existing) {
+                $this->lineRepository->remove($existing);
+            }
+            foreach ($command->lines as $lineData) {
+                $line = new StockMovementLine(
+                    movement: $movement,
+                    equipmentId: Uuid::fromString($lineData['equipmentId']),
+                    quantity: (float) $lineData['quantity'],
+                );
+                $this->lineRepository->save($line);
+            }
+        }
+
         $lines = array_map(
             static fn ($l) => StockMovementLineResponseDto::fromEntity($l)->toArray(),
             $this->lineRepository->findByMovementId($movement->getId()),
         );
 
-        return new StockMovementResponseDto(
-            id: (string) $movement->getId(),
-            date: $movement->getDate()->format('Y-m-d'),
-            quantity: $movement->getQuantity(),
-            unit: $movement->getUnit(),
-            clientId: $movement->getClientId()?->toRfc4122(),
-            projectId: $movement->getProjectId()?->toRfc4122(),
-            siteId: $movement->getSiteId()?->toRfc4122(),
-            lines: $lines,
-            isEnabled: $movement->isEnabled(),
-            createdAt: $movement->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            updatedAt: $movement->getUpdatedAt()->format(\DateTimeInterface::ATOM),
-        );
+        return StockMovementResponseDto::fromEntity($movement, $lines);
     }
 }

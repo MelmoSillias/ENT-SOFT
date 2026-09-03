@@ -6,6 +6,10 @@ use App\Finance\Domain\Entity\Invoice;
 
 final readonly class InvoiceResponseDto
 {
+    /**
+     * @param list<array<string, mixed>> $lines
+     * @param list<array<string, mixed>> $payments
+     */
     public function __construct(
         public string $id,
         public string $number,
@@ -17,11 +21,20 @@ final readonly class InvoiceResponseDto
         public bool $isEnabled,
         public string $createdAt,
         public string $updatedAt,
+        public array $lines = [],
+        public array $payments = [],
+        public float $paidAmount = 0.0,
+        public bool $hasPayments = false,
     ) {
     }
 
-    public static function fromEntity(Invoice $invoice): self
+    public static function fromEntity(Invoice $invoice, array $lines = [], array $payments = []): self
     {
+        $paidAmount = 0.0;
+        foreach ($payments as $payment) {
+            $paidAmount += (float) ($payment['amount'] ?? 0);
+        }
+
         return new self(
             id: (string) $invoice->getId(),
             number: $invoice->getNumber(),
@@ -33,6 +46,10 @@ final readonly class InvoiceResponseDto
             isEnabled: $invoice->isEnabled(),
             createdAt: $invoice->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $invoice->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            lines: $lines,
+            payments: $payments,
+            paidAmount: $paidAmount,
+            hasPayments: $paidAmount > 0 || \count($payments) > 0,
         );
     }
 
@@ -50,6 +67,10 @@ final readonly class InvoiceResponseDto
             'isEnabled' => $this->isEnabled,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
+            'lines' => $this->lines,
+            'payments' => $this->payments,
+            'paidAmount' => $this->paidAmount,
+            'hasPayments' => $this->hasPayments,
         ];
     }
 }

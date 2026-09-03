@@ -91,8 +91,8 @@ const routes = [
         name: 'equipments',
         component: () => import('@/views/stock/EquipmentListView.vue'),
         meta: {
-          title: 'Matériel & Équipements',
-          section: 'Stock',
+          title: 'Matériels et équipements',
+          section: 'Matériels',
           requiredModule: 'stock',
         },
       },
@@ -102,7 +102,7 @@ const routes = [
         component: () => import('@/views/stock/EquipmentDetailView.vue'),
         meta: {
           title: 'Détail équipement',
-          section: 'Stock',
+          section: 'Matériels',
           hiddenFromMenu: true,
           requiredModule: 'stock',
         },
@@ -129,14 +129,18 @@ const routes = [
         },
       },
       {
-        path: 'invoices',
-        name: 'invoices',
-        component: () => import('@/views/finance/InvoiceListView.vue'),
+        path: 'finances',
+        name: 'finances',
+        component: () => import('@/views/finance/FinanceView.vue'),
         meta: {
-          title: 'Factures',
+          title: 'Finances',
           section: 'Finances',
           requiredModule: 'finance',
         },
+      },
+      {
+        path: 'invoices',
+        redirect: { name: 'finances', query: { tab: 'invoices' } },
       },
       {
         path: 'users',

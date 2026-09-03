@@ -73,21 +73,12 @@ export const appConfig = {
       },
       {
         key: 'stock',
-        label: 'Stock',
-        shortLabel: 'Stock',
+        label: 'Matériels et équipements',
+        shortLabel: 'Matériels',
         icon: 'pi pi-box',
-        items: [
-          {
-            key: 'equipments',
-            label: 'Matériel & Équipements',
-            shortLabel: 'Équipements',
-            icon: 'pi pi-wrench',
-            routeName: 'equipments',
-            activeRouteNames: ['equipments', 'equipment-detail'],
-            section: 'Stock',
-            requiredModule: 'stock',
-          },
-        ],
+        routeName: 'equipments',
+        activeRouteNames: ['equipments', 'equipment-detail'],
+        requiredModule: 'stock',
       },
       {
         key: 'employees',
@@ -102,16 +93,9 @@ export const appConfig = {
         key: 'finance',
         label: 'Finances',
         icon: 'pi pi-wallet',
-        items: [
-          {
-            key: 'invoices',
-            label: 'Factures',
-            icon: 'pi pi-file',
-            routeName: 'invoices',
-            section: 'Finances',
-            requiredModule: 'finance',
-          },
-        ],
+        routeName: 'finances',
+        activeRouteNames: ['finances', 'invoices'],
+        requiredModule: 'finance',
       },
       {
         key: 'administration',

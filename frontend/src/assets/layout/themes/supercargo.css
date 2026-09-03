@@ -14,7 +14,7 @@
   --layout-panel-border: #d8e0ec;
   --layout-text-color: #1a2744;
   --layout-text-muted: #5c6b82;
-  --layout-logo-bg: #000000;
+  --layout-logo-bg: #fff;
   --layout-logo-border: rgba(26, 48, 102, 0.12);
   --layout-auth-bg:
     radial-gradient(circle at top, rgba(26, 48, 102, 0.14), transparent 42%),
@@ -40,7 +40,7 @@
   --layout-panel-border: rgba(148, 163, 184, 0.14);
   --layout-text-color: rgba(241, 245, 249, 0.95);
   --layout-text-muted: rgba(148, 163, 184, 0.78);
-  --layout-logo-bg: #000000;
+  --layout-logo-bg: #fff;
   --layout-logo-border: rgba(255, 255, 255, 0.12);
   --layout-auth-brand-color: #b8d9ff;
 }

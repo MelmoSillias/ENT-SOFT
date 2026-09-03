@@ -8,21 +8,16 @@ import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import {
   listCorbeilleClients,
-  listCorbeilleComptes,
   restoreCorbeilleClient,
-  restoreCorbeilleCompte,
 } from '@/domains/configuration/services/corbeilleService'
 
 const toast = useAppToast()
-const comptes = ref([])
 const clients = ref([])
-const loadingComptes = ref(false)
 const loadingClients = ref(false)
-const errorComptes = ref(null)
 const errorClients = ref(null)
 
 function clientLabel(client) {
-  return [client.prenom, client.nom].filter(Boolean).join(' ') || client.nom || '—'
+  return client.title || client.code || '—'
 }
 
 function formatDate(iso) {
@@ -34,18 +29,6 @@ function formatDate(iso) {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-async function loadComptes() {
-  loadingComptes.value = true
-  errorComptes.value = null
-  try {
-    comptes.value = await listCorbeilleComptes()
-  } catch (e) {
-    errorComptes.value = e.response?.data?.error || 'Impossible de charger les comptes supprimés.'
-  } finally {
-    loadingComptes.value = false
-  }
 }
 
 async function loadClients() {
@@ -61,22 +44,8 @@ async function loadClients() {
 }
 
 async function load() {
-  await Promise.all([loadComptes(), loadClients()])
+  await loadClients()
 }
-
-const { pending: restoringCompte, run: restoreCompte } = useAsyncAction(async (compte) => {
-  try {
-    await restoreCorbeilleCompte(compte.id)
-    toast.add({ severity: 'success', summary: 'Corbeille', detail: `Compte ${compte.numeroCompte} restauré.` })
-    await loadComptes()
-  } catch (e) {
-    toast.add({
-      severity: 'error',
-      summary: 'Corbeille',
-      detail: e.response?.data?.error || 'Restauration impossible.',
-    })
-  }
-})
 
 const { pending: restoringClient, run: restoreClient } = useAsyncAction(async (client) => {
   try {
@@ -100,42 +69,8 @@ defineExpose({ load })
 <template>
   <div class="corbeille-panel">
     <section class="corbeille-panel__section">
-      <h3>Comptes agence</h3>
-      <p class="corbeille-panel__hint">Comptes masqués. La restauration réaffiche le compte et ses transactions.</p>
-      <AppTableState
-        :loading="loadingComptes"
-        :error="errorComptes"
-        :is-empty="!loadingComptes && !errorComptes && comptes.length === 0"
-        empty-title="Aucun compte dans la corbeille"
-        empty-text="Les comptes agence supprimés apparaîtront ici."
-        @retry="loadComptes"
-      >
-        <DataTable :value="comptes" paginator :rows="10" striped-rows data-key="id">
-          <Column field="numeroCompte" header="Numéro" />
-          <Column header="Supprimé le">
-            <template #body="{ data }">
-              {{ formatDate(data.updatedAt) }}
-            </template>
-          </Column>
-          <Column header="" style="width: 8rem">
-            <template #body="{ data }">
-              <Button
-                label="Restaurer"
-                icon="pi pi-replay"
-                size="small"
-                text
-                :loading="restoringCompte"
-                @click="restoreCompte(data)"
-              />
-            </template>
-          </Column>
-        </DataTable>
-      </AppTableState>
-    </section>
-
-    <section class="corbeille-panel__section">
       <h3>Clients</h3>
-      <p class="corbeille-panel__hint">Clients masqués. La restauration réaffiche le client, son compte et ses opérations.</p>
+      <p class="corbeille-panel__hint">Clients masqués. La restauration les réaffiche dans le module Clients.</p>
       <AppTableState
         :loading="loadingClients"
         :error="errorClients"
@@ -150,12 +85,7 @@ defineExpose({ load })
               {{ clientLabel(data) }}
             </template>
           </Column>
-          <Column field="telephone" header="Téléphone" />
-          <Column header="Compte">
-            <template #body="{ data }">
-              {{ data.numeroCompte || '—' }}
-            </template>
-          </Column>
+          <Column field="code" header="Code" />
           <Column header="Supprimé le">
             <template #body="{ data }">
               {{ formatDate(data.updatedAt) }}

@@ -12,6 +12,7 @@ final readonly class StockMovementResponseDto
         public string $date,
         public float $quantity,
         public string $unit,
+        public string $direction,
         public ?string $clientId,
         public ?string $projectId,
         public ?string $siteId,
@@ -22,6 +23,25 @@ final readonly class StockMovementResponseDto
     ) {
     }
 
+    /** @param list<array<string, mixed>> $lines */
+    public static function fromEntity(StockMovement $movement, array $lines): self
+    {
+        return new self(
+            id: (string) $movement->getId(),
+            date: $movement->getDate()->format('Y-m-d'),
+            quantity: $movement->getQuantity(),
+            unit: $movement->getUnit(),
+            direction: $movement->getDirection()->value,
+            clientId: $movement->getClientId()?->toRfc4122(),
+            projectId: $movement->getProjectId()?->toRfc4122(),
+            siteId: $movement->getSiteId()?->toRfc4122(),
+            lines: $lines,
+            isEnabled: $movement->isEnabled(),
+            createdAt: $movement->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            updatedAt: $movement->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+        );
+    }
+
     /** @return array<string, mixed> */
     public function toArray(): array
     {
@@ -30,6 +50,7 @@ final readonly class StockMovementResponseDto
             'date' => $this->date,
             'quantity' => $this->quantity,
             'unit' => $this->unit,
+            'direction' => $this->direction,
             'clientId' => $this->clientId,
             'projectId' => $this->projectId,
             'siteId' => $this->siteId,

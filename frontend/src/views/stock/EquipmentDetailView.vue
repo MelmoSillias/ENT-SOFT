@@ -4,7 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import Card from 'primevue/card'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
-import TabView from 'primevue/tabview'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
+import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -65,27 +68,33 @@ onMounted(load)
         </div>
       </template>
       <template #content>
-        <TabView>
-          <TabPanel header="Informations">
-            <dl class="detail-dl">
-              <div><dt>Description</dt><dd>{{ equipment.description || '—' }}</dd></div>
-              <div><dt>Client</dt><dd>{{ clientMap[equipment.clientId] || '—' }}</dd></div>
-            </dl>
-          </TabPanel>
-          <TabPanel :header="`Mouvements de stock (${equipmentMovements.length})`">
-            <DataTable v-if="equipmentMovements.length" :value="equipmentMovements" striped-rows>
-              <Column header="Date">
-                <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
-              </Column>
-              <Column field="quantity" header="Quantité" />
-              <Column field="unit" header="Unité" />
-              <Column header="Client">
-                <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
-              </Column>
-            </DataTable>
-            <p v-else class="dashboard-page__state">Aucun mouvement de stock.</p>
-          </TabPanel>
-        </TabView>
+        <Tabs value="0">
+          <TabList>
+            <Tab value="0">Informations</Tab>
+            <Tab value="1">Mouvements de stock ({{ equipmentMovements.length }})</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel value="0">
+              <dl class="detail-dl">
+                <div><dt>Description</dt><dd>{{ equipment.description || '—' }}</dd></div>
+                <div><dt>Client</dt><dd>{{ clientMap[equipment.clientId] || '—' }}</dd></div>
+              </dl>
+            </TabPanel>
+            <TabPanel value="1">
+              <DataTable v-if="equipmentMovements.length" :value="equipmentMovements" striped-rows>
+                <Column header="Date">
+                  <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+                </Column>
+                <Column field="quantity" header="Quantité" />
+                <Column field="unit" header="Unité" />
+                <Column header="Client">
+                  <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
+                </Column>
+              </DataTable>
+              <p v-else class="dashboard-page__state">Aucun mouvement de stock.</p>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </template>
     </Card>
   </section>

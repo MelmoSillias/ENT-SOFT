@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Select from 'primevue/select'
@@ -9,6 +9,7 @@ import Message from 'primevue/message'
 import api from '@/services/api'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePrintSettingsStore } from '@/domains/impression/stores/printSettings'
+import { useAgencyBrandStore } from '@/domains/configuration/stores/agencyBrand'
 
 const props = defineProps({
   canEdit: { type: Boolean, default: false },
@@ -37,12 +38,11 @@ const KEYS = [
     { value: 'portrait', label: 'Portrait' },
     { value: 'landscape', label: 'Paysage' },
   ] },
-  { cle: 'IMPRESSION_PAGE_TRANSFERT', label: 'Format page — reçu transfert', type: 'select', options: [
+  { cle: 'IMPRESSION_PAGE_INVOICE', label: 'Format page — facture', type: 'select', options: [
     { value: 'a4', label: 'A4' },
     { value: 'a5', label: 'A5' },
-    { value: 'receipt_80mm', label: 'Ticket 80 mm' },
   ] },
-  { cle: 'IMPRESSION_ORIENTATION_TRANSFERT', label: 'Orientation — reçu transfert', type: 'select', options: [
+  { cle: 'IMPRESSION_ORIENTATION_INVOICE', label: 'Orientation — facture', type: 'select', options: [
     { value: 'portrait', label: 'Portrait' },
     { value: 'landscape', label: 'Paysage' },
   ] },
@@ -55,17 +55,11 @@ const success = ref(null)
 const logoError = ref(null)
 const logoInput = ref(null)
 const printSettingsStore = usePrintSettingsStore()
+const agencyBrandStore = useAgencyBrandStore()
 
-const isReceipt = computed(() => form.value.IMPRESSION_PAGE_TRANSFERT === 'receipt_80mm')
 const logoPreviewUrl = computed(() => {
   const url = String(form.value[LOGO_KEY] || '').trim()
   return url || null
-})
-
-watch(isReceipt, (receipt) => {
-  if (receipt) {
-    form.value.IMPRESSION_ORIENTATION_TRANSFERT = 'portrait'
-  }
 })
 
 function validateLogoFile(file) {
@@ -92,6 +86,7 @@ async function load() {
       map[item.cle] = item.valeur
     }
     form.value[LOGO_KEY] = map[LOGO_KEY] ?? ''
+    agencyBrandStore.setLogoUrl(form.value[LOGO_KEY])
     for (const key of KEYS) {
       if (key.type === 'boolean') {
         form.value[key.cle] = ['1', 'true', 'yes', 'on'].includes(String(map[key.cle] ?? 'true').toLowerCase())
@@ -154,6 +149,7 @@ const { pending: uploadingLogo, run: uploadLogo } = useAsyncAction(async (file) 
       ],
     })
     form.value[LOGO_KEY] = data.valeur ?? ''
+    agencyBrandStore.setLogoUrl(form.value[LOGO_KEY])
     printSettingsStore.invalidate()
     success.value = 'Logo mis à jour.'
   } catch (e) {
@@ -171,6 +167,7 @@ const { pending: removingLogo, run: removeLogo } = useAsyncAction(async () => {
   try {
     const { data } = await api.delete('/settings/agence-logo')
     form.value[LOGO_KEY] = data.valeur ?? ''
+    agencyBrandStore.setLogoUrl(form.value[LOGO_KEY])
     printSettingsStore.invalidate()
     success.value = 'Logo supprimé.'
   } catch (e) {
@@ -268,7 +265,7 @@ onMounted(load)
           :options="field.options"
           option-label="label"
           option-value="value"
-          :disabled="!canEdit || (field.cle === 'IMPRESSION_ORIENTATION_TRANSFERT' && isReceipt)"
+          :disabled="!canEdit"
           fluid
         />
         <InputText
@@ -277,12 +274,6 @@ onMounted(load)
           fluid
           :readonly="!canEdit"
         />
-        <small
-          v-if="field.cle === 'IMPRESSION_ORIENTATION_TRANSFERT' && isReceipt"
-          class="impression-settings__hint"
-        >
-          Le ticket 80 mm est toujours en portrait.
-        </small>
       </div>
       <Button
         v-if="canEdit"

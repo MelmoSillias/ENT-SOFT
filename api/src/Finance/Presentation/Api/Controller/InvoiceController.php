@@ -6,6 +6,10 @@ use App\Finance\Application\Command\CreateInvoice\CreateInvoiceCommand;
 use App\Finance\Application\Command\CreateInvoice\CreateInvoiceHandler;
 use App\Finance\Application\Command\DeleteInvoice\DeleteInvoiceCommand;
 use App\Finance\Application\Command\DeleteInvoice\DeleteInvoiceHandler;
+use App\Finance\Application\Command\PayInvoice\PayInvoiceCommand;
+use App\Finance\Application\Command\PayInvoice\PayInvoiceHandler;
+use App\Finance\Application\Command\ResetInvoice\ResetInvoiceCommand;
+use App\Finance\Application\Command\ResetInvoice\ResetInvoiceHandler;
 use App\Finance\Application\Command\UpdateInvoice\UpdateInvoiceCommand;
 use App\Finance\Application\Command\UpdateInvoice\UpdateInvoiceHandler;
 use App\Finance\Application\Query\GetInvoice\GetInvoiceHandler;
@@ -35,13 +39,35 @@ final class InvoiceController extends AbstractController
         $data = $request->toArray();
         $result = $handler->handle(new CreateInvoiceCommand(
             date: $data['date'] ?? '',
-            amount: (float) ($data['amount'] ?? 0),
             clientId: $data['clientId'] ?? '',
             status: $data['status'] ?? 'draft',
             projectId: $data['projectId'] ?? null,
+            lines: $data['lines'] ?? [],
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
+    }
+
+    #[Route('/{id}/pay', name: 'api_invoices_pay', methods: ['POST'])]
+    #[IsGranted('finance.transactions.create')]
+    public function pay(string $id, Request $request, PayInvoiceHandler $handler): JsonResponse
+    {
+        $data = $request->toArray();
+        $result = $handler->handle(new PayInvoiceCommand(
+            id: $id,
+            date: $data['date'] ?? '',
+            amount: (float) ($data['amount'] ?? 0),
+            description: $data['description'] ?? null,
+        ));
+
+        return $this->json($result->toArray());
+    }
+
+    #[Route('/{id}/reset', name: 'api_invoices_reset', methods: ['POST'])]
+    #[IsGranted('finance.invoices.update')]
+    public function reset(string $id, ResetInvoiceHandler $handler): JsonResponse
+    {
+        return $this->json($handler->handle(new ResetInvoiceCommand($id))->toArray());
     }
 
     #[Route('/{id}', name: 'api_invoices_get', methods: ['GET'])]
@@ -59,10 +85,10 @@ final class InvoiceController extends AbstractController
         $result = $handler->handle(new UpdateInvoiceCommand(
             id: $id,
             date: $data['date'] ?? null,
-            amount: isset($data['amount']) ? (float) $data['amount'] : null,
             status: $data['status'] ?? null,
             clientId: $data['clientId'] ?? null,
             projectId: $data['projectId'] ?? null,
+            lines: $data['lines'] ?? null,
         ));
 
         return $this->json($result->toArray());

@@ -7,6 +7,7 @@ use App\Stock\Application\Dto\StockMovementLineResponseDto;
 use App\Stock\Application\Dto\StockMovementResponseDto;
 use App\Stock\Domain\Entity\StockMovement;
 use App\Stock\Domain\Entity\StockMovementLine;
+use App\Stock\Domain\Enum\StockMovementDirection;
 use App\Stock\Domain\Repository\StockMovementLineRepositoryInterface;
 use App\Stock\Domain\Repository\StockMovementRepositoryInterface;
 use Symfony\Component\Uid\Uuid;
@@ -26,6 +27,7 @@ final class CreateStockMovementHandler
             date: new \DateTimeImmutable($command->date),
             quantity: $command->quantity,
             unit: $unit,
+            direction: StockMovementDirection::from($command->direction),
             clientId: $command->clientId ? Uuid::fromString($command->clientId) : null,
             projectId: $command->projectId ? Uuid::fromString($command->projectId) : null,
             siteId: $command->siteId ? Uuid::fromString($command->siteId) : null,
@@ -43,18 +45,6 @@ final class CreateStockMovementHandler
             $lineDtos[] = StockMovementLineResponseDto::fromEntity($line)->toArray();
         }
 
-        return new StockMovementResponseDto(
-            id: (string) $movement->getId(),
-            date: $movement->getDate()->format('Y-m-d'),
-            quantity: $movement->getQuantity(),
-            unit: $movement->getUnit(),
-            clientId: $movement->getClientId()?->toRfc4122(),
-            projectId: $movement->getProjectId()?->toRfc4122(),
-            siteId: $movement->getSiteId()?->toRfc4122(),
-            lines: $lineDtos,
-            isEnabled: $movement->isEnabled(),
-            createdAt: $movement->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            updatedAt: $movement->getUpdatedAt()->format(\DateTimeInterface::ATOM),
-        );
+        return StockMovementResponseDto::fromEntity($movement, $lineDtos);
     }
 }

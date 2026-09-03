@@ -73,10 +73,11 @@ export function usePrintDocument() {
         disposition: format === 'html' ? 'inline' : 'attachment',
       })
       const filename = `${type}-${String(id).slice(0, 8)}.${extensionForFormat(format)}`
+      const forceDownload = Boolean(options.download)
       openBlob(blob, {
         filename,
-        openInNewTab: ['pdf', 'word', 'html'].includes(format),
-        download: !['pdf', 'word', 'html'].includes(format),
+        openInNewTab: forceDownload ? false : ['pdf', 'word', 'html'].includes(format),
+        download: forceDownload || !['pdf', 'word', 'html'].includes(format),
       })
     } catch (error) {
       toast.add({ severity: 'error', summary: 'Export', detail: await readBlobError(error) })

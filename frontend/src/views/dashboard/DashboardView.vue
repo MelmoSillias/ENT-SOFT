@@ -53,7 +53,7 @@ const statsItems = computed(() => {
     {
       label: 'Factures impayées',
       value: String(summary.value.unpaidInvoices ?? 0),
-      hint: 'Factures envoyées',
+      hint: 'Facturées avec solde restant',
       icon: 'pi pi-file',
       variant: 'amount',
     },
@@ -72,10 +72,10 @@ const quickActions = computed(() => {
     actions.push({ label: 'Clients', icon: 'pi pi-users', route: 'clients' })
   }
   if (authStore.hasModuleAccess('stock')) {
-    actions.push({ label: 'Stock', icon: 'pi pi-box', route: 'equipments' })
+    actions.push({ label: 'Matériels', icon: 'pi pi-box', route: 'equipments' })
   }
   if (authStore.hasModuleAccess('finance')) {
-    actions.push({ label: 'Factures', icon: 'pi pi-wallet', route: 'invoices' })
+    actions.push({ label: 'Finances', icon: 'pi pi-wallet', route: 'finances' })
   }
   return actions
 })

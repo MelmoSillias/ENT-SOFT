@@ -37,6 +37,7 @@ final class StockMovementController extends AbstractController
             date: $data['date'] ?? '',
             quantity: (float) ($data['quantity'] ?? 0),
             unit: $data['unit'] ?? '',
+            direction: $data['direction'] ?? 'in',
             clientId: $data['clientId'] ?? null,
             projectId: $data['projectId'] ?? null,
             siteId: $data['siteId'] ?? null,
@@ -63,9 +64,11 @@ final class StockMovementController extends AbstractController
             date: $data['date'] ?? null,
             quantity: isset($data['quantity']) ? (float) $data['quantity'] : null,
             unit: $data['unit'] ?? null,
+            direction: $data['direction'] ?? null,
             clientId: $data['clientId'] ?? null,
             projectId: $data['projectId'] ?? null,
             siteId: $data['siteId'] ?? null,
+            lines: $data['lines'] ?? null,
         ));
 
         return $this->json($result->toArray());

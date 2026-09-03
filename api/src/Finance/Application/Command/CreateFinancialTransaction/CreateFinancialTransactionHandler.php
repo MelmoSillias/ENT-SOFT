@@ -32,6 +32,7 @@ final class CreateFinancialTransactionHandler
             clientId: $command->clientId ? Uuid::fromString($command->clientId) : null,
             projectId: $command->projectId ? Uuid::fromString($command->projectId) : null,
             siteId: $command->siteId ? Uuid::fromString($command->siteId) : null,
+            invoiceId: $command->invoiceId ? Uuid::fromString($command->invoiceId) : null,
         );
         $this->transactionRepository->save($transaction);
 

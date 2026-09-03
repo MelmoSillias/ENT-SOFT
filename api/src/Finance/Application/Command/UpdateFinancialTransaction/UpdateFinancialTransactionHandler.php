@@ -58,6 +58,9 @@ final class UpdateFinancialTransactionHandler
         if ($command->siteId !== null) {
             $transaction->setSiteId($command->siteId !== '' ? Uuid::fromString($command->siteId) : null);
         }
+        if ($command->invoiceId !== null) {
+            $transaction->setInvoiceId($command->invoiceId !== '' ? Uuid::fromString($command->invoiceId) : null);
+        }
 
         $this->transactionRepository->save($transaction);
 

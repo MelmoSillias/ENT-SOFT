@@ -29,18 +29,6 @@ final class GetStockMovementHandler
             $this->lineRepository->findByMovementId($movement->getId()),
         );
 
-        return new StockMovementResponseDto(
-            id: (string) $movement->getId(),
-            date: $movement->getDate()->format('Y-m-d'),
-            quantity: $movement->getQuantity(),
-            unit: $movement->getUnit(),
-            clientId: $movement->getClientId()?->toRfc4122(),
-            projectId: $movement->getProjectId()?->toRfc4122(),
-            siteId: $movement->getSiteId()?->toRfc4122(),
-            lines: $lines,
-            isEnabled: $movement->isEnabled(),
-            createdAt: $movement->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            updatedAt: $movement->getUpdatedAt()->format(\DateTimeInterface::ATOM),
-        );
+        return StockMovementResponseDto::fromEntity($movement, $lines);
     }
 }

@@ -7,4 +7,5 @@ enum DocumentOwnerType: string
     case CLIENT = 'client';
     case PROJECT = 'project';
     case SITE = 'site';
+    case FINANCIAL_TRANSACTION = 'financial_transaction';
 }

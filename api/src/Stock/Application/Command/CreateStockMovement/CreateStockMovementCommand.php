@@ -9,6 +9,7 @@ final readonly class CreateStockMovementCommand
         public string $date,
         public float $quantity,
         public string $unit,
+        public string $direction = 'in',
         public ?string $clientId = null,
         public ?string $projectId = null,
         public ?string $siteId = null,

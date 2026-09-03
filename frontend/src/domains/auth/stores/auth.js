@@ -6,6 +6,7 @@ import {
   getRefreshToken,
   setStoredTokens,
 } from '@/domains/auth/tokenStorage'
+import { useAgencyBrandStore } from '@/domains/configuration/stores/agencyBrand'
 
 const OPERATIONAL_ROLES = ['AGENT', 'SUPERVISEUR', 'ADMIN']
 
@@ -48,6 +49,7 @@ export const useAuthStore = defineStore('auth', {
         this.setTokens(data.access_token, data.refresh_token)
         try {
           await this.fetchMe()
+          await useAgencyBrandStore().fetch().catch(() => {})
         } catch (error) {
           this.clearTokens()
           this.user = null

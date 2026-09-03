@@ -4,7 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import Card from 'primevue/card'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
-import TabView from 'primevue/tabview'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
+import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -60,33 +63,39 @@ onMounted(load)
         </div>
       </template>
       <template #content>
-        <TabView>
-          <TabPanel header="Informations">
-            <dl class="detail-dl">
-              <div><dt>Email</dt><dd>{{ employee.email }}</dd></div>
-              <div><dt>Téléphone</dt><dd>{{ employee.phone }}</dd></div>
-              <div><dt>Fonction</dt><dd>{{ employee.function }}</dd></div>
-              <div><dt>Adresse</dt><dd>{{ employee.address || '—' }}</dd></div>
-            </dl>
-          </TabPanel>
-          <TabPanel :header="`Tâches (${tasks.length})`">
-            <DataTable v-if="tasks.length" :value="tasks" striped-rows>
-              <Column field="title" header="Titre" />
-              <Column header="Site">
-                <template #body="{ data }">{{ siteMap[data.siteId] || '—' }}</template>
-              </Column>
-              <Column header="Échéance">
-                <template #body="{ data }">{{ formatDateFr(data.dateDue) }}</template>
-              </Column>
-              <Column header="Statut">
-                <template #body="{ data }">
-                  <Tag :value="taskStatusLabel(data.status)" :severity="taskStatusSeverity(data.status)" />
-                </template>
-              </Column>
-            </DataTable>
-            <p v-else class="dashboard-page__state">Aucune tâche assignée.</p>
-          </TabPanel>
-        </TabView>
+        <Tabs value="0">
+          <TabList>
+            <Tab value="0">Informations</Tab>
+            <Tab value="1">Tâches ({{ tasks.length }})</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel value="0">
+              <dl class="detail-dl">
+                <div><dt>Email</dt><dd>{{ employee.email }}</dd></div>
+                <div><dt>Téléphone</dt><dd>{{ employee.phone }}</dd></div>
+                <div><dt>Fonction</dt><dd>{{ employee.function }}</dd></div>
+                <div><dt>Adresse</dt><dd>{{ employee.address || '—' }}</dd></div>
+              </dl>
+            </TabPanel>
+            <TabPanel value="1">
+              <DataTable v-if="tasks.length" :value="tasks" striped-rows>
+                <Column field="title" header="Titre" />
+                <Column header="Site">
+                  <template #body="{ data }">{{ siteMap[data.siteId] || '—' }}</template>
+                </Column>
+                <Column header="Échéance">
+                  <template #body="{ data }">{{ formatDateFr(data.dateDue) }}</template>
+                </Column>
+                <Column header="Statut">
+                  <template #body="{ data }">
+                    <Tag :value="taskStatusLabel(data.status)" :severity="taskStatusSeverity(data.status)" />
+                  </template>
+                </Column>
+              </DataTable>
+              <p v-else class="dashboard-page__state">Aucune tâche assignée.</p>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </template>
     </Card>
   </section>

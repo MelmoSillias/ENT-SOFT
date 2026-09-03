@@ -53,6 +53,9 @@ class FinancialTransaction
     #[ORM\Column(type: 'uuid', nullable: true)]
     private ?Uuid $siteId;
 
+    #[ORM\Column(type: 'uuid', nullable: true)]
+    private ?Uuid $invoiceId;
+
     public function __construct(
         \DateTimeImmutable $date,
         float $amount,
@@ -65,6 +68,7 @@ class FinancialTransaction
         ?Uuid $clientId = null,
         ?Uuid $projectId = null,
         ?Uuid $siteId = null,
+        ?Uuid $invoiceId = null,
     ) {
         $this->initializeUuid();
         $this->initializeTimestamps();
@@ -79,6 +83,7 @@ class FinancialTransaction
         $this->clientId = $clientId;
         $this->projectId = $projectId;
         $this->siteId = $siteId;
+        $this->invoiceId = $invoiceId;
     }
 
     public function getDate(): \DateTimeImmutable { return $this->date; }
@@ -92,6 +97,7 @@ class FinancialTransaction
     public function getClientId(): ?Uuid { return $this->clientId; }
     public function getProjectId(): ?Uuid { return $this->projectId; }
     public function getSiteId(): ?Uuid { return $this->siteId; }
+    public function getInvoiceId(): ?Uuid { return $this->invoiceId; }
 
     public function setDate(\DateTimeImmutable $date): void { $this->date = $date; $this->touch(); }
     public function setAmount(float $amount): void { $this->amount = $amount; $this->touch(); }
@@ -104,4 +110,5 @@ class FinancialTransaction
     public function setClientId(?Uuid $clientId): void { $this->clientId = $clientId; $this->touch(); }
     public function setProjectId(?Uuid $projectId): void { $this->projectId = $projectId; $this->touch(); }
     public function setSiteId(?Uuid $siteId): void { $this->siteId = $siteId; $this->touch(); }
+    public function setInvoiceId(?Uuid $invoiceId): void { $this->invoiceId = $invoiceId; $this->touch(); }
 }

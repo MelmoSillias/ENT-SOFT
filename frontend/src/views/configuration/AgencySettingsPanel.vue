@@ -5,6 +5,7 @@ import Button from 'primevue/button'
 import Message from 'primevue/message'
 import api from '@/services/api'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
+import { useAgencyBrandStore } from '@/domains/configuration/stores/agencyBrand'
 
 const props = defineProps({
   canEdit: { type: Boolean, default: false },
@@ -23,6 +24,7 @@ const form = ref({})
 const loading = ref(true)
 const error = ref(null)
 const success = ref(null)
+const agencyBrandStore = useAgencyBrandStore()
 
 async function load() {
   loading.value = true
@@ -51,6 +53,7 @@ const { pending: saving, run: save } = useAsyncAction(async () => {
     for (const key of AGENCY_KEYS) {
       await api.put(`/settings/${key.cle}`, { valeur: form.value[key.cle] ?? '' })
     }
+    agencyBrandStore.name = form.value.AGENCE_NOM ?? ''
     success.value = 'Paramètres agence enregistrés.'
   } catch (e) {
     error.value = e.response?.data?.error || 'Erreur lors de la sauvegarde.'

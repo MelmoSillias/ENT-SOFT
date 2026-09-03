@@ -64,7 +64,7 @@ final class AgenceLogoUploadService
         $filename = 'agence-logo.'.$extension;
         $file->move($directory, $filename);
 
-        $publicUrl = self::PUBLIC_PATH_PREFIX.$filename;
+        $publicUrl = self::PUBLIC_PATH_PREFIX.$filename.'?v='.time();
 
         return $this->persistSettingValue($publicUrl, $utilisateur, 'Upload logo agence');
     }

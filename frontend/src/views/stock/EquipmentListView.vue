@@ -5,12 +5,17 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
-import Tag from 'primevue/tag'
 import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
+import TabPanels from 'primevue/tabpanels'
+import TabPanel from 'primevue/tabpanel'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import EquipmentFormFields from '@/domains/stock/components/EquipmentFormFields.vue'
+import StockMovementListPanel from '@/views/stock/StockMovementListPanel.vue'
 import { listEquipment, createEquipment, updateEquipment, deleteEquipment } from '@/domains/stock/services/equipmentService'
 import { listClients } from '@/domains/client/services/clientService'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
@@ -33,6 +38,7 @@ const loading = ref(true)
 const error = ref(null)
 const reloading = ref(false)
 const dialog = ref(false)
+const stockTab = ref('list')
 const editingId = ref(null)
 const actionItem = ref(null)
 const actionMenu = ref()
@@ -164,41 +170,47 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
 <template>
   <section class="dashboard-page">
     <Card class="dashboard-panel">
-      <template #title>
-        <AppTablePanelHeader
-          title="Matériel & Équipements"
-          :count-label="countLabel"
-          create-label="Nouvel équipement"
-          :show-create="canCreate"
-          :reloading="reloading"
-          show-search
-          v-model:search-term="searchTerm"
-          search-placeholder="Rechercher…"
-          @create="openCreate"
-          @reload="reload"
-        />
-      </template>
       <template #content>
-        <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-          <DataTable :value="filteredItems" paginator :rows="10" striped-rows>
-            <Column field="code" header="Code" />
-            <Column field="title" header="Titre" />
-            <Column header="Client">
-              <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
-            </Column>
-            <Column header="Statut">
-              <template #body="{ data }">
-                <Tag :value="data.isEnabled ? 'Actif' : 'Inactif'" :severity="data.isEnabled ? 'success' : 'secondary'" />
-              </template>
-            </Column>
-            <Column header="Actions" style="width: 5rem">
-              <template #body="{ data }">
-                <Button icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
-              </template>
-            </Column>
-          </DataTable>
-          <Menu ref="actionMenu" :model="menuModel" popup />
-        </AppTableState>
+        <Tabs v-model:value="stockTab">
+          <TabList>
+            <Tab value="list">Liste</Tab>
+            <Tab value="movements">Mouvements</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel value="list">
+              <AppTablePanelHeader
+                title="Matériels et équipements"
+                :count-label="countLabel"
+                create-label="Nouvel équipement"
+                :show-create="canCreate"
+                :reloading="reloading"
+                show-search
+                v-model:search-term="searchTerm"
+                search-placeholder="Rechercher…"
+                @create="openCreate"
+                @reload="reload"
+              />
+              <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
+                <DataTable :value="filteredItems" paginator :rows="10" striped-rows>
+                  <Column field="code" header="Code" />
+                  <Column field="title" header="Titre" />
+                  <Column header="Client">
+                    <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
+                  </Column>
+                  <Column header="Actions" style="width: 5rem">
+                    <template #body="{ data }">
+                      <Button icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
+                    </template>
+                  </Column>
+                </DataTable>
+                <Menu ref="actionMenu" :model="menuModel" popup />
+              </AppTableState>
+            </TabPanel>
+            <TabPanel value="movements">
+              <StockMovementListPanel />
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </template>
     </Card>
 

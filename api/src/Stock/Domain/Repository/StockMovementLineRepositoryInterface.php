@@ -9,6 +9,8 @@ interface StockMovementLineRepositoryInterface
 {
     public function save(StockMovementLine $line): void;
 
+    public function remove(StockMovementLine $line): void;
+
     /** @return list<StockMovementLine> */
     public function findByMovementId(Uuid $movementId): array;
 }

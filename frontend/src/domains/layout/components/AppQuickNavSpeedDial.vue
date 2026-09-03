@@ -39,7 +39,7 @@ const allItems = [
     label: 'Factures',
     icon: 'pi pi-wallet',
     requiredModule: 'finance',
-    command: () => router.push({ name: 'invoices' }),
+    command: () => router.push({ name: 'finances' }),
   },
   {
     label: 'Tableau de bord',

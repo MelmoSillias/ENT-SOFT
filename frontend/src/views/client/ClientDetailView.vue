@@ -4,7 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import Card from 'primevue/card'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
-import TabView from 'primevue/tabview'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
+import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -141,49 +144,56 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async () => {
           </div>
         </template>
         <template #content>
-          <TabView>
-            <TabPanel header="Informations">
-              <dl class="detail-dl">
-                <div><dt>Code</dt><dd>{{ client.code }}</dd></div>
-                <div><dt>Titre</dt><dd>{{ client.title }}</dd></div>
-                <div><dt>Description</dt><dd>{{ client.description || '—' }}</dd></div>
-                <div><dt>Statut</dt><dd><Tag :value="client.isEnabled ? 'Actif' : 'Inactif'" /></dd></div>
-                <div><dt>Créé le</dt><dd>{{ formatDateFr(client.createdAt) }}</dd></div>
-              </dl>
-            </TabPanel>
-            <TabPanel :header="`Projets (${client.projectCount ?? projects.length})`">
-              <DataTable v-if="projects.length" :value="projects" striped-rows>
-                <Column field="code" header="Code" />
-                <Column field="title" header="Titre" />
-                <Column header="Statut">
-                  <template #body="{ data }">{{ projectStatusLabel(data.status) }}</template>
-                </Column>
-                <Column header="">
-                  <template #body="{ data }">
-                    <Button icon="pi pi-eye" text rounded @click="router.push({ name: 'project-detail', params: { id: data.id } })" />
-                  </template>
-                </Column>
-              </DataTable>
-              <p v-else class="dashboard-page__state">Aucun projet associé.</p>
-            </TabPanel>
-            <TabPanel :header="`Factures (${client.invoiceCount ?? invoices.length})`">
-              <DataTable v-if="invoices.length" :value="invoices" striped-rows>
-                <Column field="number" header="N°" />
-                <Column header="Date">
-                  <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
-                </Column>
-                <Column header="Montant">
-                  <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
-                </Column>
-                <Column header="Statut">
-                  <template #body="{ data }">
-                    <Tag :value="invoiceStatusLabel(data.status)" :severity="invoiceStatusSeverity(data.status)" />
-                  </template>
-                </Column>
-              </DataTable>
-              <p v-else class="dashboard-page__state">Aucune facture.</p>
-            </TabPanel>
-          </TabView>
+          <Tabs value="0">
+            <TabList>
+              <Tab value="0">Informations</Tab>
+              <Tab value="1">Projets ({{ client.projectCount ?? projects.length }})</Tab>
+              <Tab value="2">Factures ({{ client.invoiceCount ?? invoices.length }})</Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel value="0">
+                <dl class="detail-dl">
+                  <div><dt>Code</dt><dd>{{ client.code }}</dd></div>
+                  <div><dt>Titre</dt><dd>{{ client.title }}</dd></div>
+                  <div><dt>Description</dt><dd>{{ client.description || '—' }}</dd></div>
+                  <div><dt>Statut</dt><dd><Tag :value="client.isEnabled ? 'Actif' : 'Inactif'" /></dd></div>
+                  <div><dt>Créé le</dt><dd>{{ formatDateFr(client.createdAt) }}</dd></div>
+                </dl>
+              </TabPanel>
+              <TabPanel value="1">
+                <DataTable v-if="projects.length" :value="projects" striped-rows>
+                  <Column field="code" header="Code" />
+                  <Column field="title" header="Titre" />
+                  <Column header="Statut">
+                    <template #body="{ data }">{{ projectStatusLabel(data.status) }}</template>
+                  </Column>
+                  <Column header="">
+                    <template #body="{ data }">
+                      <Button icon="pi pi-eye" text rounded @click="router.push({ name: 'project-detail', params: { id: data.id } })" />
+                    </template>
+                  </Column>
+                </DataTable>
+                <p v-else class="dashboard-page__state">Aucun projet associé.</p>
+              </TabPanel>
+              <TabPanel value="2">
+                <DataTable v-if="invoices.length" :value="invoices" striped-rows>
+                  <Column field="number" header="N°" />
+                  <Column header="Date">
+                    <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+                  </Column>
+                  <Column header="Montant">
+                    <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
+                  </Column>
+                  <Column header="Statut">
+                    <template #body="{ data }">
+                      <Tag :value="invoiceStatusLabel(data.status)" :severity="invoiceStatusSeverity(data.status)" />
+                    </template>
+                  </Column>
+                </DataTable>
+                <p v-else class="dashboard-page__state">Aucune facture.</p>
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
         </template>
       </Card>
     </template>

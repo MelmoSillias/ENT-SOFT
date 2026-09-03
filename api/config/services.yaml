@@ -97,6 +97,9 @@ services:
     App\Finance\Domain\Repository\InvoiceRepositoryInterface:
         alias: App\Finance\Infrastructure\Persistence\Doctrine\DoctrineInvoiceRepository
 
+    App\Finance\Domain\Repository\InvoiceLineRepositoryInterface:
+        alias: App\Finance\Infrastructure\Persistence\Doctrine\DoctrineInvoiceLineRepository
+
     App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface:
         alias: App\Finance\Infrastructure\Persistence\Doctrine\DoctrineFinancialTransactionRepository
 

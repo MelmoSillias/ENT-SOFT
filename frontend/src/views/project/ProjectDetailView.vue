@@ -4,7 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import Card from 'primevue/card'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
-import TabView from 'primevue/tabview'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
+import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -53,37 +56,46 @@ onMounted(load)
         </div>
       </template>
       <template #content>
-        <TabView>
-          <TabPanel header="Informations">
-            <dl class="detail-dl">
-              <div><dt>Client</dt><dd>{{ project.clientTitle || project.clientId }}</dd></div>
-              <div><dt>Objet</dt><dd>{{ project.object || '—' }}</dd></div>
-              <div><dt>Budget</dt><dd>{{ formatMontant(project.budget, DEVISE_APP) }}</dd></div>
-              <div><dt>Date début</dt><dd>{{ formatDateFr(project.dateDebut) }}</dd></div>
-              <div><dt>Date fin</dt><dd>{{ formatDateFr(project.dateFin) }}</dd></div>
-            </dl>
-          </TabPanel>
-          <TabPanel :header="`Sites (${project.sites?.length ?? 0})`">
-            <ProjectSitesTable
-              :sites="project.sites"
-              :sites-informations="project.sitesInformations"
-              :lots="project.lots"
-            />
-          </TabPanel>
-          <TabPanel :header="`Événements (${project.events?.length ?? 0})`">
-            <DataTable v-if="project.events?.length" :value="project.events" striped-rows>
-              <Column field="title" header="Titre" />
-              <Column field="type" header="Type" />
-              <Column header="Date">
-                <template #body="{ data }">{{ formatDateTimeFr(data.dateEvent) }}</template>
-              </Column>
-            </DataTable>
-            <p v-else class="dashboard-page__state">Aucun événement.</p>
-          </TabPanel>
-          <TabPanel header="Documents">
-            <p class="dashboard-page__state">Gestion documentaire — bientôt disponible.</p>
-          </TabPanel>
-        </TabView>
+        <Tabs value="0">
+          <TabList>
+            <Tab value="0">Informations</Tab>
+            <Tab value="1">Sites ({{ project.sites?.length ?? 0 }})</Tab>
+            <Tab value="2">Événements ({{ project.events?.length ?? 0 }})</Tab>
+            <Tab value="3">Documents</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel value="0">
+              <dl class="detail-dl">
+                <div><dt>Client</dt><dd>{{ project.clientTitle || project.clientId }}</dd></div>
+                <div><dt>Objet</dt><dd>{{ project.object || '—' }}</dd></div>
+                <div><dt>Budget</dt><dd>{{ formatMontant(project.budget, DEVISE_APP) }}</dd></div>
+                <div><dt>Date début</dt><dd>{{ formatDateFr(project.dateDebut) }}</dd></div>
+                <div><dt>Date fin</dt><dd>{{ formatDateFr(project.dateFin) }}</dd></div>
+              </dl>
+            </TabPanel>
+            <TabPanel value="1">
+              <ProjectSitesTable
+                :sites="project.sites"
+                :sites-informations="project.sitesInformations"
+                :lots="project.lots"
+                :project-id="project.id"
+              />
+            </TabPanel>
+            <TabPanel value="2">
+              <DataTable v-if="project.events?.length" :value="project.events" striped-rows>
+                <Column field="title" header="Titre" />
+                <Column field="type" header="Type" />
+                <Column header="Date">
+                  <template #body="{ data }">{{ formatDateTimeFr(data.dateEvent) }}</template>
+                </Column>
+              </DataTable>
+              <p v-else class="dashboard-page__state">Aucun événement.</p>
+            </TabPanel>
+            <TabPanel value="3">
+              <p class="dashboard-page__state">Gestion documentaire — bientôt disponible.</p>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </template>
     </Card>
   </section>

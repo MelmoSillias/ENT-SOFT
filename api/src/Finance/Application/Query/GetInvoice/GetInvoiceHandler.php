@@ -3,6 +3,7 @@
 namespace App\Finance\Application\Query\GetInvoice;
 
 use App\Finance\Application\Dto\InvoiceResponseDto;
+use App\Finance\Application\Service\InvoiceAssembler;
 use App\Finance\Domain\Exception\InvoiceNotFoundException;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
 use Symfony\Component\Uid\Uuid;
@@ -11,6 +12,7 @@ final class GetInvoiceHandler
 {
     public function __construct(
         private readonly InvoiceRepositoryInterface $invoiceRepository,
+        private readonly InvoiceAssembler $assembler,
     ) {
     }
 
@@ -21,6 +23,6 @@ final class GetInvoiceHandler
             throw InvoiceNotFoundException::withId($query->id);
         }
 
-        return InvoiceResponseDto::fromEntity($invoice);
+        return $this->assembler->toDto($invoice);
     }
 }

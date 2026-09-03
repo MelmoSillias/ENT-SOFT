@@ -3,6 +3,8 @@
 namespace App\Finance\Application\Command\CreateInvoice;
 
 use App\Finance\Application\Dto\InvoiceResponseDto;
+use App\Finance\Application\Service\InvoiceAssembler;
+use App\Finance\Application\Service\InvoiceLineWriter;
 use App\Finance\Domain\Entity\Invoice;
 use App\Finance\Domain\Enum\InvoiceStatus;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
@@ -15,6 +17,8 @@ final class CreateInvoiceHandler
     public function __construct(
         private readonly InvoiceRepositoryInterface $invoiceRepository,
         private readonly CodeGeneratorService $codeGenerator,
+        private readonly InvoiceLineWriter $lineWriter,
+        private readonly InvoiceAssembler $assembler,
     ) {
     }
 
@@ -24,13 +28,14 @@ final class CreateInvoiceHandler
         $invoice = new Invoice(
             number: $number,
             date: new \DateTimeImmutable($command->date),
-            amount: $command->amount,
+            amount: 0,
             clientId: Uuid::fromString($command->clientId),
             status: InvoiceStatus::from($command->status),
             projectId: $command->projectId ? Uuid::fromString($command->projectId) : null,
         );
         $this->invoiceRepository->save($invoice);
+        $this->lineWriter->replaceLines($invoice, $command->lines);
 
-        return InvoiceResponseDto::fromEntity($invoice);
+        return $this->assembler->toDto($invoice);
     }
 }

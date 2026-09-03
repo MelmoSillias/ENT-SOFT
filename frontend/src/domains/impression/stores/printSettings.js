@@ -12,18 +12,20 @@ export const usePrintSettingsStore = defineStore('printSettings', {
     defaultPageFor: (state) => (type) => {
       const map = {
         table: state.settings?.default_page_table,
-        transfert: state.settings?.default_page_transfert,
+        invoice: state.settings?.default_page_invoice,
+        transfert: state.settings?.default_page_invoice,
         releve_compte: state.settings?.default_page_table,
-        operation_client: state.settings?.default_page_transfert,
+        operation_client: state.settings?.default_page_invoice,
       }
       return map[type] || 'a4'
     },
     defaultOrientationFor: (state) => (type) => {
       const map = {
         table: state.settings?.default_orientation_table,
-        transfert: state.settings?.default_orientation_transfert,
+        invoice: state.settings?.default_orientation_invoice,
+        transfert: state.settings?.default_orientation_invoice,
         releve_compte: state.settings?.default_orientation_table,
-        operation_client: state.settings?.default_orientation_transfert,
+        operation_client: state.settings?.default_orientation_invoice,
       }
       return map[type] || 'portrait'
     },

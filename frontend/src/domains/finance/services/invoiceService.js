@@ -24,3 +24,13 @@ export async function deleteInvoice(id) {
   const { data } = await api.delete(`/invoices/${id}`)
   return data
 }
+
+export async function payInvoice(id, payload) {
+  const { data } = await api.post(`/invoices/${id}/pay`, payload)
+  return data
+}
+
+export async function resetInvoice(id) {
+  const { data } = await api.post(`/invoices/${id}/reset`)
+  return data
+}

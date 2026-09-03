@@ -17,6 +17,7 @@ final readonly class UpdateFinancialTransactionCommand
         public ?string $clientId = null,
         public ?string $projectId = null,
         public ?string $siteId = null,
+        public ?string $invoiceId = null,
     ) {
     }
 }

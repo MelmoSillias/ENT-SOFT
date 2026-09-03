@@ -4,7 +4,6 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
-import Tag from 'primevue/tag'
 import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
@@ -181,11 +180,6 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             <Column field="title" header="Titre" />
             <Column header="Client">
               <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
-            </Column>
-            <Column header="Statut">
-              <template #body="{ data }">
-                <Tag :value="data.isEnabled ? 'Actif' : 'Inactif'" :severity="data.isEnabled ? 'success' : 'secondary'" />
-              </template>
             </Column>
             <Column header="Actions" style="width: 5rem">
               <template #body="{ data }">

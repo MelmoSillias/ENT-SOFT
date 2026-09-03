@@ -3,14 +3,18 @@ import { computed, onMounted, ref } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
-import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
+import DatePicker from 'primevue/datepicker'
+import InputNumber from 'primevue/inputnumber'
+import InputText from 'primevue/inputtext'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import InvoiceFormFields from '@/domains/finance/components/InvoiceFormFields.vue'
-import { listInvoices, createInvoice, updateInvoice, deleteInvoice } from '@/domains/finance/services/invoiceService'
+import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
+import ExportFormatMenu from '@/domains/impression/components/ExportFormatMenu.vue'
+import { listInvoices, createInvoice, updateInvoice, deleteInvoice, payInvoice, resetInvoice } from '@/domains/finance/services/invoiceService'
 import { listClients } from '@/domains/client/services/clientService'
 import { listProjects } from '@/domains/project/services/projectService'
 import { invoiceStatusLabel, invoiceStatusSeverity, formatDateFr } from '@/domains/shared/utils/entLabels'
@@ -22,10 +26,16 @@ import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
+import { usePrintDocument } from '@/domains/impression/composables/usePrintDocument'
+
+defineProps({
+  embedded: { type: Boolean, default: false },
+})
 
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { printDocument, exportDocument } = usePrintDocument()
 
 const items = ref([])
 const clientOptions = ref([])
@@ -36,24 +46,36 @@ const loading = ref(true)
 const error = ref(null)
 const reloading = ref(false)
 const dialog = ref(false)
+const payDialog = ref(false)
 const editingId = ref(null)
-const actionItem = ref(null)
+const payingItem = ref(null)
 const actionMenu = ref()
+const exportMenu = ref()
+const printMenu = ref()
 const menuModel = ref([])
+const exportTarget = ref(null)
+const printTarget = ref(null)
+const expandedRows = ref([])
 
 const canCreate = computed(() => hasPermission('finance.invoices.create'))
 
+function emptyLine() {
+  return { description: '', quantity: 1, unitPrice: 0 }
+}
+
 function emptyForm() {
-  return { date: new Date(), amount: 0, clientId: null, projectId: null, status: 'draft' }
+  return { date: new Date(), clientId: null, projectId: null, status: 'draft', lines: [emptyLine()] }
 }
 
 const form = ref(emptyForm())
+const payForm = ref({ date: new Date(), amount: 0, description: '' })
 
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
   if (!form.value.date) errs.date = 'Date requise.'
   if (!form.value.clientId) errs.clientId = 'Client requis.'
-  if (form.value.amount == null || Number(form.value.amount) <= 0) errs.amount = 'Montant invalide.'
+  const lines = (form.value.lines ?? []).filter((l) => String(l.description || '').trim())
+  if (!lines.length) errs.lines = 'Ajoutez au moins une ligne.'
   return errs
 })
 
@@ -113,24 +135,61 @@ function openEdit(item) {
   editingId.value = item.id
   form.value = {
     date: parseApiDate(item.date),
-    amount: item.amount,
     clientId: item.clientId,
     projectId: item.projectId,
     status: item.status ?? 'draft',
+    lines: (item.lines?.length ? item.lines : [emptyLine()]).map((l) => ({
+      description: l.description ?? '',
+      quantity: l.quantity ?? 1,
+      unitPrice: l.unitPrice ?? 0,
+    })),
   }
   resetErrors()
   dialog.value = true
 }
 
+function openPay(item) {
+  payingItem.value = item
+  const remaining = Math.max(0, Number(item.amount || 0) - Number(item.paidAmount || 0))
+  payForm.value = { date: new Date(), amount: remaining, description: '' }
+  payDialog.value = true
+}
+
 function buildMenuItems(item) {
   const menu = []
-  if (hasPermission('finance.invoices.update')) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
-  if (hasPermission('finance.invoices.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', command: () => askDelete(item) })
+  if (hasPermission('finance.transactions.create')) {
+    menu.push({ label: 'Payer', icon: 'pi pi-wallet', command: () => openPay(item) })
+  }
+  if (hasPermission('finance.invoices.update')) {
+    menu.push({
+      label: item.hasPayments ? 'Réinitialiser' : 'Modifier',
+      icon: item.hasPayments ? 'pi pi-refresh' : 'pi pi-pencil',
+      command: () => (item.hasPayments ? askReset(item) : openEdit(item)),
+    })
+  }
+  if (hasPermission('finance.invoices.delete') && !item.hasPayments && item.status === 'draft') {
+    menu.push({ label: 'Supprimer', icon: 'pi pi-trash', command: () => askDelete(item) })
+  }
+  menu.push({
+    label: 'Exporter',
+    icon: 'pi pi-download',
+    command: (event) => {
+      exportTarget.value = item
+      exportMenu.value?.toggle(event.originalEvent || event)
+    },
+  })
+  menu.push({
+    label: 'Imprimer',
+    icon: 'pi pi-print',
+    items: [
+      { label: 'HTML', command: () => printDocument('invoice', item.id) },
+      { label: 'PDF', command: () => exportDocument('invoice', item.id, 'pdf') },
+    ],
+  })
   return menu
 }
 
 function toggleMenu(event, item) {
-  actionItem.value = item
   menuModel.value = buildMenuItems(item)
   actionMenu.value?.toggle(event)
 }
@@ -146,7 +205,18 @@ function askDelete(item) {
   })
 }
 
-const { pending: deleting, run: runDelete } = useAsyncAction(async (item) => {
+function askReset(item) {
+  confirm.require({
+    header: 'Réinitialiser la facture',
+    message: `Annuler les paiements de ${item.number} et revenir en brouillon ?`,
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: { label: 'Annuler', severity: 'secondary', outlined: true },
+    acceptProps: { label: 'Réinitialiser', severity: 'warn' },
+    accept: () => runReset(item),
+  })
+}
+
+const { run: runDelete } = useAsyncAction(async (item) => {
   try {
     await deleteInvoice(item.id)
     toast.add({ severity: 'success', summary: 'Facture', detail: 'Supprimée.' })
@@ -156,14 +226,31 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async (item) => {
   }
 })
 
+const { pending: resetting, run: runReset } = useAsyncAction(async (item) => {
+  try {
+    const updated = await resetInvoice(item.id)
+    toast.add({ severity: 'success', summary: 'Facture', detail: 'Paiements annulés, facture en brouillon.' })
+    await fetchItems()
+    openEdit(updated)
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Facture', detail: e.response?.data?.error || 'Erreur.' })
+  }
+})
+
 const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   if (!validateForm()) return
   const payload = {
     date: toApiDate(form.value.date),
-    amount: form.value.amount,
     clientId: form.value.clientId,
     projectId: form.value.projectId || null,
     status: form.value.status,
+    lines: (form.value.lines ?? [])
+      .filter((l) => String(l.description || '').trim())
+      .map((l) => ({
+        description: String(l.description).trim(),
+        quantity: Number(l.quantity || 0),
+        unitPrice: Number(l.unitPrice || 0),
+      })),
   }
   try {
     if (editingId.value) await updateInvoice(editingId.value, payload)
@@ -175,28 +262,55 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     toast.add({ severity: 'error', summary: 'Facture', detail: e.response?.data?.error || 'Erreur.' })
   }
 })
+
+const { pending: paying, run: savePay } = useAsyncAction(async () => {
+  if (!payingItem.value) return
+  if (!payForm.value.date || Number(payForm.value.amount) <= 0) {
+    toast.add({ severity: 'warn', summary: 'Paiement', detail: 'Date et montant requis.' })
+    return
+  }
+  try {
+    await payInvoice(payingItem.value.id, {
+      date: toApiDate(payForm.value.date),
+      amount: Number(payForm.value.amount),
+      description: payForm.value.description || null,
+    })
+    payDialog.value = false
+    await fetchItems()
+    toast.add({ severity: 'success', summary: 'Paiement', detail: 'Enregistré. Facture passée à facturé.' })
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Paiement', detail: e.response?.data?.error || 'Erreur.' })
+  }
+})
+
+function onExportSelect(format) {
+  if (!exportTarget.value) return
+  exportDocument('invoice', exportTarget.value.id, format, { download: true })
+}
+
+const printFormatItems = computed(() => [
+  { label: 'HTML', command: () => printTarget.value && printDocument('invoice', printTarget.value.id) },
+  { label: 'PDF', command: () => printTarget.value && exportDocument('invoice', printTarget.value.id, 'pdf') },
+])
 </script>
 
 <template>
-  <section class="dashboard-page">
-    <Card class="dashboard-panel">
-      <template #title>
-        <AppTablePanelHeader
-          title="Factures"
-          :count-label="countLabel"
-          create-label="Nouvelle facture"
-          :show-create="canCreate"
-          :reloading="reloading"
-          show-search
-          v-model:search-term="searchTerm"
-          search-placeholder="Rechercher…"
-          @create="openCreate"
-          @reload="reload"
-        />
-      </template>
-      <template #content>
-        <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-          <DataTable :value="filteredItems" paginator :rows="10" striped-rows>
+  <section class="invoice-list">
+    <AppTablePanelHeader
+      title="Factures"
+      :count-label="countLabel"
+      create-label="Nouvelle facture"
+      :show-create="canCreate"
+      :reloading="reloading"
+      show-search
+      v-model:search-term="searchTerm"
+      search-placeholder="Rechercher…"
+      @create="openCreate"
+      @reload="reload"
+    />
+    <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
+      <DataTable v-model:expandedRows="expandedRows" :value="filteredItems" paginator :rows="10" striped-rows data-key="id">
+            <Column expander style="width: 3rem" />
             <Column field="number" header="N°" />
             <Column header="Date">
               <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
@@ -206,6 +320,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             </Column>
             <Column header="Montant">
               <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
+            </Column>
+            <Column header="Payé">
+              <template #body="{ data }">{{ formatMontant(data.paidAmount, DEVISE_APP) }}</template>
             </Column>
             <Column header="Statut">
               <template #body="{ data }">
@@ -217,18 +334,87 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
                 <Button v-if="buildMenuItems(data).length" icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
               </template>
             </Column>
+            <template #expansion="{ data }">
+              <div class="invoice-payments">
+                <p class="invoice-payments__title">Paiements</p>
+                <p v-if="!(data.payments ?? []).length" class="invoice-payments__empty">Aucun paiement.</p>
+                <div v-for="payment in data.payments" :key="payment.id" class="invoice-payments__row">
+                  <div>
+                    <strong>{{ formatDateFr(payment.date) }}</strong>
+                    — {{ formatMontant(payment.amount, DEVISE_APP) }}
+                    <span v-if="payment.description"> · {{ payment.description }}</span>
+                  </div>
+                  <TransactionAttachments :owner-id="payment.id" />
+                </div>
+              </div>
+            </template>
           </DataTable>
           <Menu ref="actionMenu" :model="menuModel" popup />
+          <ExportFormatMenu ref="exportMenu" @select="onExportSelect" />
+          <Menu ref="printMenu" :model="printFormatItems" popup />
         </AppTableState>
-      </template>
-    </Card>
 
-    <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(640px, 95vw)">
+    <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(840px, 96vw)">
       <InvoiceFormFields v-model="form" :errors="fieldErrors" :client-options="clientOptions" :project-options="projectOptions" />
       <template #footer>
-        <Button label="Annuler" severity="secondary" text :disabled="saving" @click="dialog = false" />
+        <Button label="Annuler" severity="secondary" text :disabled="saving || resetting" @click="dialog = false" />
         <Button :label="editingId ? 'Enregistrer' : 'Créer'" icon="pi pi-check" :loading="saving" @click="saveItem" />
+      </template>
+    </Dialog>
+
+    <Dialog v-model:visible="payDialog" header="Enregistrer un paiement" modal style="width: min(480px, 95vw)">
+      <div class="pay-form">
+        <div class="field">
+          <label>Date</label>
+          <DatePicker v-model="payForm.date" date-format="dd/mm/yy" show-icon fluid />
+        </div>
+        <div class="field">
+          <label>Montant</label>
+          <InputNumber v-model="payForm.amount" mode="currency" :currency="DEVISE_APP.code" locale="fr-FR" :min-fraction-digits="0" fluid />
+        </div>
+        <div class="field">
+          <label>Libellé</label>
+          <InputText v-model="payForm.description" fluid />
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Annuler" severity="secondary" text :disabled="paying" @click="payDialog = false" />
+        <Button label="Payer" icon="pi pi-check" :loading="paying" @click="savePay" />
       </template>
     </Dialog>
   </section>
 </template>
+
+<style scoped>
+.invoice-payments {
+  padding: 0.75rem 0.5rem 1rem 2.5rem;
+}
+
+.invoice-payments__title {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.invoice-payments__empty {
+  margin: 0;
+  color: var(--layout-text-muted);
+}
+
+.invoice-payments__row {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.pay-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+</style>

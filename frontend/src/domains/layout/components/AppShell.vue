@@ -11,10 +11,12 @@ import { useLayout } from '@/domains/layout/composables/useLayout'
 import { useLayoutTheme } from '@/domains/layout/composables/useLayoutTheme'
 import { useAuthStore } from '@/domains/auth/stores/auth'
 import { useLayoutStore } from '@/domains/layout/stores/layout'
+import { useAgencyBrandStore } from '@/domains/configuration/stores/agencyBrand'
 import { appConfig } from '@/config/app'
 
 const authStore = useAuthStore()
 const layoutStore = useLayoutStore()
+const agencyBrandStore = useAgencyBrandStore()
 const router = useRouter()
 const toast = useAppToast()
 
@@ -44,11 +46,11 @@ const user = computed(() => authStore.user)
 const displayName = computed(() => {
   const currentUser = user.value
   if (!currentUser) {
-    return brand.name
+    return brand.value.name
   }
 
   const fullName = [currentUser.prenom, currentUser.nom].filter(Boolean).join(' ').trim()
-  return fullName || currentUser.login || currentUser.email || brand.name
+  return fullName || currentUser.login || currentUser.email || brand.value.name
 })
 
 const shellClasses = computed(() => ({
@@ -86,6 +88,7 @@ const logout = async () => {
 onMounted(() => {
   if (authEnabled && authStore.isAuthenticated) {
     authStore.fetchCurrentUser().catch(() => {})
+    agencyBrandStore.fetch().catch(() => {})
   }
 })
 </script>

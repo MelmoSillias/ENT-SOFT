@@ -22,6 +22,12 @@ class DoctrineStockMovementLineRepository extends ServiceEntityRepository implem
         $this->getEntityManager()->flush();
     }
 
+    public function remove(StockMovementLine $line): void
+    {
+        $this->getEntityManager()->remove($line);
+        $this->getEntityManager()->flush();
+    }
+
     public function findByMovementId(Uuid $movementId): array
     {
         return $this->createQueryBuilder('l')

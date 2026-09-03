@@ -45,6 +45,7 @@ final class FinancialTransactionController extends AbstractController
             clientId: $data['clientId'] ?? null,
             projectId: $data['projectId'] ?? null,
             siteId: $data['siteId'] ?? null,
+            invoiceId: $data['invoiceId'] ?? null,
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -75,6 +76,7 @@ final class FinancialTransactionController extends AbstractController
             clientId: $data['clientId'] ?? null,
             projectId: $data['projectId'] ?? null,
             siteId: $data['siteId'] ?? null,
+            invoiceId: $data['invoiceId'] ?? null,
         ));
 
         return $this->json($result->toArray());
