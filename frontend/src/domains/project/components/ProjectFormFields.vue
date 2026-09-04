@@ -5,7 +5,7 @@ import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import DatePicker from 'primevue/datepicker'
 import InputNumber from 'primevue/inputnumber'
-import Chips from 'primevue/chips'
+import AutoComplete from 'primevue/autocomplete'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import { PROJECT_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
@@ -106,9 +106,11 @@ function onInfoLabelsUpdate(next) {
     </div>
     <div class="field ent-form-grid__full">
       <label>Informations supplémentaires (sites)</label>
-      <Chips
+      <AutoComplete
         :model-value="form.sitesInfoLabels"
         placeholder="Saisir un libellé puis Entrée (ex. Start Date)"
+        multiple
+        :typeahead="false"
         fluid
         class="pst-info-chips"
         @update:model-value="onInfoLabelsUpdate"

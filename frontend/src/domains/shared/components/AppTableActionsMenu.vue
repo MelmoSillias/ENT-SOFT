@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 
-import { useBreakpoint } from '@/domains/layout/composables/useBreakpoint'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
 const props = defineProps({
   actions: {
@@ -14,11 +14,17 @@ const props = defineProps({
   ariaLabel: {
     type: String,
     default: 'Actions'
+  },
+  menuOnly: {
+    type: Boolean,
+    default: false
   }
 })
 
-const { isMobile } = useBreakpoint()
+const { isAppMobile, isMobile } = useAppMobileLayout()
 const menu = ref()
+
+const useMenu = computed(() => props.menuOnly || isAppMobile.value || isMobile.value)
 
 const visibleActions = computed(() => props.actions.filter((action) => action.visible !== false))
 
@@ -39,7 +45,7 @@ const toggleMenu = (event) => {
 
 <template>
   <div class="actions-cell">
-    <template v-if="isMobile">
+    <template v-if="useMenu">
       <Button
         icon="pi pi-ellipsis-v"
         text

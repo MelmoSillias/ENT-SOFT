@@ -147,4 +147,35 @@ const brand = appConfig.branding
 .auth-page__content {
   width: 100%;
 }
+
+@media (max-width: 479px) {
+  .auth-page {
+    min-height: 100dvh;
+    min-height: 100svh;
+    place-items: stretch;
+    align-content: center;
+    padding: calc(1rem + env(safe-area-inset-top, 0px))
+      calc(var(--app-gutter, 1rem) + env(safe-area-inset-right, 0px))
+      calc(1rem + env(safe-area-inset-bottom, 0px))
+      calc(var(--app-gutter, 1rem) + env(safe-area-inset-left, 0px));
+  }
+
+  .auth-page__container {
+    width: 100%;
+    gap: 1.15rem;
+  }
+
+  .auth-page__brand-visual {
+    width: 6.5rem;
+    height: 6.5rem;
+  }
+
+  .auth-page__brand-name {
+    font-size: 1.2rem;
+  }
+
+  .auth-page__header h1 {
+    font-size: 1.25rem;
+  }
+}
 </style>

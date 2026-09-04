@@ -2,7 +2,6 @@
 
 namespace App\IdentityAccess\Domain\Entity;
 
-use App\IdentityAccess\Domain\Enum\Role;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\DoctrineUtilisateurRepository;
 use App\SharedKernel\Domain\Trait\SoftDeletableTrait;
 use App\SharedKernel\Domain\Trait\TimestampableTrait;
@@ -36,8 +35,8 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private string $passwordHash;
 
-    #[ORM\Column(enumType: Role::class)]
-    private Role $role;
+    #[ORM\Column(name: 'role', length: 50)]
+    private string $roleCode;
 
     #[ORM\Column(options: ['default' => true])]
     private bool $isActive = true;
@@ -48,7 +47,7 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         string $telephone,
         string $login,
         string $passwordHash,
-        Role $role,
+        string $roleCode,
     ) {
         $this->initializeUuid();
         $this->initializeTimestamps();
@@ -57,7 +56,7 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         $this->telephone = $telephone;
         $this->login = strtolower($login);
         $this->passwordHash = $passwordHash;
-        $this->role = $role;
+        $this->roleCode = strtoupper(trim($roleCode));
     }
 
     public function getPrenom(): string
@@ -85,9 +84,9 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->passwordHash;
     }
 
-    public function getRole(): Role
+    public function getRoleCode(): string
     {
-        return $this->role;
+        return $this->roleCode;
     }
 
     public function isActive(): bool
@@ -125,9 +124,9 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         $this->touch();
     }
 
-    public function setRole(Role $role): void
+    public function setRoleCode(string $roleCode): void
     {
-        $this->role = $role;
+        $this->roleCode = strtoupper(trim($roleCode));
         $this->touch();
     }
 
@@ -145,7 +144,7 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     /** @return list<string> */
     public function getRoles(): array
     {
-        return ['ROLE_'.$this->role->value];
+        return ['ROLE_'.$this->roleCode];
     }
 
     public function getPassword(): string

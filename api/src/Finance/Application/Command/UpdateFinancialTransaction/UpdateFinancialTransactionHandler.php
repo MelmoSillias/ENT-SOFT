@@ -8,7 +8,6 @@ use App\Finance\Domain\Enum\TransactionStatus;
 use App\Finance\Domain\Enum\TransactionType;
 use App\Finance\Domain\Exception\FinancialTransactionNotFoundException;
 use App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface;
-use App\SharedKernel\Domain\Validation\FieldValidator;
 use Symfony\Component\Uid\Uuid;
 
 final class UpdateFinancialTransactionHandler
@@ -44,22 +43,24 @@ final class UpdateFinancialTransactionHandler
             $transaction->setStatus(TransactionStatus::from($command->status));
         }
         if ($command->fromParty !== null) {
-            $transaction->setFromParty(FieldValidator::requireNonEmpty($command->fromParty, 'Émetteur'));
+            $trimmed = trim($command->fromParty);
+            $transaction->setFromParty($trimmed !== '' ? $trimmed : null);
         }
         if ($command->toParty !== null) {
-            $transaction->setToParty(FieldValidator::requireNonEmpty($command->toParty, 'Destinataire'));
+            $trimmed = trim($command->toParty);
+            $transaction->setToParty($trimmed !== '' ? $trimmed : null);
         }
         if ($command->clientId !== null) {
             $transaction->setClientId($command->clientId !== '' ? Uuid::fromString($command->clientId) : null);
-        }
-        if ($command->projectId !== null) {
-            $transaction->setProjectId($command->projectId !== '' ? Uuid::fromString($command->projectId) : null);
         }
         if ($command->siteId !== null) {
             $transaction->setSiteId($command->siteId !== '' ? Uuid::fromString($command->siteId) : null);
         }
         if ($command->invoiceId !== null) {
             $transaction->setInvoiceId($command->invoiceId !== '' ? Uuid::fromString($command->invoiceId) : null);
+        }
+        if ($command->prestationId !== null) {
+            $transaction->setPrestationId($command->prestationId !== '' ? Uuid::fromString($command->prestationId) : null);
         }
 
         $this->transactionRepository->save($transaction);

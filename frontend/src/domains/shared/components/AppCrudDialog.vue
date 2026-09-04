@@ -152,15 +152,16 @@
             @update:model-value="updateField(field.name, $event)"
           />
 
-          <Chips
+          <AutoComplete
             v-else-if="field.type === 'chips'"
-            :id="field.name"
+            :input-id="field.name"
             :model-value="modelValue[field.name]"
             :placeholder="field.placeholder"
             :disabled="loading"
             :invalid="hasFieldError(field.name)"
+            multiple
+            :typeahead="false"
             fluid
-            separator="," 
             @update:model-value="updateField(field.name, $event)"
           />
 
@@ -194,7 +195,7 @@
 
 <script setup>
 import Button from 'primevue/button'
-import Chips from 'primevue/chips'
+import AutoComplete from 'primevue/autocomplete'
 import DatePicker from 'primevue/datepicker'
 import Dialog from 'primevue/dialog'
 import Fluid from 'primevue/fluid'

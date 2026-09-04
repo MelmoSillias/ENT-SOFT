@@ -2,8 +2,6 @@
 
 namespace App\IdentityAccess\Application\Command\UpdateUser;
 
-use App\IdentityAccess\Domain\Enum\Role;
-
 final readonly class UpdateUserCommand
 {
     public function __construct(
@@ -13,7 +11,7 @@ final readonly class UpdateUserCommand
         public ?string $telephone = null,
         public ?string $login = null,
         public ?string $password = null,
-        public ?Role $role = null,
+        public ?string $roleCode = null,
         public ?bool $isActive = null,
     ) {
     }

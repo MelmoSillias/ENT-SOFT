@@ -11,6 +11,8 @@ import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import InvoiceFormFields from '@/domains/finance/components/InvoiceFormFields.vue'
 import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
 import ExportFormatMenu from '@/domains/impression/components/ExportFormatMenu.vue'
@@ -36,8 +38,10 @@ const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
 const { printDocument, exportDocument } = usePrintDocument()
+const { isAppMobile } = useAppMobileLayout()
 
 const items = ref([])
+const expandedMobileId = ref(null)
 const clientOptions = ref([])
 const projectOptions = ref([])
 const clientMap = ref({})
@@ -327,6 +331,8 @@ const printFormatItems = computed(() => [
       :count-label="countLabel"
       create-label="Nouvelle facture"
       :show-create="canCreate"
+      :hide-create-on-mobile="isAppMobile"
+      :sticky="isAppMobile"
       :reloading="reloading"
       show-search
       v-model:search-term="searchTerm"
@@ -335,7 +341,59 @@ const printFormatItems = computed(() => [
       @reload="reload"
     />
     <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-      <DataTable v-model:expandedRows="expandedRows" :value="filteredItems" paginator :rows="10" striped-rows data-key="id">
+      <div v-if="isAppMobile" class="app-entity-dataview">
+        <article
+          v-for="item in filteredItems"
+          :key="item.id"
+          class="app-entity-card"
+          @click="expandedMobileId = expandedMobileId === item.id ? null : item.id"
+        >
+          <div class="app-entity-card__row">
+            <div style="min-width: 0; flex: 1">
+              <p class="app-entity-card__code">{{ item.number }}</p>
+              <h3 class="app-entity-card__title">{{ clientMap[item.clientId] || 'Client' }}</h3>
+              <p class="app-entity-card__subtitle">{{ formatDateFr(item.date) }} · {{ formatMontant(item.amount, DEVISE_APP) }}</p>
+            </div>
+            <div @click.stop>
+              <Button
+                v-if="buildMenuItems(item).length"
+                icon="pi pi-ellipsis-v"
+                text
+                rounded
+                @click="toggleMenu($event, item)"
+              />
+            </div>
+          </div>
+          <div class="app-entity-card__meta-row">
+            <Tag :value="invoiceStatusLabel(item.status)" :severity="invoiceStatusSeverity(item.status)" rounded />
+            <span class="app-entity-card__meta">Payé {{ formatMontant(item.paidAmount, DEVISE_APP) }}</span>
+          </div>
+          <div v-if="expandedMobileId === item.id" class="invoice-expansion" @click.stop>
+            <div class="invoice-expansion__section">
+              <p class="invoice-expansion__title">Lignes</p>
+              <p v-if="!(item.lines ?? []).length" class="invoice-expansion__empty">Aucune ligne.</p>
+              <div v-for="(line, idx) in item.lines" :key="line.id || idx" class="invoice-payments__row">
+                <div>
+                  <strong>{{ line.description }}</strong>
+                  — {{ line.quantity }} × {{ formatMontant(line.unitPrice, DEVISE_APP) }}
+                </div>
+              </div>
+            </div>
+            <div class="invoice-expansion__section">
+              <p class="invoice-expansion__title">Paiements</p>
+              <p v-if="!(item.payments ?? []).length" class="invoice-expansion__empty">Aucun paiement.</p>
+              <div v-for="payment in item.payments" :key="payment.id" class="invoice-payments__row">
+                <div>
+                  <strong>{{ formatDateFr(payment.date) }}</strong>
+                  — {{ formatMontant(payment.amount, DEVISE_APP) }}
+                </div>
+                <TransactionAttachments :owner-id="payment.id" />
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+      <DataTable v-else v-model:expandedRows="expandedRows" :value="filteredItems" paginator :rows="10" striped-rows data-key="id">
             <Column expander style="width: 3rem" />
             <Column field="number" header="N°" />
             <Column header="Date">
@@ -405,6 +463,12 @@ const printFormatItems = computed(() => [
           <ExportFormatMenu ref="exportMenu" @select="onExportSelect" />
           <Menu ref="printMenu" :model="printFormatItems" popup />
         </AppTableState>
+
+    <AppMobileFab
+      v-if="isAppMobile && canCreate"
+      aria-label="Nouvelle facture"
+      @click="openCreate"
+    />
 
     <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(840px, 96vw)">
       <InvoiceFormFields v-model="form" :errors="fieldErrors" :client-options="clientOptions" :project-options="projectOptions" />

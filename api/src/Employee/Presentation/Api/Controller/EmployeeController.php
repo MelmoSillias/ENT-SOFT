@@ -35,12 +35,12 @@ final class EmployeeController extends AbstractController
     {
         $data = $request->toArray();
         $result = $handler->handle(new CreateEmployeeCommand(
-            name: $data['name'] ?? '',
+            prenom: $data['prenom'] ?? '',
+            nom: $data['nom'] ?? '',
             email: $data['email'] ?? '',
             phone: $data['phone'] ?? '',
-            function: $data['function'] ?? '',
+            roleCode: $data['roleCode'] ?? $data['function'] ?? '',
             address: $data['address'] ?? null,
-            userId: $data['userId'] ?? null,
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -60,14 +60,13 @@ final class EmployeeController extends AbstractController
         $data = $request->toArray();
         $result = $handler->handle(new UpdateEmployeeCommand(
             id: $id,
-            name: $data['name'] ?? null,
+            prenom: $data['prenom'] ?? null,
+            nom: $data['nom'] ?? null,
             email: $data['email'] ?? null,
             phone: $data['phone'] ?? null,
-            function: $data['function'] ?? null,
+            roleCode: $data['roleCode'] ?? $data['function'] ?? null,
             address: array_key_exists('address', $data) ? $data['address'] : null,
-            userId: array_key_exists('userId', $data) ? $data['userId'] : null,
             hasAddress: array_key_exists('address', $data),
-            hasUserId: array_key_exists('userId', $data),
         ));
 
         return $this->json($result->toArray());

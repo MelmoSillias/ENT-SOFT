@@ -28,6 +28,26 @@ final class FinancialTransactionController extends AbstractController
         return $this->json($handler->handle());
     }
 
+    #[Route('/stats', name: 'api_financial_transactions_stats', methods: ['GET'], priority: 10)]
+    #[IsGranted('finance.transactions.view')]
+    public function stats(\App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface $transactionRepository): JsonResponse
+    {
+        $stats = $transactionRepository->findStatsAggregates();
+        $solde = $stats['incomeSum'] - $stats['expenseSum'];
+
+        return $this->json([
+            'solde' => $solde,
+            'revenus' => [
+                'count' => $stats['incomeCount'],
+                'amount' => $stats['incomeSum'],
+            ],
+            'depenses' => [
+                'count' => $stats['expenseCount'],
+                'amount' => $stats['expenseSum'],
+            ],
+        ]);
+    }
+
     #[Route('', name: 'api_financial_transactions_create', methods: ['POST'])]
     #[IsGranted('finance.transactions.create')]
     public function create(Request $request, CreateFinancialTransactionHandler $handler): JsonResponse
@@ -43,9 +63,9 @@ final class FinancialTransactionController extends AbstractController
             toParty: $data['toParty'] ?? '',
             description: $data['description'] ?? null,
             clientId: $data['clientId'] ?? null,
-            projectId: $data['projectId'] ?? null,
             siteId: $data['siteId'] ?? null,
             invoiceId: $data['invoiceId'] ?? null,
+            prestationId: $data['prestationId'] ?? null,
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -74,9 +94,9 @@ final class FinancialTransactionController extends AbstractController
             fromParty: $data['fromParty'] ?? null,
             toParty: $data['toParty'] ?? null,
             clientId: $data['clientId'] ?? null,
-            projectId: $data['projectId'] ?? null,
             siteId: $data['siteId'] ?? null,
             invoiceId: $data['invoiceId'] ?? null,
+            prestationId: $data['prestationId'] ?? null,
         ));
 
         return $this->json($result->toArray());

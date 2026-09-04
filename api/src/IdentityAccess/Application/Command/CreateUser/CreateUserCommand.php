@@ -2,8 +2,6 @@
 
 namespace App\IdentityAccess\Application\Command\CreateUser;
 
-use App\IdentityAccess\Domain\Enum\Role;
-
 final readonly class CreateUserCommand
 {
     public function __construct(
@@ -12,7 +10,7 @@ final readonly class CreateUserCommand
         public string $telephone,
         public string $login,
         public string $password,
-        public Role $role,
+        public string $roleCode,
     ) {
     }
 }

@@ -2,8 +2,6 @@
 
 namespace App\AccessAudit\Domain;
 
-use App\IdentityAccess\Domain\Enum\Role;
-
 /**
  * Catalogue fixe des permissions ENT-SOFT.
  *
@@ -35,6 +33,11 @@ final class PermissionCatalog
             ['code' => 'employee.employees.create', 'libelle' => 'Créer un employé', 'module' => 'employee', 'description' => 'Créer un employé'],
             ['code' => 'employee.employees.update', 'libelle' => 'Modifier un employé', 'module' => 'employee', 'description' => 'Modifier un employé existant'],
             ['code' => 'employee.employees.delete', 'libelle' => 'Supprimer un employé', 'module' => 'employee', 'description' => 'Mettre un employé à la corbeille'],
+            ['code' => 'employee.prestataires.view', 'libelle' => 'Consulter les prestataires', 'module' => 'employee', 'description' => 'Lister et consulter les prestataires'],
+            ['code' => 'employee.prestataires.create', 'libelle' => 'Créer un prestataire', 'module' => 'employee', 'description' => 'Créer un prestataire'],
+            ['code' => 'employee.prestataires.update', 'libelle' => 'Modifier un prestataire', 'module' => 'employee', 'description' => 'Modifier un prestataire ou ses prestations'],
+            ['code' => 'employee.prestataires.delete', 'libelle' => 'Supprimer un prestataire', 'module' => 'employee', 'description' => 'Mettre un prestataire à la corbeille'],
+            ['code' => 'employee.prestations.pay', 'libelle' => 'Payer une prestation', 'module' => 'employee', 'description' => 'Enregistrer un paiement de prestation'],
             ['code' => 'task.tasks.view', 'libelle' => 'Consulter les tâches', 'module' => 'task', 'description' => 'Lister et consulter les tâches'],
             ['code' => 'task.tasks.create', 'libelle' => 'Créer une tâche', 'module' => 'task', 'description' => 'Créer une tâche'],
             ['code' => 'task.tasks.update', 'libelle' => 'Modifier une tâche', 'module' => 'task', 'description' => 'Modifier une tâche existante'],
@@ -61,6 +64,7 @@ final class PermissionCatalog
             ['code' => 'configuration.settings.update', 'libelle' => 'Modifier les paramètres', 'module' => 'configuration', 'description' => 'Modifier les paramètres applicatifs'],
             ['code' => 'access.users.manage', 'libelle' => 'Gérer les utilisateurs', 'module' => 'access', 'description' => 'Créer, modifier et suspendre des utilisateurs'],
             ['code' => 'access.permissions.manage', 'libelle' => 'Gérer les permissions', 'module' => 'access', 'description' => 'Attribuer ou retirer des permissions individuelles'],
+            ['code' => 'access.roles.manage', 'libelle' => 'Gérer les rôles', 'module' => 'access', 'description' => 'Créer, modifier et masquer les rôles et leurs permissions par défaut'],
             ['code' => 'access.audit.view', 'libelle' => 'Consulter le journal d\'audit', 'module' => 'access', 'description' => 'Consulter l\'historique des actions'],
             ['code' => 'referentiel.devises.view', 'libelle' => 'Consulter les devises', 'module' => 'referentiel', 'description' => 'Lister et consulter les devises'],
             ['code' => 'referentiel.pays.view', 'libelle' => 'Consulter les pays', 'module' => 'referentiel', 'description' => 'Lister et consulter les pays'],
@@ -73,7 +77,11 @@ final class PermissionCatalog
         return array_column(self::all(), 'code');
     }
 
-    /** @return array<string, list<string>> */
+    /**
+     * Matrices de permissions par défaut (seed). Les rôles custom peuvent diverger en base.
+     *
+     * @return array<string, list<string>>
+     */
     public static function rolePermissions(): array
     {
         $agent = [
@@ -83,6 +91,7 @@ final class PermissionCatalog
             'site.sites.view', 'site.sites.create', 'site.sites.update',
             'project.projects.view', 'project.projects.create', 'project.projects.update',
             'employee.employees.view',
+            'employee.prestataires.view',
             'task.tasks.view', 'task.tasks.create', 'task.tasks.update',
             'finance.invoices.view',
             'finance.transactions.view',
@@ -97,6 +106,8 @@ final class PermissionCatalog
             'site.sites.delete',
             'project.projects.delete', 'project.sites.manage', 'project.events.create',
             'employee.employees.create', 'employee.employees.update', 'employee.employees.delete',
+            'employee.prestataires.create', 'employee.prestataires.update', 'employee.prestataires.delete',
+            'employee.prestations.pay',
             'task.tasks.delete',
             'finance.invoices.create', 'finance.invoices.update', 'finance.invoices.delete',
             'finance.transactions.create', 'finance.transactions.update', 'finance.transactions.delete',
@@ -106,10 +117,53 @@ final class PermissionCatalog
             'access.audit.view',
         ])));
 
+        $technicien = array_values(array_unique(array_merge($agent, [
+            'project.sites.manage',
+            'task.tasks.delete',
+            'stock.equipment.view',
+            'stock.movements.create', 'stock.movements.update',
+        ])));
+
+        $secretaire = array_values(array_unique(array_merge($agent, [
+            'client.clients.create', 'client.clients.update',
+            'finance.invoices.create', 'finance.invoices.update',
+            'document.documents.upload',
+        ])));
+
+        $comptable = array_values(array_unique(array_merge($agent, [
+            'finance.invoices.create', 'finance.invoices.update', 'finance.invoices.delete',
+            'finance.transactions.create', 'finance.transactions.update', 'finance.transactions.delete',
+            'employee.prestataires.view', 'employee.prestations.pay',
+        ])));
+
+        $gerant = $coordinateur;
+
         return [
-            Role::ADMIN->value => self::allCodes(),
-            Role::COORDINATEUR->value => $coordinateur,
-            Role::AGENT->value => $agent,
+            'ADMIN' => self::allCodes(),
+            'COORDINATEUR' => $coordinateur,
+            'AGENT' => $agent,
+            'TECHNICIEN' => $technicien,
+            'SECRETAIRE' => $secretaire,
+            'COMPTABLE' => $comptable,
+            'GERANT' => $gerant,
+        ];
+    }
+
+    /**
+     * Définitions des rôles seedés (système + métier).
+     *
+     * @return list<array{code: string, libelle: string, isSystem: bool}>
+     */
+    public static function roles(): array
+    {
+        return [
+            ['code' => 'ADMIN', 'libelle' => 'Administrateur', 'isSystem' => true],
+            ['code' => 'COORDINATEUR', 'libelle' => 'Coordinateur', 'isSystem' => true],
+            ['code' => 'AGENT', 'libelle' => 'Agent', 'isSystem' => true],
+            ['code' => 'TECHNICIEN', 'libelle' => 'Technicien', 'isSystem' => false],
+            ['code' => 'SECRETAIRE', 'libelle' => 'Secrétaire', 'isSystem' => false],
+            ['code' => 'COMPTABLE', 'libelle' => 'Comptable', 'isSystem' => false],
+            ['code' => 'GERANT', 'libelle' => 'Gérant', 'isSystem' => false],
         ];
     }
 }

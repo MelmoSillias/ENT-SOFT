@@ -2,6 +2,7 @@
 
 namespace App\IdentityAccess\Application\Command\UpdateUser;
 
+use App\AccessAudit\Domain\Repository\AppRoleRepositoryInterface;
 use App\IdentityAccess\Application\Dto\UserResponseDto;
 use App\IdentityAccess\Domain\Exception\UserNotFoundException;
 use App\IdentityAccess\Domain\Repository\UtilisateurRepositoryInterface;
@@ -14,6 +15,7 @@ final class UpdateUserHandler
     public function __construct(
         private readonly UtilisateurRepositoryInterface $utilisateurRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly AppRoleRepositoryInterface $appRoleRepository,
     ) {
     }
 
@@ -45,8 +47,16 @@ final class UpdateUserHandler
             $password = FieldValidator::requireMinLength($command->password, 6, 'Mot de passe');
             $user->setPasswordHash($this->passwordHasher->hashPassword($user, $password));
         }
-        if (null !== $command->role) {
-            $user->setRole($command->role);
+        if (null !== $command->roleCode) {
+            $requested = strtoupper(trim($command->roleCode));
+            $role = $this->appRoleRepository->findByCode($requested);
+            if (null === $role) {
+                throw new \InvalidArgumentException('Rôle invalide.');
+            }
+            if (!$role->isEnabled() && $role->getCode() !== $user->getRoleCode()) {
+                throw new \InvalidArgumentException('Rôle invalide ou masqué.');
+            }
+            $user->setRoleCode($role->getCode());
         }
         if (null !== $command->isActive) {
             $user->setIsActive($command->isActive);

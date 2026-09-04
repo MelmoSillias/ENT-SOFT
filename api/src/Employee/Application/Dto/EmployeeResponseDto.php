@@ -8,11 +8,13 @@ final readonly class EmployeeResponseDto
 {
     public function __construct(
         public string $id,
+        public string $prenom,
+        public string $nom,
         public string $name,
         public string $email,
         public string $phone,
         public ?string $address,
-        public string $function,
+        public string $roleCode,
         public ?string $userId,
         public bool $isEnabled,
         public string $createdAt,
@@ -24,11 +26,13 @@ final readonly class EmployeeResponseDto
     {
         return new self(
             id: (string) $employee->getId(),
-            name: $employee->getName(),
+            prenom: $employee->getPrenom(),
+            nom: $employee->getNom(),
+            name: $employee->getFullName(),
             email: $employee->getEmail(),
             phone: $employee->getPhone(),
             address: $employee->getAddress(),
-            function: $employee->getFunction(),
+            roleCode: $employee->getRoleCode(),
             userId: $employee->getUserId()?->toRfc4122(),
             isEnabled: $employee->isEnabled(),
             createdAt: $employee->getCreatedAt()->format(\DateTimeInterface::ATOM),
@@ -41,11 +45,14 @@ final readonly class EmployeeResponseDto
     {
         return [
             'id' => $this->id,
+            'prenom' => $this->prenom,
+            'nom' => $this->nom,
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
             'address' => $this->address,
-            'function' => $this->function,
+            'roleCode' => $this->roleCode,
+            'function' => $this->roleCode,
             'userId' => $this->userId,
             'isEnabled' => $this->isEnabled,
             'createdAt' => $this->createdAt,

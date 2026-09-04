@@ -11,8 +11,11 @@ import SelectButton from 'primevue/selectbutton'
 import DatePicker from 'primevue/datepicker'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import AppFiltersCard from '@/domains/shared/components/AppFiltersCard.vue'
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import TaskFormFields from '@/domains/task/components/TaskFormFields.vue'
 import { listTasks, createTask, updateTask, deleteTask } from '@/domains/task/services/taskService'
 import { listSites } from '@/domains/site/services/siteService'
@@ -29,6 +32,7 @@ import { useAppToast } from '@/domains/shared/composables/useAppToast'
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
 const items = ref([])
 const siteOptions = ref([])
@@ -225,6 +229,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :count-label="countLabel"
           create-label="Nouvelle tâche"
           :show-create="canCreate"
+          :hide-create-on-mobile="isAppMobile"
+          :sticky="isAppMobile"
           :reloading="reloading"
           show-search
           v-model:search-term="searchTerm"
@@ -233,7 +239,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           @reload="reload"
         >
           <template #actions>
-            <SelectButton v-model="viewMode" :options="viewOptions" option-label="label" option-value="value" />
+            <SelectButton v-model="viewMode" :options="viewOptions" option-label="label" option-value="value" :allow-empty="false" />
           </template>
         </AppTablePanelHeader>
       </template>
@@ -245,28 +251,41 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         </AppFiltersCard>
 
         <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-          <DataTable v-if="viewMode === 'table'" :value="filteredItems" paginator :rows="10" striped-rows>
-            <Column field="title" header="Titre" />
-            <Column header="Site">
-              <template #body="{ data }">{{ siteMap[data.siteId] || '—' }}</template>
-            </Column>
-            <Column header="Employé">
-              <template #body="{ data }">{{ employeeMap[data.employeeId] || '—' }}</template>
-            </Column>
-            <Column header="Échéance">
-              <template #body="{ data }">{{ formatDateFr(data.dateDue) }}</template>
-            </Column>
-            <Column header="Statut">
-              <template #body="{ data }">
-                <Tag :value="taskStatusLabel(data.status)" :severity="taskStatusSeverity(data.status)" />
-              </template>
-            </Column>
-            <Column header="Actions" style="width: 5rem">
-              <template #body="{ data }">
-                <Button v-if="buildMenuItems(data).length" icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
-              </template>
-            </Column>
-          </DataTable>
+          <template v-if="viewMode === 'table'">
+            <AppEntityDataView
+              v-if="isAppMobile"
+              :items="filteredItems"
+              :title-of="(item) => item.title"
+              :subtitle-of="(item) => siteMap[item.siteId] || null"
+              :meta-of="(item) => [employeeMap[item.employeeId], formatDateFr(item.dateDue)].filter(Boolean).join(' · ') || null"
+              :status-of="(item) => ({ value: taskStatusLabel(item.status), severity: taskStatusSeverity(item.status) })"
+              :actions-of="buildMenuItems"
+              @select="openEdit"
+            />
+            <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
+              <Column field="title" header="Titre" />
+              <Column header="Site">
+                <template #body="{ data }">{{ siteMap[data.siteId] || '—' }}</template>
+              </Column>
+              <Column header="Employé">
+                <template #body="{ data }">{{ employeeMap[data.employeeId] || '—' }}</template>
+              </Column>
+              <Column header="Échéance">
+                <template #body="{ data }">{{ formatDateFr(data.dateDue) }}</template>
+              </Column>
+              <Column header="Statut">
+                <template #body="{ data }">
+                  <Tag :value="taskStatusLabel(data.status)" :severity="taskStatusSeverity(data.status)" />
+                </template>
+              </Column>
+              <Column header="Actions" style="width: 5rem">
+                <template #body="{ data }">
+                  <Button v-if="buildMenuItems(data).length" icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
+                </template>
+              </Column>
+            </DataTable>
+            <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
+          </template>
 
           <div v-else class="task-calendar">
             <div class="task-calendar__toolbar">
@@ -289,11 +308,15 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             </div>
             <p v-else class="dashboard-page__state">Aucune tâche ce mois-ci.</p>
           </div>
-
-          <Menu ref="actionMenu" :model="menuModel" popup />
         </AppTableState>
       </template>
     </Card>
+
+    <AppMobileFab
+      v-if="isAppMobile && canCreate"
+      aria-label="Nouvelle tâche"
+      @click="openCreate"
+    />
 
     <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(720px, 95vw)">
       <TaskFormFields v-model="form" :errors="fieldErrors" :site-options="siteOptions" :employee-options="employeeOptions" />

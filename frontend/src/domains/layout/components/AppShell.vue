@@ -5,10 +5,12 @@ import { storeToRefs } from 'pinia'
 
 import Breadcrumb from 'primevue/breadcrumb'
 import AppSidebar from '@/domains/layout/components/AppSidebar.vue'
+import AppBottomNav from '@/domains/layout/components/AppBottomNav.vue'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import AppTopbar from '@/domains/layout/components/AppTopbar.vue'
 import { useLayout } from '@/domains/layout/composables/useLayout'
 import { useLayoutTheme } from '@/domains/layout/composables/useLayoutTheme'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useAuthStore } from '@/domains/auth/stores/auth'
 import { useLayoutStore } from '@/domains/layout/stores/layout'
 import { useAgencyBrandStore } from '@/domains/configuration/stores/agencyBrand'
@@ -40,6 +42,7 @@ const {
 } = useLayout()
 
 const { isDarkModeActive } = useLayoutTheme()
+const { isAppMobile } = useAppMobileLayout()
 const authEnabled = appConfig.auth.enabled
 
 const user = computed(() => authStore.user)
@@ -57,7 +60,8 @@ const shellClasses = computed(() => ({
   'app-shell--fixed': sidebarMode.value === 'fixed',
   'app-shell--overlay': sidebarMode.value === 'overlay',
   'app-shell--collapsed': sidebarCollapsed.value,
-  'app-shell--detached': layoutStyle.value === 'detached'
+  'app-shell--detached': layoutStyle.value === 'detached',
+  'app-shell--app-mobile': isAppMobile.value
 }))
 
 const pageTransition = computed(() => {
@@ -127,7 +131,7 @@ onMounted(() => {
 
       <div class="app-shell__content-wrap">
         <Breadcrumb
-          v-if="shellConfig.breadcrumbs"
+          v-if="shellConfig.breadcrumbs && !isAppMobile"
           :home="homeBreadcrumb"
           :model="breadcrumbs"
           class="app-shell__breadcrumb"
@@ -170,5 +174,7 @@ onMounted(() => {
         </main>
       </div>
     </div>
+
+    <AppBottomNav v-if="isAppMobile" />
   </div>
 </template>

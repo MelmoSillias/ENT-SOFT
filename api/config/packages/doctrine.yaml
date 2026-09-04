@@ -35,6 +35,10 @@ doctrine:
                 type: attribute
                 dir: '%kernel.project_dir%/src/Employee/Domain/Entity'
                 prefix: 'App\Employee\Domain\Entity'
+            Prestataire:
+                type: attribute
+                dir: '%kernel.project_dir%/src/Prestataire/Domain/Entity'
+                prefix: 'App\Prestataire\Domain\Entity'
             Task:
                 type: attribute
                 dir: '%kernel.project_dir%/src/Task/Domain/Entity'

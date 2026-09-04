@@ -8,6 +8,9 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import StockMovementFormFields from '@/domains/stock/components/StockMovementFormFields.vue'
 import { listStockMovements, createStockMovement, updateStockMovement, deleteStockMovement } from '@/domains/stock/services/stockMovementService'
 import { listEquipment } from '@/domains/stock/services/equipmentService'
@@ -26,6 +29,7 @@ import { useAppToast } from '@/domains/shared/composables/useAppToast'
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
 const items = ref([])
 const equipmentOptions = ref([])
@@ -211,6 +215,8 @@ function lineLabel(item) {
       :count-label="`${filteredItems.length}`"
       create-label="Nouveau mouvement"
       :show-create="canCreate"
+      :hide-create-on-mobile="isAppMobile"
+      :sticky="isAppMobile"
       :reloading="reloading"
       show-search
       v-model:search-term="searchTerm"
@@ -219,7 +225,17 @@ function lineLabel(item) {
       @reload="reload"
     />
     <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-      <DataTable :value="filteredItems" paginator :rows="10" striped-rows>
+      <AppEntityDataView
+        v-if="isAppMobile"
+        :items="filteredItems"
+        :title-of="(item) => `${stockDirectionLabel(item.direction)} · ${item.quantity} ${item.unit}`"
+        :subtitle-of="(item) => lineLabel(item) || null"
+        :meta-of="(item) => formatDateFr(item.date)"
+        :status-of="(item) => ({ value: stockDirectionLabel(item.direction), severity: stockDirectionSeverity(item.direction) })"
+        :actions-of="buildMenuItems"
+        @select="openEdit"
+      />
+      <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
         <Column header="Date">
           <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
         </Column>
@@ -240,8 +256,14 @@ function lineLabel(item) {
           </template>
         </Column>
       </DataTable>
-      <Menu ref="actionMenu" :model="menuModel" popup />
+      <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
     </AppTableState>
+
+    <AppMobileFab
+      v-if="isAppMobile && canCreate"
+      aria-label="Nouveau mouvement"
+      @click="openCreate"
+    />
 
     <Dialog v-model:visible="dialog" :header="editingId ? 'Modifier mouvement' : 'Nouveau mouvement'" modal style="width: min(720px, 96vw)">
       <StockMovementFormFields

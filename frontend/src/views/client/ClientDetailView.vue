@@ -25,12 +25,16 @@ import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
+import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
 const client = ref(null)
 const projects = ref([])
@@ -38,7 +42,14 @@ const invoices = ref([])
 const loading = ref(true)
 const error = ref(null)
 const dialog = ref(false)
+const activeTab = ref('0')
 const form = ref({ title: '', description: '', address: '', postalBox: '', city: '', code: '' })
+
+const clientTabItems = computed(() => [
+  { value: '0', label: 'Informations', shortLabel: 'Infos' },
+  { value: '1', label: `Projets (${projects.value.length})`, shortLabel: 'Projets' },
+  { value: '2', label: `Factures (${invoices.value.length})`, shortLabel: 'Factures' },
+])
 
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
@@ -150,8 +161,13 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async () => {
           </div>
         </template>
         <template #content>
-          <Tabs value="0">
-            <TabList>
+          <AppMobileSegmentTabs
+            v-if="isAppMobile"
+            v-model="activeTab"
+            :items="clientTabItems"
+          />
+          <Tabs v-model:value="activeTab">
+            <TabList v-if="!isAppMobile">
               <Tab value="0">Informations</Tab>
               <Tab value="1">Projets ({{ client.projectCount ?? projects.length }})</Tab>
               <Tab value="2">Factures ({{ client.invoiceCount ?? invoices.length }})</Tab>
@@ -170,7 +186,15 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async () => {
                 </dl>
               </TabPanel>
               <TabPanel value="1">
-                <DataTable v-if="projects.length" :value="projects" striped-rows>
+                <AppEntityDataView
+                  v-if="isAppMobile && projects.length"
+                  :items="projects"
+                  :title-of="(item) => item.title"
+                  :code-of="(item) => item.code"
+                  :status-of="(item) => ({ value: projectStatusLabel(item.status), severity: 'secondary' })"
+                  @select="(item) => router.push({ name: 'project-detail', params: { id: item.id } })"
+                />
+                <DataTable v-else-if="projects.length" :value="projects" striped-rows>
                   <Column field="code" header="Code" />
                   <Column field="title" header="Titre" />
                   <Column header="Statut">
@@ -185,7 +209,14 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async () => {
                 <p v-else class="dashboard-page__state">Aucun projet associé.</p>
               </TabPanel>
               <TabPanel value="2">
-                <DataTable v-if="invoices.length" :value="invoices" striped-rows>
+                <AppEntityDataView
+                  v-if="isAppMobile && invoices.length"
+                  :items="invoices"
+                  :title-of="(item) => item.number || 'Facture'"
+                  :meta-of="(item) => `${formatDateFr(item.date)} · ${formatMontant(item.amount, DEVISE_APP)}`"
+                  :status-of="(item) => ({ value: invoiceStatusLabel(item.status), severity: invoiceStatusSeverity(item.status) })"
+                />
+                <DataTable v-else-if="invoices.length" :value="invoices" striped-rows>
                   <Column field="number" header="N°" />
                   <Column header="Date">
                     <template #body="{ data }">{{ formatDateFr(data.date) }}</template>

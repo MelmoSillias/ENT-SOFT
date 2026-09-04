@@ -28,7 +28,7 @@ final readonly class UserResponseDto
             nom: $user->getNom(),
             telephone: $user->getTelephone(),
             login: $user->getLogin(),
-            role: $user->getRole()->value,
+            role: $user->getRoleCode(),
             isActive: $user->isActive(),
             isEnabled: $user->isEnabled(),
             createdAt: $user->getCreatedAt()->format(\DateTimeInterface::ATOM),

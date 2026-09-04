@@ -5,6 +5,7 @@ namespace App\AccessAudit\Presentation\Api\Controller;
 use App\AccessAudit\Domain\Entity\UtilisateurPermission;
 use App\AccessAudit\Domain\PermissionCatalog;
 use App\AccessAudit\Domain\Repository\PermissionRepositoryInterface;
+use App\AccessAudit\Domain\Repository\RolePermissionRepositoryInterface;
 use App\AccessAudit\Domain\Repository\UtilisateurPermissionRepositoryInterface;
 use App\IdentityAccess\Domain\Entity\Utilisateur;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,6 +23,7 @@ final class UserPermissionController extends AbstractController
     public function __construct(
         private readonly PermissionRepositoryInterface $permissionRepository,
         private readonly UtilisateurPermissionRepositoryInterface $utilisateurPermissionRepository,
+        private readonly RolePermissionRepositoryInterface $rolePermissionRepository,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -31,11 +33,15 @@ final class UserPermissionController extends AbstractController
     public function listPermissions(): JsonResponse
     {
         $permissions = $this->permissionRepository->findAllOrdered();
+        $rolePermissions = $this->rolePermissionRepository->findAllGroupedByRole();
+        if ([] === $rolePermissions) {
+            $rolePermissions = PermissionCatalog::rolePermissions();
+        }
 
         if ([] === $permissions) {
             return $this->json([
                 'data' => PermissionCatalog::all(),
-                'role_permissions' => PermissionCatalog::rolePermissions(),
+                'role_permissions' => $rolePermissions,
             ]);
         }
 
@@ -50,7 +56,7 @@ final class UserPermissionController extends AbstractController
 
         return $this->json([
             'data' => $data,
-            'role_permissions' => PermissionCatalog::rolePermissions(),
+            'role_permissions' => $rolePermissions,
         ]);
     }
 
@@ -67,7 +73,7 @@ final class UserPermissionController extends AbstractController
 
         return $this->json([
             'utilisateur_id' => (string) $utilisateur->getId(),
-            'role' => $utilisateur->getRole()->value,
+            'role' => $utilisateur->getRoleCode(),
             'permissions' => array_map(static fn (UtilisateurPermission $up) => [
                 'code' => $up->getPermission()->getCode(),
                 'accorde' => $up->isAccorde(),

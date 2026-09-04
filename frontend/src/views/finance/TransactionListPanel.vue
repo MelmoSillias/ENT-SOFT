@@ -8,16 +8,20 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import TransactionFormFields from '@/domains/finance/components/TransactionFormFields.vue'
 import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
+import PendingAttachments from '@/domains/finance/components/PendingAttachments.vue'
 import {
   listFinancialTransactions,
   createFinancialTransaction,
   updateFinancialTransaction,
   deleteFinancialTransaction,
+  getTransactionStats,
 } from '@/domains/finance/services/financialTransactionService'
+import { uploadDocument } from '@/domains/document/services/documentService'
 import { listClients } from '@/domains/client/services/clientService'
-import { listProjects } from '@/domains/project/services/projectService'
 import { listSites } from '@/domains/site/services/siteService'
 import {
   formatDateFr,
@@ -27,7 +31,6 @@ import {
   transactionTypeLabel,
 } from '@/domains/shared/utils/entLabels'
 import { toApiDate, parseApiDate } from '@/domains/shared/utils/dateUtils'
-import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
@@ -40,15 +43,18 @@ const props = defineProps({
   expenseOnly: { type: Boolean, default: false },
   title: { type: String, default: 'Transactions' },
   createLabel: { type: String, default: 'Nouvelle transaction' },
+  showStats: { type: Boolean, default: false },
 })
 
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
+const expandedMobileId = ref(null)
 
 const items = ref([])
+const stats = ref(null)
 const clientOptions = ref([])
-const projectOptions = ref([])
 const siteOptions = ref([])
 const searchTerm = ref('')
 const loading = ref(true)
@@ -59,6 +65,7 @@ const editingId = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
 const expandedRows = ref([])
+const pendingAttachments = ref([])
 
 const canCreate = computed(() => hasPermission('finance.transactions.create'))
 
@@ -66,14 +73,13 @@ function emptyForm() {
   return {
     date: new Date(),
     amount: 0,
-    type: props.expenseOnly ? 'expense' : 'expense',
-    category: props.expenseOnly ? 'OtherExpense' : 'OtherExpense',
+    type: 'expense',
+    category: 'OtherExpense',
     status: 'completed',
     fromParty: '',
     toParty: '',
     description: '',
     clientId: null,
-    projectId: null,
     siteId: null,
   }
 }
@@ -84,21 +90,21 @@ const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFiel
   const errs = {}
   if (!form.value.date) errs.date = 'Date requise.'
   if (form.value.amount == null || Number(form.value.amount) <= 0) errs.amount = 'Montant invalide.'
-  if (!hasRequiredText(form.value.fromParty)) errs.fromParty = requiredMessage('Émetteur')
-  if (!hasRequiredText(form.value.toParty)) errs.toParty = requiredMessage('Destinataire')
   return errs
 })
 
 async function loadRefs() {
-  const [clients, projects, sites] = await Promise.all([listClients(), listProjects(), listSites()])
+  const [clients, sites] = await Promise.all([listClients(), listSites()])
   clientOptions.value = clients.map((c) => ({ label: `${c.code} — ${c.title}`, value: c.id }))
-  projectOptions.value = projects.map((p) => ({ label: `${p.code} — ${p.title}`, value: p.id }))
   siteOptions.value = sites.map((s) => ({ label: `${s.code} — ${s.title}`, value: s.id }))
 }
 
 async function fetchItems() {
   const all = await listFinancialTransactions()
   items.value = props.expenseOnly ? all.filter((t) => t.type === 'expense') : all
+  if (props.showStats) {
+    stats.value = await getTransactionStats()
+  }
 }
 
 async function load() {
@@ -137,6 +143,7 @@ const dialogTitle = computed(() => (editingId.value ? 'Modifier' : props.createL
 function openCreate() {
   editingId.value = null
   form.value = emptyForm()
+  pendingAttachments.value = []
   resetErrors()
   dialog.value = true
 }
@@ -153,9 +160,9 @@ function openEdit(item) {
     toParty: item.toParty ?? '',
     description: item.description ?? '',
     clientId: item.clientId,
-    projectId: item.projectId,
     siteId: item.siteId,
   }
+  pendingAttachments.value = []
   resetErrors()
   dialog.value = true
 }
@@ -193,6 +200,17 @@ const { run: runDelete } = useAsyncAction(async (item) => {
   }
 })
 
+async function uploadPending(ownerId) {
+  for (const item of pendingAttachments.value) {
+    const body = new FormData()
+    body.append('file', item.file)
+    body.append('title', item.displayName || item.file.name)
+    body.append('ownerType', 'financial_transaction')
+    body.append('ownerId', ownerId)
+    await uploadDocument(body)
+  }
+}
+
 const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   if (!validateForm()) return
   const payload = {
@@ -201,17 +219,24 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     type: props.expenseOnly ? 'expense' : form.value.type,
     category: form.value.category,
     status: form.value.status,
-    fromParty: form.value.fromParty.trim(),
-    toParty: form.value.toParty.trim(),
+    fromParty: form.value.fromParty?.trim() || '',
+    toParty: form.value.toParty?.trim() || '',
     description: form.value.description || null,
     clientId: form.value.clientId || null,
-    projectId: form.value.projectId || null,
     siteId: form.value.siteId || null,
   }
   try {
-    if (editingId.value) await updateFinancialTransaction(editingId.value, payload)
-    else await createFinancialTransaction(payload)
+    let saved
+    if (editingId.value) {
+      saved = await updateFinancialTransaction(editingId.value, payload)
+    } else {
+      saved = await createFinancialTransaction(payload)
+      if (pendingAttachments.value.length && saved?.id) {
+        await uploadPending(saved.id)
+      }
+    }
     dialog.value = false
+    pendingAttachments.value = []
     await fetchItems()
     toast.add({ severity: 'success', summary: 'Transaction', detail: 'Enregistrée.' })
   } catch (e) {
@@ -221,11 +246,30 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
 </script>
 
 <template>
+  <div v-if="showStats && stats" class="tx-stats">
+    <div class="tx-stats__card">
+      <span class="tx-stats__label">Solde</span>
+      <strong class="tx-stats__value">{{ formatMontant(stats.solde, DEVISE_APP) }}</strong>
+    </div>
+    <div class="tx-stats__card">
+      <span class="tx-stats__label">Revenus</span>
+      <strong class="tx-stats__value">{{ formatMontant(stats.revenus?.amount ?? 0, DEVISE_APP) }}</strong>
+      <span class="tx-stats__meta">{{ stats.revenus?.count ?? 0 }} opération(s)</span>
+    </div>
+    <div class="tx-stats__card">
+      <span class="tx-stats__label">Dépenses</span>
+      <strong class="tx-stats__value">{{ formatMontant(stats.depenses?.amount ?? 0, DEVISE_APP) }}</strong>
+      <span class="tx-stats__meta">{{ stats.depenses?.count ?? 0 }} opération(s)</span>
+    </div>
+  </div>
+
   <AppTablePanelHeader
     :title="title"
     :count-label="`${filteredItems.length}`"
     :create-label="createLabel"
     :show-create="canCreate"
+    :hide-create-on-mobile="isAppMobile"
+    :sticky="isAppMobile"
     :reloading="reloading"
     show-search
     v-model:search-term="searchTerm"
@@ -234,12 +278,48 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     @reload="reload"
   />
   <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-    <DataTable v-model:expandedRows="expandedRows" :value="filteredItems" paginator :rows="10" striped-rows data-key="id">
+    <div v-if="isAppMobile" class="app-entity-dataview">
+      <article
+        v-for="item in filteredItems"
+        :key="item.id"
+        class="app-entity-card"
+        @click="expandedMobileId = expandedMobileId === item.id ? null : item.id"
+      >
+        <div class="app-entity-card__row">
+          <div style="min-width: 0; flex: 1">
+            <h3 class="app-entity-card__title">{{ formatMontant(item.amount, DEVISE_APP) }}</h3>
+            <p class="app-entity-card__subtitle">
+              {{ formatDateFr(item.date) }}
+              <template v-if="!expenseOnly"> · {{ transactionTypeLabel(item.type) }}</template>
+              · {{ transactionCategoryLabel(item.category) }}
+            </p>
+          </div>
+          <div @click.stop>
+            <Button
+              v-if="buildMenuItems(item).length"
+              icon="pi pi-ellipsis-v"
+              text
+              rounded
+              @click="toggleMenu($event, item)"
+            />
+          </div>
+        </div>
+        <div class="app-entity-card__meta-row">
+          <Tag :value="transactionStatusLabel(item.status)" :severity="transactionStatusSeverity(item.status)" rounded />
+          <span class="app-entity-card__meta">{{ [item.fromParty, item.toParty].filter(Boolean).join(' → ') }}</span>
+        </div>
+        <div v-if="expandedMobileId === item.id" class="tx-expansion" @click.stop>
+          <p v-if="item.description">{{ item.description }}</p>
+          <TransactionAttachments :owner-id="item.id" />
+        </div>
+      </article>
+    </div>
+    <DataTable v-else v-model:expandedRows="expandedRows" :value="filteredItems" paginator :rows="10" striped-rows data-key="id">
       <Column expander style="width: 3rem" />
       <Column header="Date">
         <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
       </Column>
-      <Column header="Type">
+      <Column v-if="!expenseOnly" header="Type">
         <template #body="{ data }">{{ transactionTypeLabel(data.type) }}</template>
       </Column>
       <Column header="Catégorie">
@@ -270,16 +350,22 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     <Menu ref="actionMenu" :model="menuModel" popup />
   </AppTableState>
 
+  <AppMobileFab
+    v-if="isAppMobile && canCreate"
+    :aria-label="createLabel"
+    @click="openCreate"
+  />
+
   <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(720px, 96vw)">
     <TransactionFormFields
       v-model="form"
       :errors="fieldErrors"
       :client-options="clientOptions"
-      :project-options="projectOptions"
       :site-options="siteOptions"
       :expense-only="expenseOnly"
     />
     <TransactionAttachments v-if="editingId" :owner-id="editingId" />
+    <PendingAttachments v-else v-model="pendingAttachments" />
     <template #footer>
       <Button label="Annuler" severity="secondary" text :disabled="saving" @click="dialog = false" />
       <Button :label="editingId ? 'Enregistrer' : 'Créer'" icon="pi pi-check" :loading="saving" @click="saveItem" />
@@ -288,7 +374,36 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
 </template>
 
 <style scoped>
+.tx-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.tx-stats__card {
+  border: 1px solid var(--p-content-border-color);
+  border-radius: var(--p-content-border-radius);
+  padding: 0.85rem 1rem;
+  background: var(--p-content-background);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.tx-stats__label {
+  font-size: 0.75rem;
+  color: var(--p-text-muted-color);
+}
+.tx-stats__value {
+  font-size: 1.15rem;
+}
+.tx-stats__meta {
+  font-size: 0.75rem;
+  color: var(--p-text-muted-color);
+}
 .tx-expansion {
   padding: 0.75rem 0.5rem 1rem 2.5rem;
+}
+@media (max-width: 720px) {
+  .tx-stats { grid-template-columns: 1fr; }
 }
 </style>

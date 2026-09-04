@@ -16,4 +16,12 @@ interface FinancialTransactionRepositoryInterface
 
     /** @return list<FinancialTransaction> */
     public function findEnabledPaymentsByInvoiceId(Uuid $invoiceId): array;
+
+    /** @return list<FinancialTransaction> */
+    public function findEnabledPaymentsByPrestationId(Uuid $prestationId): array;
+
+    /**
+     * @return array{incomeCount: int, incomeSum: float, expenseCount: int, expenseSum: float}
+     */
+    public function findStatsAggregates(): array;
 }

@@ -11,23 +11,33 @@ import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { getEquipment } from '@/domains/stock/services/equipmentService'
 import { listStockMovements } from '@/domains/stock/services/stockMovementService'
 import { listClients } from '@/domains/client/services/clientService'
-import { formatDateFr } from '@/domains/shared/utils/entLabels'
+import { formatDateFr, stockDirectionLabel, stockDirectionSeverity } from '@/domains/shared/utils/entLabels'
 
 const route = useRoute()
 const router = useRouter()
+const { isAppMobile } = useAppMobileLayout()
 
 const equipment = ref(null)
 const movements = ref([])
 const clientMap = ref({})
 const loading = ref(true)
 const error = ref(null)
+const activeTab = ref('0')
 
 const equipmentMovements = computed(() =>
   movements.value.filter((m) => m.lines?.some((l) => l.equipmentId === equipment.value?.id)),
 )
+
+const equipmentTabItems = computed(() => [
+  { value: '0', label: 'Informations', shortLabel: 'Infos' },
+  { value: '1', label: `Mouvements (${equipmentMovements.value.length})`, shortLabel: 'Mouv.' },
+])
 
 async function load() {
   loading.value = true
@@ -68,8 +78,13 @@ onMounted(load)
         </div>
       </template>
       <template #content>
-        <Tabs value="0">
-          <TabList>
+        <AppMobileSegmentTabs
+          v-if="isAppMobile"
+          v-model="activeTab"
+          :items="equipmentTabItems"
+        />
+        <Tabs v-model:value="activeTab">
+          <TabList v-if="!isAppMobile">
             <Tab value="0">Informations</Tab>
             <Tab value="1">Mouvements de stock ({{ equipmentMovements.length }})</Tab>
           </TabList>
@@ -81,7 +96,14 @@ onMounted(load)
               </dl>
             </TabPanel>
             <TabPanel value="1">
-              <DataTable v-if="equipmentMovements.length" :value="equipmentMovements" striped-rows>
+              <AppEntityDataView
+                v-if="isAppMobile && equipmentMovements.length"
+                :items="equipmentMovements"
+                :title-of="(item) => `${item.quantity} ${item.unit}`"
+                :meta-of="(item) => formatDateFr(item.date)"
+                :status-of="(item) => ({ value: stockDirectionLabel(item.direction), severity: stockDirectionSeverity(item.direction) })"
+              />
+              <DataTable v-else-if="equipmentMovements.length" :value="equipmentMovements" striped-rows>
                 <Column header="Date">
                   <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
                 </Column>
@@ -106,18 +128,16 @@ onMounted(load)
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
-  width: 100%;
 }
 
 .detail-header__code {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.8rem;
   color: var(--layout-text-muted);
-  text-transform: uppercase;
+  font-weight: 600;
 }
 
 .detail-header__title {
-  margin: 0.25rem 0 0.5rem;
+  margin: 0.15rem 0 0.35rem;
   font-size: 1.25rem;
 }
 
@@ -129,12 +149,11 @@ onMounted(load)
 
 .detail-dl div {
   display: grid;
-  grid-template-columns: 8rem 1fr;
-  gap: 0.5rem;
+  gap: 0.15rem;
 }
 
 .detail-dl dt {
-  font-weight: 600;
+  font-size: 0.75rem;
   color: var(--layout-text-muted);
 }
 

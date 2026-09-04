@@ -38,6 +38,7 @@ export const TRANSACTION_TYPE_OPTIONS = [
 
 export const TRANSACTION_CATEGORY_OPTIONS = [
   { label: 'Paiement facture', value: 'InvoicePayment' },
+  { label: 'Paiement prestation', value: 'PrestationPayment' },
   { label: 'Dépense projet', value: 'ProjetExpense' },
   { label: 'Dépense site', value: 'SiteExpense' },
   { label: 'Dépense matériel', value: 'MaterialExpense' },
@@ -45,7 +46,9 @@ export const TRANSACTION_CATEGORY_OPTIONS = [
   { label: 'Autre dépense', value: 'OtherExpense' },
 ]
 
-export const EXPENSE_CATEGORY_OPTIONS = TRANSACTION_CATEGORY_OPTIONS.filter((o) => o.value !== 'InvoicePayment')
+export const EXPENSE_CATEGORY_OPTIONS = TRANSACTION_CATEGORY_OPTIONS.filter(
+  (o) => o.value !== 'InvoicePayment' && o.value !== 'PrestationPayment',
+)
 
 export const TRANSACTION_STATUS_OPTIONS = [
   { label: 'En attente', value: 'pending' },

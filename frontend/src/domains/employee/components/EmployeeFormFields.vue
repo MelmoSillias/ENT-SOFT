@@ -1,6 +1,7 @@
 <script setup>
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
+import Select from 'primevue/select'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import AppPhoneInput from '@/domains/shared/components/AppPhoneInput.vue'
 
@@ -8,15 +9,21 @@ const form = defineModel({ type: Object, required: true })
 
 defineProps({
   errors: { type: Object, default: () => ({}) },
+  roleOptions: { type: Array, default: () => [] },
 })
 </script>
 
 <template>
   <div class="ent-form-grid">
-    <div class="field ent-form-grid__full">
+    <div class="field">
+      <label>Prénom <span class="required">*</span></label>
+      <InputText v-model="form.prenom" :invalid="Boolean(errors.prenom)" fluid />
+      <AppFieldError :message="errors.prenom" />
+    </div>
+    <div class="field">
       <label>Nom <span class="required">*</span></label>
-      <InputText v-model="form.name" :invalid="Boolean(errors.name)" fluid />
-      <AppFieldError :message="errors.name" />
+      <InputText v-model="form.nom" :invalid="Boolean(errors.nom)" fluid />
+      <AppFieldError :message="errors.nom" />
     </div>
     <div class="field">
       <label>Email <span class="required">*</span></label>
@@ -28,10 +35,20 @@ defineProps({
       <AppPhoneInput v-model="form.phone" :invalid="Boolean(errors.phone)" fluid />
       <AppFieldError :message="errors.phone" />
     </div>
-    <div class="field">
+    <div class="field ent-form-grid__full">
       <label>Fonction <span class="required">*</span></label>
-      <InputText v-model="form.function" :invalid="Boolean(errors.function)" fluid />
-      <AppFieldError :message="errors.function" />
+      <Select
+        v-model="form.roleCode"
+        :options="roleOptions"
+        option-label="label"
+        option-value="value"
+        :invalid="Boolean(errors.roleCode)"
+        placeholder="Choisir une fonction"
+        filter
+        fluid
+      />
+      <AppFieldError :message="errors.roleCode" />
+      <small v-if="!errors.roleCode" class="field-hint">Un compte utilisateur désactivé sera créé automatiquement.</small>
     </div>
     <div class="field ent-form-grid__full">
       <label>Adresse</label>
@@ -46,18 +63,8 @@ defineProps({
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem 1rem;
 }
-
-.ent-form-grid__full {
-  grid-column: 1 / -1;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.required {
-  color: var(--p-red-500, #ef4444);
-}
+.ent-form-grid__full { grid-column: 1 / -1; }
+.field { display: flex; flex-direction: column; gap: 0.35rem; }
+.required { color: var(--p-red-500, #ef4444); }
+.field-hint { color: var(--p-text-muted-color); font-size: 0.75rem; }
 </style>

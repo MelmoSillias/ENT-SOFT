@@ -110,9 +110,9 @@ const routes = [
       {
         path: 'employees',
         name: 'employees',
-        component: () => import('@/views/employee/EmployeeListView.vue'),
+        component: () => import('@/views/employee/RhView.vue'),
         meta: {
-          title: 'Employés',
+          title: 'RH',
           section: 'RH',
           requiredModule: 'employee',
         },
@@ -126,6 +126,17 @@ const routes = [
           section: 'RH',
           hiddenFromMenu: true,
           requiredModule: 'employee',
+        },
+      },
+      {
+        path: 'prestataires/:id',
+        name: 'prestataire-detail',
+        component: () => import('@/views/employee/PrestataireDetailView.vue'),
+        meta: {
+          title: 'Détail prestataire',
+          section: 'RH',
+          hiddenFromMenu: true,
+          requiredPermission: 'employee.prestataires.view',
         },
       },
       {

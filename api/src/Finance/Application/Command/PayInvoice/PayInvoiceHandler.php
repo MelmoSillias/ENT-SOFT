@@ -52,7 +52,6 @@ final class PayInvoiceHandler
             toParty: $toParty,
             description: $command->description,
             clientId: $invoice->getClientId(),
-            projectId: $invoice->getProjectId(),
             siteId: null,
             invoiceId: $invoice->getId(),
         );

@@ -11,6 +11,12 @@ interface EmployeeRepositoryInterface
 
     public function findById(Uuid $id): ?Employee;
 
+    /**
+     * @param list<Uuid> $ids
+     * @return list<Employee>
+     */
+    public function findByIds(array $ids): array;
+
     /** @return list<Employee> */
     public function findAllEnabled(?string $search = null): array;
 }

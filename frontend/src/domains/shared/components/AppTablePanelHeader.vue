@@ -1,7 +1,10 @@
 <template>
   <div
     class="dashboard-panel__header"
-    :class="{ 'dashboard-panel__header-actions--hide-create-mobile': hideCreateOnMobile }"
+    :class="{
+      'dashboard-panel__header-actions--hide-create-mobile': hideCreateOnMobile,
+      'is-sticky': sticky
+    }"
   >
     <div class="dashboard-panel__header-leading">
       <span class="dashboard-panel__title">{{ title }}</span>
@@ -74,6 +77,10 @@ defineProps({
     default: true
   },
   hideCreateOnMobile: {
+    type: Boolean,
+    default: false
+  },
+  sticky: {
     type: Boolean,
     default: false
   },

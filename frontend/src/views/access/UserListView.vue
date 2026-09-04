@@ -8,6 +8,11 @@ import Card from 'primevue/card'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
+import TabPanels from 'primevue/tabpanels'
+import TabPanel from 'primevue/tabpanel'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
@@ -23,11 +28,29 @@ import { getUserFormErrors, sanitizePhoneInput } from '@/domains/shared/utils/fo
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import AppPhoneInput from '@/domains/shared/components/AppPhoneInput.vue'
+import RolesPermissionsPanel from '@/domains/access/components/RolesPermissionsPanel.vue'
+import { listRoles } from '@/domains/access/services/roleService'
+import { usePermissions } from '@/domains/auth/composables/usePermissions'
+import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
+import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
 const toast = useAppToast()
 const confirm = useConfirm()
+const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
+const activeTab = ref('0')
+const tabItems = computed(() => {
+  const items = [{ value: '0', label: 'Utilisateurs', shortLabel: 'Users' }]
+  if (canManageRoles.value) {
+    items.push({ value: '1', label: 'Rôles & permissions', shortLabel: 'Rôles' })
+  }
+  return items
+})
 const items = ref([])
+const roleOptions = ref([])
 const permissionsCatalog = ref([])
 const rolePermissions = ref({})
 const loading = ref(true)
@@ -43,11 +66,7 @@ const loadingPermissions = ref(false)
 const initialOverrides = ref(new Map())
 const expandedZones = ref([])
 
-const roleOptions = [
-  { label: 'Administrateur', value: 'ADMIN' },
-  { label: 'Agent', value: 'AGENT' },
-  { label: 'Superviseur', value: 'SUPERVISEUR' },
-]
+const canManageRoles = computed(() => hasPermission('access.roles.manage'))
 
 const permAccordeOptions = [
   { label: 'Défaut', value: 'default', tone: 'default' },
@@ -57,15 +76,17 @@ const permAccordeOptions = [
 
 const MODULE_ZONES = {
   dashboard: { label: 'Tableau de bord', icon: 'pi pi-home', order: 1 },
-  transfert: { label: 'Transferts', icon: 'pi pi-send', order: 2 },
-  client: { label: 'Clients', icon: 'pi pi-users', order: 3 },
-  beneficiaire: { label: 'Bénéficiaires', icon: 'pi pi-user', order: 4 },
-  finance: { label: 'Finances', icon: 'pi pi-wallet', order: 5 },
-  reporting: { label: 'Rapports', icon: 'pi pi-chart-bar', order: 6 },
-  configuration: { label: 'Configurations', icon: 'pi pi-cog', order: 7 },
-  referentiel: { label: 'Référentiel', icon: 'pi pi-database', order: 8 },
-  access: { label: 'Administration', icon: 'pi pi-shield', order: 9 },
-  notification: { label: 'Notifications', icon: 'pi pi-bell', order: 10 },
+  client: { label: 'Clients', icon: 'pi pi-users', order: 2 },
+  site: { label: 'Sites', icon: 'pi pi-map-marker', order: 3 },
+  project: { label: 'Projets', icon: 'pi pi-briefcase', order: 4 },
+  employee: { label: 'RH', icon: 'pi pi-id-card', order: 5 },
+  task: { label: 'Tâches', icon: 'pi pi-check-square', order: 6 },
+  finance: { label: 'Finances', icon: 'pi pi-wallet', order: 7 },
+  stock: { label: 'Stock', icon: 'pi pi-box', order: 8 },
+  document: { label: 'Documents', icon: 'pi pi-file', order: 9 },
+  configuration: { label: 'Configurations', icon: 'pi pi-cog', order: 10 },
+  referentiel: { label: 'Référentiel', icon: 'pi pi-database', order: 11 },
+  access: { label: 'Administration', icon: 'pi pi-shield', order: 12 },
 }
 
 const emptyForm = () => ({
@@ -146,8 +167,13 @@ const groupedUserPermissions = computed(() => {
   return [...groups.values()].sort((a, b) => a.order - b.order)
 })
 
+async function loadRoles() {
+  const roles = await listRoles({ enabledOnly: true })
+  roleOptions.value = roles.map((r) => ({ label: r.libelle, value: r.code }))
+}
+
 onMounted(async () => {
-  await Promise.all([load(), loadPermissionsCatalog()])
+  await Promise.all([load(), loadPermissionsCatalog(), loadRoles()])
 })
 
 const dialogTitle = computed(() => (editingId.value ? 'Modifier utilisateur' : 'Nouvel utilisateur'))
@@ -264,16 +290,43 @@ function suspendUser(user) {
     },
   })
 }
+
+function userActions(user) {
+  return [
+    { label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(user) },
+    { label: 'Réinitialiser MDP', icon: 'pi pi-key', command: () => openResetPassword(user) },
+    { label: 'Permissions', icon: 'pi pi-shield', command: () => openPermissions(user) },
+    { label: 'Suspendre', icon: 'pi pi-ban', severity: 'danger', command: () => suspendUser(user) },
+  ]
+}
 </script>
 
 <template>
   <section class="dashboard-page">
-    <Card class="dashboard-panel">
+    <AppMobileSegmentTabs
+      v-if="isAppMobile && tabItems.length > 1"
+      v-model="activeTab"
+      :items="tabItems"
+    />
+    <Tabs v-else-if="!isAppMobile" v-model:value="activeTab">
+      <TabList>
+        <Tab value="0">Utilisateurs</Tab>
+        <Tab v-if="canManageRoles" value="1">Rôles & permissions</Tab>
+      </TabList>
+      <TabPanels>
+        <TabPanel value="0" />
+        <TabPanel v-if="canManageRoles" value="1" />
+      </TabPanels>
+    </Tabs>
+
+    <Card v-show="activeTab === '0'" class="dashboard-panel">
       <template #title>
         <AppTablePanelHeader
           title="Utilisateurs"
           :count-label="`${items.length}`"
           create-label="Nouvel utilisateur"
+          :hide-create-on-mobile="isAppMobile"
+          :sticky="isAppMobile"
           @create="openCreate"
           @reload="load"
         />
@@ -296,16 +349,23 @@ function suspendUser(user) {
             </Column>
             <Column header="Actions" style="width: 14rem">
               <template #body="{ data }">
-                <Button icon="pi pi-pencil" text rounded aria-label="Modifier" v-tooltip.top="'Modifier'" @click="openEdit(data)" />
-                <Button icon="pi pi-key" text rounded aria-label="Réinitialiser MDP" v-tooltip.top="'Réinitialiser MDP'" @click="openResetPassword(data)" />
-                <Button icon="pi pi-shield" text rounded aria-label="Permissions" v-tooltip.top="'Permissions'" @click="openPermissions(data)" />
-                <Button icon="pi pi-ban" text rounded severity="danger" aria-label="Suspendre" v-tooltip.top="'Suspendre'" @click="suspendUser(data)" />
+                <AppTableActionsMenu :actions="userActions(data)" />
               </template>
             </Column>
           </DataTable>
         </AppTableState>
       </template>
     </Card>
+
+    <div v-if="canManageRoles" v-show="activeTab === '1'">
+      <RolesPermissionsPanel />
+    </div>
+
+    <AppMobileFab
+      v-if="isAppMobile && activeTab === '0'"
+      aria-label="Nouvel utilisateur"
+      @click="openCreate"
+    />
 
     <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(480px, 95vw)">
       <div class="field">

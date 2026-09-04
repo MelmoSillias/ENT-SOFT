@@ -6,7 +6,6 @@ use App\AccessAudit\Domain\PermissionCatalog;
 use App\AccessAudit\Domain\Repository\RolePermissionRepositoryInterface;
 use App\AccessAudit\Domain\Repository\UtilisateurPermissionRepositoryInterface;
 use App\IdentityAccess\Domain\Entity\Utilisateur;
-use App\IdentityAccess\Domain\Enum\Role;
 
 final class PermissionResolverService
 {
@@ -20,10 +19,11 @@ final class PermissionResolverService
     public function resolvePermissions(Utilisateur $utilisateur): array
     {
         $permissions = [];
+        $roleCode = $utilisateur->getRoleCode();
 
-        $roleCodes = $this->rolePermissionRepository->findPermissionCodesByRole($utilisateur->getRole());
+        $roleCodes = $this->rolePermissionRepository->findPermissionCodesByRoleCode($roleCode);
         if ([] === $roleCodes) {
-            $roleCodes = PermissionCatalog::rolePermissions()[$utilisateur->getRole()->value] ?? [];
+            $roleCodes = PermissionCatalog::rolePermissions()[$roleCode] ?? [];
         }
 
         foreach ($roleCodes as $code) {
@@ -54,13 +54,13 @@ final class PermissionResolverService
     }
 
     /** @return list<string> */
-    public function resolveDefaultPermissionsForRole(Role $role): array
+    public function resolveDefaultPermissionsForRole(string $roleCode): array
     {
-        $dbCodes = $this->rolePermissionRepository->findPermissionCodesByRole($role);
+        $dbCodes = $this->rolePermissionRepository->findPermissionCodesByRoleCode($roleCode);
         if ([] !== $dbCodes) {
             return $dbCodes;
         }
 
-        return PermissionCatalog::rolePermissions()[$role->value] ?? [];
+        return PermissionCatalog::rolePermissions()[strtoupper(trim($roleCode))] ?? [];
     }
 }

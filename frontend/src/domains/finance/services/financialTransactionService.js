@@ -24,3 +24,8 @@ export async function deleteFinancialTransaction(id) {
   const { data } = await api.delete(`/financial-transactions/${id}`)
   return data
 }
+
+export async function getTransactionStats() {
+  const { data } = await api.get('/financial-transactions/stats')
+  return data
+}

@@ -8,22 +8,33 @@ import ConfirmPopup from 'primevue/confirmpopup'
 import AppQuickNavSpeedDial from '@/domains/layout/components/AppQuickNavSpeedDial.vue'
 import AppConnectivityDialog from '@/domains/shared/components/AppConnectivityDialog.vue'
 import PwaUpdateBanner from '@/domains/shared/components/PwaUpdateBanner.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
 const route = useRoute()
-const showQuickNav = computed(() => route.meta.requiresAuth === true)
+const { isAppMobile, bottomNavOffset } = useAppMobileLayout()
+const showQuickNav = computed(() => route.meta.requiresAuth === true && !isAppMobile.value)
 
-// Clears SpeedDial (bottom 1.25rem + 3rem button + gap). Inline style needed:
+// Clears SpeedDial / bottom nav. Inline style needed:
 // PrimeVue sets bottom: 20px on the root, which beats class CSS without !important.
-const toastPt = computed(() =>
-  showQuickNav.value
-    ? {
-        root: {
-          class: 'app-toast--above-speeddial',
-          style: { bottom: '5.5rem' },
-        },
-      }
-    : undefined,
-)
+const toastPt = computed(() => {
+  if (isAppMobile.value) {
+    return {
+      root: {
+        class: 'app-toast--above-bottom-nav',
+        style: { bottom: bottomNavOffset.value },
+      },
+    }
+  }
+  if (showQuickNav.value) {
+    return {
+      root: {
+        class: 'app-toast--above-speeddial',
+        style: { bottom: '5.5rem' },
+      },
+    }
+  }
+  return undefined
+})
 
 // PrimeVue only pauses the dismiss timer when these handlers are provided.
 function onToastMouseEnter() {}

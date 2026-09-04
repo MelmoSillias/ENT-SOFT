@@ -101,14 +101,14 @@ defineEmits(['retry'])
 <style scoped>
 .app-table-state-root {
   min-width: 0;
+  margin-top: 1rem;
 }
 
 .app-table-state {
   display: grid;
   justify-items: center;
   gap: 1rem;
-  padding: 3rem 1.5rem;
-  margin-top: 1rem;
+  padding: 3rem 1.5rem; 
   border: 1px dashed color-mix(in srgb, var(--pv-surface-border) 78%, transparent);
   border-radius: var(--layout-radius-lg, 0.5rem);
   background: var(--content-surface-empty, var(--content-surface-panel));

@@ -12,7 +12,6 @@ use App\IdentityAccess\Application\Query\GetUser\GetUserHandler;
 use App\IdentityAccess\Application\Query\GetUser\GetUserQuery;
 use App\IdentityAccess\Application\Query\ListUsers\ListUsersHandler;
 use App\IdentityAccess\Application\Query\ListUsers\ListUsersQuery;
-use App\IdentityAccess\Domain\Enum\Role;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,7 +41,7 @@ final class UserController extends AbstractController
             telephone: $data['telephone'] ?? '',
             login: $data['login'] ?? '',
             password: $data['password'] ?? '',
-            role: Role::from($data['role'] ?? Role::AGENT->value),
+            roleCode: $data['role'] ?? 'AGENT',
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -68,7 +67,7 @@ final class UserController extends AbstractController
             telephone: $data['telephone'] ?? null,
             login: $data['login'] ?? null,
             password: $data['password'] ?? null,
-            role: isset($data['role']) ? Role::from($data['role']) : null,
+            roleCode: isset($data['role']) ? (string) $data['role'] : null,
             isActive: isset($data['isActive']) ? (bool) $data['isActive'] : null,
         ));
 

@@ -9,9 +9,12 @@ import DatePicker from 'primevue/datepicker'
 import Tag from 'primevue/tag'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppFiltersCard from '@/domains/shared/components/AppFiltersCard.vue'
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
+const { isAppMobile } = useAppMobileLayout()
 const items = ref([])
 const users = ref([])
 const loading = ref(true)
@@ -245,6 +248,7 @@ function resetFilters() {
           title="Journal d'audit"
           :count-label="countLabel"
           :show-create="false"
+          :sticky="isAppMobile"
           :reloading="reloading"
           @reload="reload"
         />
@@ -271,7 +275,17 @@ function resetFilters() {
             />
           </template>
 
+          <AppEntityDataView
+            v-if="isAppMobile"
+            :items="items"
+            :title-of="(item) => formatActionLabel(item.action)"
+            :subtitle-of="(item) => item.description || null"
+            :meta-of="(item) => `${formatDateTime(item.date_action)} · ${userLabel(item.utilisateur_id)}`"
+            :status-of="(item) => ({ value: formatActionLabel(item.action), severity: actionSeverity(item.action) })"
+            data-key="id"
+          />
           <DataTable
+            v-else
             :value="items"
             lazy
             paginator

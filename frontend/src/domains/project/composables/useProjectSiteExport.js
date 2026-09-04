@@ -31,9 +31,9 @@ export function buildRows(sites, columns) {
     for (const col of columns) {
       if (col.field === 'siteCode') row['Code site'] = site.siteCode ?? ''
       else if (col.field === 'siteTitle') row['Nom du site'] = site.siteTitle ?? ''
+      else if (col.key === '__technician') row['Techniciens'] = site.technicianName ?? ''
       else if (col.key === '__status') row['Statut'] = site.statusLabel ?? site.status ?? ''
       else if (col.key === '__comment') row['Commentaires'] = site.comment ?? ''
-      else if (col.key === '__technician') row['Technicien'] = site.technicianName ?? ''
       else if (col.key) {
         const raw = site.informationsValues?.[col.key]
         row[col.label ?? col.key] =
@@ -51,9 +51,9 @@ export function buildImageRows(sites, columns) {
     for (const col of columns) {
       if (col.field === 'siteCode') row['Code site'] = displayOrDash(site.siteCode)
       else if (col.field === 'siteTitle') row['Nom du site'] = displayOrDash(site.siteTitle)
+      else if (col.key === '__technician') row['Techniciens'] = site.technicianName || '—'
       else if (col.key === '__status') row['Statut'] = site.statusLabel ?? site.status ?? '—'
       else if (col.key === '__comment') row['Commentaires'] = site.comment || '—'
-      else if (col.key === '__technician') row['Technicien'] = site.technicianName || '—'
       else if (col.key) row[col.label ?? col.key] = formatInfoCell(site, col.key)
     }
     return row
@@ -89,9 +89,9 @@ function headersFromColumns(columns) {
   for (const col of columns) {
     if (col.field === 'siteCode') headers.push('Code site')
     else if (col.field === 'siteTitle') headers.push('Nom du site')
+    else if (col.key === '__technician') headers.push('Techniciens')
     else if (col.key === '__status') headers.push('Statut')
     else if (col.key === '__comment') headers.push('Commentaires')
-    else if (col.key === '__technician') headers.push('Technicien')
     else if (col.key) headers.push(col.label ?? col.key)
   }
   return headers

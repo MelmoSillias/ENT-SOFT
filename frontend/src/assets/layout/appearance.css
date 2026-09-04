@@ -234,24 +234,47 @@
   }
 
   .dashboard-panel__header {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .dashboard-panel__header-leading {
+    flex: 0 1 auto;
+    max-width: 38%;
+    min-width: 0;
+    gap: 0.35rem;
+  }
+
+  .dashboard-panel__title {
+    font-size: 0.95rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .dashboard-panel__header-actions {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
+    width: auto;
     margin-left: 0;
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.3rem;
   }
 
   .dashboard-panel__search {
+    flex: 1;
     min-width: 0;
-    width: 100%;
+    width: auto;
   }
 
   .dashboard-panel__header-actions .p-button:not(.p-button-icon-only) {
-    width: 100%;
+    width: auto;
   }
 
   .dashboard-panel__header-actions--hide-create-mobile .dashboard-panel__create-button {

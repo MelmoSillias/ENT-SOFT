@@ -21,7 +21,7 @@ final class GetMeHandler
             'nom' => $user->getNom(),
             'login' => $user->getLogin(),
             'telephone' => $user->getTelephone(),
-            'role' => $user->getRole()->value,
+            'role' => $user->getRoleCode(),
             'isActive' => $user->isActive(),
             'permissions' => $this->permissionResolver->resolvePermissions($user),
         ];

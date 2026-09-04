@@ -44,3 +44,8 @@ export async function removeSiteFromProject(projectSiteId) {
   const { data } = await api.delete(`/projects/sites/${projectSiteId}`)
   return data
 }
+
+export async function createProjectEvent(projectId, payload) {
+  const { data } = await api.post(`/projects/${projectId}/events`, payload)
+  return data
+}

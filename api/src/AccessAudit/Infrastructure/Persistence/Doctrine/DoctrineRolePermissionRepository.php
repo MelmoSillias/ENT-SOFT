@@ -4,7 +4,6 @@ namespace App\AccessAudit\Infrastructure\Persistence\Doctrine;
 
 use App\AccessAudit\Domain\Entity\RolePermission;
 use App\AccessAudit\Domain\Repository\RolePermissionRepositoryInterface;
-use App\IdentityAccess\Domain\Enum\Role;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -18,19 +17,19 @@ class DoctrineRolePermissionRepository extends ServiceEntityRepository implement
         parent::__construct($registry, RolePermission::class);
     }
 
-    public function findByRole(Role $role): array
+    public function findByRoleCode(string $roleCode): array
     {
-        return $this->findBy(['role' => $role]);
+        return $this->findBy(['roleCode' => strtoupper(trim($roleCode))]);
     }
 
-    public function findPermissionCodesByRole(Role $role): array
+    public function findPermissionCodesByRoleCode(string $roleCode): array
     {
         $results = $this->createQueryBuilder('rp')
             ->select('p.code')
             ->join('rp.permission', 'p')
-            ->where('rp.role = :role')
+            ->where('rp.roleCode = :role')
             ->andWhere('p.isEnabled = true')
-            ->setParameter('role', $role)
+            ->setParameter('role', strtoupper(trim($roleCode)))
             ->orderBy('p.code', 'ASC')
             ->getQuery()
             ->getScalarResult();
@@ -38,9 +37,36 @@ class DoctrineRolePermissionRepository extends ServiceEntityRepository implement
         return array_column($results, 'code');
     }
 
+    public function findAllGroupedByRole(): array
+    {
+        $rows = $this->createQueryBuilder('rp')
+            ->select('rp.roleCode AS roleCode', 'p.code AS code')
+            ->join('rp.permission', 'p')
+            ->andWhere('p.isEnabled = true')
+            ->orderBy('rp.roleCode', 'ASC')
+            ->addOrderBy('p.code', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $grouped[$row['roleCode']][] = $row['code'];
+        }
+
+        return $grouped;
+    }
+
     public function save(RolePermission $rolePermission, bool $flush = true): void
     {
         $this->getEntityManager()->persist($rolePermission);
+        if ($flush) {
+            $this->getEntityManager()->flush();
+        }
+    }
+
+    public function remove(RolePermission $rolePermission, bool $flush = true): void
+    {
+        $this->getEntityManager()->remove($rolePermission);
         if ($flush) {
             $this->getEntityManager()->flush();
         }

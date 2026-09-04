@@ -58,6 +58,26 @@ final class GetProjectDetailHandler
             ];
         }
 
+        $employeeIdsToLoad = [];
+        foreach ($projectSites as $ps) {
+            if (null !== $ps->getTechnicianId()) {
+                $employeeIdsToLoad[] = $ps->getTechnicianId();
+            }
+            foreach ($ps->getEmployeeIds() as $empId) {
+                if (is_string($empId) && $empId !== '') {
+                    $employeeIdsToLoad[] = Uuid::fromString($empId);
+                }
+            }
+        }
+        $uniqueEmployeeIds = [];
+        foreach ($employeeIdsToLoad as $eid) {
+            $uniqueEmployeeIds[(string) $eid] = $eid;
+        }
+        $employeesById = [];
+        foreach ($this->employeeRepository->findByIds(array_values($uniqueEmployeeIds)) as $employee) {
+            $employeesById[(string) $employee->getId()] = $employee;
+        }
+
         $sites = [];
         foreach ($projectSites as $ps) {
             $dto = ProjectSiteResponseDto::fromEntity($ps)->toArray();
@@ -69,12 +89,30 @@ final class GetProjectDetailHandler
             $dto['lotCode'] = $lot?->getCode();
             $dto['lotTitle'] = $lot?->getTitle();
 
-            if (null !== $ps->getTechnicianId()) {
-                $technician = $this->employeeRepository->findById($ps->getTechnicianId());
-                $dto['technicianName'] = $technician?->getName();
-            } else {
-                $dto['technicianName'] = null;
+            $techId = $ps->getTechnicianId();
+            $dto['technicianName'] = $techId !== null
+                ? (($employeesById[(string) $techId] ?? null)?->getName())
+                : null;
+
+            $technicians = [];
+            foreach ($ps->getEmployeeIds() as $empId) {
+                if (!is_string($empId) || $empId === '') {
+                    continue;
+                }
+                $emp = $employeesById[$empId] ?? null;
+                if ($emp !== null) {
+                    $technicians[] = [
+                        'id' => $empId,
+                        'name' => $emp->getName(),
+                    ];
+                } else {
+                    $technicians[] = [
+                        'id' => $empId,
+                        'name' => $empId,
+                    ];
+                }
             }
+            $dto['technicians'] = $technicians;
 
             $dto['comment'] = $this->extractComment($dto['informationsValues']);
 

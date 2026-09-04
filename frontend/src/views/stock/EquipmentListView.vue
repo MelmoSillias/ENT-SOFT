@@ -14,6 +14,9 @@ import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
 import EquipmentFormFields from '@/domains/stock/components/EquipmentFormFields.vue'
 import StockMovementListPanel from '@/views/stock/StockMovementListPanel.vue'
 import { listEquipment, createEquipment, updateEquipment, deleteEquipment } from '@/domains/stock/services/equipmentService'
@@ -24,11 +27,13 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
 const router = useRouter()
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
 const items = ref([])
 const clientOptions = ref([])
@@ -43,6 +48,11 @@ const editingId = ref(null)
 const actionItem = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
+
+const stockTabItems = [
+  { value: 'list', label: 'Liste', shortLabel: 'Liste' },
+  { value: 'movements', label: 'Mouvements', shortLabel: 'Mouv.' },
+]
 
 const canCreate = computed(() => hasPermission('stock.equipment.create'))
 
@@ -171,48 +181,74 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   <section class="dashboard-page">
     <Card class="dashboard-panel">
       <template #content>
-        <Tabs v-model:value="stockTab">
+        <AppMobileSegmentTabs
+          v-if="isAppMobile"
+          v-model="stockTab"
+          :items="stockTabItems"
+        />
+        <Tabs v-else v-model:value="stockTab">
           <TabList>
             <Tab value="list">Liste</Tab>
             <Tab value="movements">Mouvements</Tab>
           </TabList>
           <TabPanels>
-            <TabPanel value="list">
-              <AppTablePanelHeader
-                title="Matériels et équipements"
-                :count-label="countLabel"
-                create-label="Nouvel équipement"
-                :show-create="canCreate"
-                :reloading="reloading"
-                show-search
-                v-model:search-term="searchTerm"
-                search-placeholder="Rechercher…"
-                @create="openCreate"
-                @reload="reload"
-              />
-              <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-                <DataTable :value="filteredItems" paginator :rows="10" striped-rows>
-                  <Column field="code" header="Code" />
-                  <Column field="title" header="Titre" />
-                  <Column header="Client">
-                    <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
-                  </Column>
-                  <Column header="Actions" style="width: 5rem">
-                    <template #body="{ data }">
-                      <Button icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
-                    </template>
-                  </Column>
-                </DataTable>
-                <Menu ref="actionMenu" :model="menuModel" popup />
-              </AppTableState>
-            </TabPanel>
-            <TabPanel value="movements">
-              <StockMovementListPanel />
-            </TabPanel>
+            <TabPanel value="list" />
+            <TabPanel value="movements" />
           </TabPanels>
         </Tabs>
+
+        <div v-if="stockTab === 'list'">
+          <AppTablePanelHeader
+            title="Matériels et équipements"
+            :count-label="countLabel"
+            create-label="Nouvel équipement"
+            :show-create="canCreate"
+            :hide-create-on-mobile="isAppMobile"
+            :sticky="isAppMobile"
+            :reloading="reloading"
+            show-search
+            v-model:search-term="searchTerm"
+            search-placeholder="Rechercher…"
+            @create="openCreate"
+            @reload="reload"
+          />
+          <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
+            <AppEntityDataView
+              v-if="isAppMobile"
+              :items="filteredItems"
+              :title-of="(item) => item.title"
+              :code-of="(item) => item.code"
+              :subtitle-of="(item) => clientMap[item.clientId] || item.description || null"
+              :actions-of="buildMenuItems"
+              @select="(item) => router.push({ name: 'equipment-detail', params: { id: item.id } })"
+            />
+            <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
+              <Column field="code" header="Code" />
+              <Column field="title" header="Titre" />
+              <Column header="Client">
+                <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
+              </Column>
+              <Column header="Actions" style="width: 5rem">
+                <template #body="{ data }">
+                  <Button icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
+                </template>
+              </Column>
+            </DataTable>
+            <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
+          </AppTableState>
+        </div>
+
+        <div v-else-if="stockTab === 'movements'">
+          <StockMovementListPanel />
+        </div>
       </template>
     </Card>
+
+    <AppMobileFab
+      v-if="isAppMobile && canCreate && stockTab === 'list'"
+      aria-label="Nouvel équipement"
+      @click="openCreate"
+    />
 
     <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(640px, 95vw)">
       <EquipmentFormFields v-model="form" :errors="fieldErrors" :client-options="clientOptions" :show-code="Boolean(editingId)" />

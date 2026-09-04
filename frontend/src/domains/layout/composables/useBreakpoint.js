@@ -4,7 +4,8 @@ const queries = {
   narrow: '(max-width: 479px)',
   mobile: '(max-width: 767px)',
   tablet: '(max-width: 1023px)',
-  compact: '(max-width: 1279px)'
+  compact: '(max-width: 1279px)',
+  standalone: '(display-mode: standalone)'
 }
 
 const createMediaQueryList = (query) => {
@@ -20,12 +21,20 @@ const readMatches = () => {
   const mobile = createMediaQueryList(queries.mobile)
   const tablet = createMediaQueryList(queries.tablet)
   const compact = createMediaQueryList(queries.compact)
+  const standalone = createMediaQueryList(queries.standalone)
+
+  const isNarrow = narrow?.matches ?? false
+  const isMobile = mobile?.matches ?? false
+  const isStandalone = standalone?.matches ?? false
 
   return {
-    isNarrow: narrow?.matches ?? false,
-    isMobile: mobile?.matches ?? false,
+    isNarrow,
+    isMobile,
     isTablet: tablet?.matches ?? false,
-    isCompact: compact?.matches ?? false
+    isCompact: compact?.matches ?? false,
+    isStandalone,
+    // App mobile: ≤479px, or installed PWA on a phone-sized viewport (≤767px)
+    isAppMobile: isNarrow || (isStandalone && isMobile)
   }
 }
 
@@ -34,6 +43,8 @@ export function useBreakpoint() {
   const isMobile = ref(false)
   const isTablet = ref(false)
   const isCompact = ref(false)
+  const isStandalone = ref(false)
+  const isAppMobile = ref(false)
 
   const sync = () => {
     const matches = readMatches()
@@ -41,6 +52,8 @@ export function useBreakpoint() {
     isMobile.value = matches.isMobile
     isTablet.value = matches.isTablet
     isCompact.value = matches.isCompact
+    isStandalone.value = matches.isStandalone
+    isAppMobile.value = matches.isAppMobile
   }
 
   const listeners = []
@@ -71,6 +84,8 @@ export function useBreakpoint() {
     isNarrow,
     isMobile,
     isTablet,
-    isCompact
+    isCompact,
+    isStandalone,
+    isAppMobile
   }
 }

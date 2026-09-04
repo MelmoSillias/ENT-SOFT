@@ -8,6 +8,9 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import SiteFormFields from '@/domains/site/components/SiteFormFields.vue'
 import { listSites, createSite, updateSite, deleteSite } from '@/domains/site/services/siteService'
 import { listClients } from '@/domains/client/services/clientService'
@@ -21,6 +24,7 @@ import { useAppToast } from '@/domains/shared/composables/useAppToast'
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
 const items = ref([])
 const clientOptions = ref([])
@@ -173,6 +177,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :count-label="countLabel"
           create-label="Nouveau site"
           :show-create="canCreate"
+          :hide-create-on-mobile="isAppMobile"
+          :sticky="isAppMobile"
           :reloading="reloading"
           show-search
           v-model:search-term="searchTerm"
@@ -183,7 +189,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       </template>
       <template #content>
         <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-          <DataTable :value="filteredItems" paginator :rows="10" striped-rows>
+          <AppEntityDataView
+            v-if="isAppMobile"
+            :items="filteredItems"
+            :title-of="(item) => item.title"
+            :code-of="(item) => item.code"
+            :subtitle-of="(item) => clientMap[item.clientId] || item.description || null"
+            :actions-of="buildMenuItems"
+            @select="openEdit"
+          />
+          <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
             <Column field="code" header="Code" />
             <Column field="title" header="Titre" />
             <Column header="Client">
@@ -195,10 +210,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               </template>
             </Column>
           </DataTable>
-          <Menu ref="actionMenu" :model="menuModel" popup />
+          <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
         </AppTableState>
       </template>
     </Card>
+
+    <AppMobileFab
+      v-if="isAppMobile && canCreate"
+      aria-label="Nouveau site"
+      @click="openCreate"
+    />
 
     <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(640px, 95vw)">
       <SiteFormFields

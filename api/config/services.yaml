@@ -42,6 +42,9 @@ services:
     App\AccessAudit\Domain\Repository\PermissionRepositoryInterface:
         alias: App\AccessAudit\Infrastructure\Persistence\Doctrine\DoctrinePermissionRepository
 
+    App\AccessAudit\Domain\Repository\AppRoleRepositoryInterface:
+        alias: App\AccessAudit\Infrastructure\Persistence\Doctrine\DoctrineAppRoleRepository
+
     App\AccessAudit\Domain\Repository\RolePermissionRepositoryInterface:
         alias: App\AccessAudit\Infrastructure\Persistence\Doctrine\DoctrineRolePermissionRepository
 
@@ -90,6 +93,12 @@ services:
 
     App\Employee\Domain\Repository\EmployeeRepositoryInterface:
         alias: App\Employee\Infrastructure\Persistence\Doctrine\DoctrineEmployeeRepository
+
+    App\Prestataire\Domain\Repository\PrestataireRepositoryInterface:
+        alias: App\Prestataire\Infrastructure\Persistence\Doctrine\DoctrinePrestataireRepository
+
+    App\Prestataire\Domain\Repository\PrestationRepositoryInterface:
+        alias: App\Prestataire\Infrastructure\Persistence\Doctrine\DoctrinePrestationRepository
 
     App\Task\Domain\Repository\TaskRepositoryInterface:
         alias: App\Task\Infrastructure\Persistence\Doctrine\DoctrineTaskRepository

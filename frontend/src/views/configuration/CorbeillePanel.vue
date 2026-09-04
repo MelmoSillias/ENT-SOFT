@@ -4,6 +4,8 @@ import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import {
@@ -12,6 +14,7 @@ import {
 } from '@/domains/configuration/services/corbeilleService'
 
 const toast = useAppToast()
+const { isAppMobile } = useAppMobileLayout()
 const clients = ref([])
 const loadingClients = ref(false)
 const errorClients = ref(null)
@@ -79,7 +82,15 @@ defineExpose({ load })
         empty-text="Les clients supprimés apparaîtront ici."
         @retry="loadClients"
       >
-        <DataTable :value="clients" paginator :rows="10" striped-rows data-key="id">
+        <AppEntityDataView
+          v-if="isAppMobile"
+          :items="clients"
+          :title-of="clientLabel"
+          :code-of="(item) => item.code"
+          :meta-of="(item) => `Supprimé le ${formatDate(item.updatedAt)}`"
+          :actions-of="(item) => [{ label: 'Restaurer', icon: 'pi pi-replay', command: () => restoreClient(item) }]"
+        />
+        <DataTable v-else :value="clients" paginator :rows="10" striped-rows data-key="id">
           <Column header="Nom">
             <template #body="{ data }">
               {{ clientLabel(data) }}

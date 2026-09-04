@@ -11,6 +11,7 @@ use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: DoctrineProjectSiteRepository::class)]
 #[ORM\Table(name: 'project_sites')]
+#[ORM\UniqueConstraint(name: 'uniq_project_site', columns: ['project_id', 'site_id'])]
 class ProjectSite
 {
     use UuidEntityTrait;

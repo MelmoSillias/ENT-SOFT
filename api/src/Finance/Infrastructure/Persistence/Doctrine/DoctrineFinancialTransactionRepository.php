@@ -4,6 +4,8 @@ namespace App\Finance\Infrastructure\Persistence\Doctrine;
 
 use App\Finance\Domain\Entity\FinancialTransaction;
 use App\Finance\Domain\Enum\TransactionCategory;
+use App\Finance\Domain\Enum\TransactionStatus;
+use App\Finance\Domain\Enum\TransactionType;
 use App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -53,5 +55,54 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
         UuidQueryParameter::eq($qb, 't.invoiceId', 'invoiceId', $invoiceId);
 
         return $qb->getQuery()->getResult();
+    }
+
+    public function findEnabledPaymentsByPrestationId(Uuid $prestationId): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.isEnabled = :enabled')
+            ->andWhere('t.category = :category')
+            ->setParameter('enabled', true)
+            ->setParameter('category', TransactionCategory::PRESTATION_PAYMENT)
+            ->orderBy('t.date', 'DESC');
+        UuidQueryParameter::eq($qb, 't.prestationId', 'prestationId', $prestationId);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function findStatsAggregates(): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->select('t.type AS type, COUNT(t.id) AS cnt, COALESCE(SUM(t.amount), 0) AS total')
+            ->andWhere('t.isEnabled = :enabled')
+            ->andWhere('t.status = :status')
+            ->setParameter('enabled', true)
+            ->setParameter('status', TransactionStatus::COMPLETED)
+            ->groupBy('t.type')
+            ->getQuery()
+            ->getResult();
+
+        $stats = [
+            'incomeCount' => 0,
+            'incomeSum' => 0.0,
+            'expenseCount' => 0,
+            'expenseSum' => 0.0,
+        ];
+
+        foreach ($rows as $row) {
+            $type = $row['type'] instanceof TransactionType ? $row['type'] : TransactionType::from((string) $row['type']);
+            $count = (int) $row['cnt'];
+            $sum = (float) $row['total'];
+
+            if ($type === TransactionType::INCOME) {
+                $stats['incomeCount'] = $count;
+                $stats['incomeSum'] = $sum;
+            } elseif ($type === TransactionType::EXPENSE) {
+                $stats['expenseCount'] = $count;
+                $stats['expenseSum'] = $sum;
+            }
+        }
+
+        return $stats;
     }
 }

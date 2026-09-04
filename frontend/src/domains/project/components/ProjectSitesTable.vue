@@ -16,6 +16,7 @@ import Textarea from 'primevue/textarea'
 import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import Divider from 'primevue/divider'
+import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import {
@@ -25,6 +26,7 @@ import {
   PROJECT_SITE_STATUS_OPTIONS,
 } from '@/domains/shared/utils/entLabels'
 import { listSites, createSite } from '@/domains/site/services/siteService'
+import { listEmployees } from '@/domains/employee/services/employeeService'
 import {
   addSiteToProject,
   updateProjectSite,
@@ -89,9 +91,9 @@ function saveSettings(val) {
 
 const ALL_EXTRA_COLS = computed(() => [
   ...infoColumns.value.map((c) => ({ key: c.key, label: c.label })),
+  { key: '__technician', label: 'Techniciens' },
   { key: '__status', label: 'Statut' },
   { key: '__comment', label: 'Commentaires' },
-  { key: '__technician', label: 'Technicien' },
 ])
 
 function defaultVisibleColKeys() {
@@ -149,11 +151,9 @@ const freezeableColumns = computed(() => {
   for (const c of infoColumns.value) {
     if (isColVisible(c.key)) cols.push({ key: c.key, label: c.label })
   }
+  if (isColVisible('__technician')) cols.push({ key: '__technician', label: 'Techniciens' })
   if (isColVisible('__status')) cols.push({ key: '__status', label: 'Statut' })
   if (isColVisible('__comment')) cols.push({ key: '__comment', label: 'Commentaires' })
-  if (isColVisible('__technician') && props.sites.some((s) => s.technicianName)) {
-    cols.push({ key: '__technician', label: 'Technicien' })
-  }
   // Keep persisted freeze target selectable even if that column is currently hidden
   const until = frozenUntilKey.value
   if (until && !cols.some((c) => c.key === until)) {
@@ -175,9 +175,17 @@ const freezeableColumns = computed(() => {
 const fullFreezeOrder = computed(() => {
   const keys = ['__num', 'siteCode', 'siteTitle']
   for (const c of infoColumns.value) keys.push(c.key)
-  keys.push('__status', '__comment', '__technician')
+  keys.push('__technician', '__status', '__comment')
   return keys
 })
+
+function techniciansLabel(site) {
+  const list = site?.technicians
+  if (Array.isArray(list) && list.length) {
+    return list.map((t) => t.name || t.id).filter(Boolean).join(', ')
+  }
+  return site?.technicianName || '—'
+}
 
 function isColumnFrozen(colKey) {
   const order = fullFreezeOrder.value
@@ -264,6 +272,22 @@ function setRowLoading(siteId, val) {
   loadingRowIds.value = s
 }
 
+function menuEvent(e) {
+  return e?.originalEvent || e
+}
+
+function siteRowActions(data) {
+  const busy = loadingRowIds.value.has(data.id)
+  return [
+    { label: 'Modifier', icon: 'pi pi-pencil', disabled: busy, command: () => openEdit(data) },
+    { label: 'Dupliquer', icon: 'pi pi-copy', disabled: busy, command: () => openDuplicate(data) },
+    { label: 'Techniciens', icon: 'pi pi-users', disabled: busy, command: () => openTechnicians(data) },
+    { label: 'Changer le statut', icon: 'pi pi-tag', disabled: busy, command: (e) => openStatusMenu(menuEvent(e), data) },
+    { label: 'Commentaire', icon: 'pi pi-comment', disabled: busy, command: (e) => openCommentPanel(menuEvent(e), data) },
+    { label: 'Supprimer', icon: 'pi pi-trash', severity: 'danger', disabled: busy, command: (e) => askDelete(menuEvent(e), data) },
+  ]
+}
+
 const settingsPanel = ref(null)
 function toggleSettings(event) {
   settingsPanel.value.toggle(event)
@@ -274,7 +298,7 @@ const statusMenuTarget = ref(null)
 
 function openStatusMenu(event, site) {
   statusMenuTarget.value = site
-  statusMenuRef.value.show(event)
+  statusMenuRef.value.show(event?.originalEvent || event)
 }
 
 const statusMenuItems = computed(() =>
@@ -312,7 +336,7 @@ const savingComment = ref(false)
 function openCommentPanel(event, site) {
   commentTarget.value = site
   commentText.value = site.comment ?? site.informationsValues?.comment ?? ''
-  commentPanel.value.show(event)
+  commentPanel.value.show(event?.originalEvent || event)
 }
 
 async function saveComment() {
@@ -343,7 +367,7 @@ async function saveComment() {
 
 function askDelete(event, site) {
   confirm.require({
-    target: event.currentTarget,
+    target: event?.currentTarget,
     message: `Retirer « ${site.siteTitle || site.siteCode} » du projet ?`,
     icon: 'pi pi-exclamation-triangle',
     rejectProps: { label: 'Annuler', severity: 'secondary', outlined: true, size: 'small' },
@@ -385,14 +409,16 @@ const sitesLoading = ref(false)
 const crudStatus = ref('pending')
 const crudInfoValues = ref({})
 const crudComment = ref('')
+const crudEmployeeIds = ref([])
 
 async function loadSiteOptions() {
   sitesLoading.value = true
   try {
     const items = await listSites()
     const linkedIds = new Set((props.sites ?? []).map((s) => s.siteId).filter(Boolean))
+    const allowLinked = crudMode.value === 'edit'
     siteOptions.value = items
-      .filter((s) => crudMode.value === 'edit' || !linkedIds.has(s.id))
+      .filter((s) => allowLinked || !linkedIds.has(s.id))
       .map((s) => ({
         label: `${s.code} — ${s.title}`,
         value: s.id,
@@ -424,6 +450,7 @@ function openCreate() {
   crudStatus.value = 'pending'
   crudInfoValues.value = emptyInfoValues()
   crudComment.value = ''
+  crudEmployeeIds.value = []
   crudErrors.value = {}
   crudDialog.value = true
   loadSiteOptions()
@@ -444,8 +471,30 @@ function openEdit(site) {
   }
   crudInfoValues.value = vals
   crudComment.value = site.comment ?? site.informationsValues?.comment ?? ''
+  crudEmployeeIds.value = [...(site.employeeIds ?? [])]
   crudErrors.value = {}
   crudDialog.value = true
+}
+
+function openDuplicate(site) {
+  crudMode.value = 'duplicate'
+  crudTarget.value = site
+  siteMode.value = 'existing'
+  selectedSiteId.value = null
+  newSiteTitle.value = ''
+  newSiteCode.value = ''
+  crudStatus.value = site.status ?? 'pending'
+  const vals = emptyInfoValues()
+  for (const col of formInfoColumns.value) {
+    const raw = site.informationsValues?.[col.key]
+    vals[col.key] = raw === null || raw === undefined ? '' : String(raw)
+  }
+  crudInfoValues.value = vals
+  crudComment.value = site.comment ?? site.informationsValues?.comment ?? ''
+  crudEmployeeIds.value = [...(site.employeeIds ?? [])]
+  crudErrors.value = {}
+  crudDialog.value = true
+  loadSiteOptions()
 }
 
 function buildInformationsValues(preserveExisting = null) {
@@ -467,12 +516,13 @@ function buildInformationsValues(preserveExisting = null) {
 async function submitCrud() {
   crudErrors.value = {}
 
-  if (crudMode.value === 'create') {
-    if (siteMode.value === 'existing' && !selectedSiteId.value) {
+  const isCreateLike = crudMode.value === 'create' || crudMode.value === 'duplicate'
+  if (isCreateLike) {
+    if ((crudMode.value === 'duplicate' || siteMode.value === 'existing') && !selectedSiteId.value) {
       crudErrors.value = { site: 'Sélectionnez un site.' }
       return
     }
-    if (siteMode.value === 'new') {
+    if (crudMode.value === 'create' && siteMode.value === 'new') {
       const errs = {}
       if (!newSiteCode.value.trim()) errs.code = 'Le code du nouveau site est requis.'
       if (!newSiteTitle.value.trim()) errs.title = 'Le titre du nouveau site est requis.'
@@ -492,23 +542,34 @@ async function submitCrud() {
     const informationsValues =
       crudMode.value === 'edit'
         ? buildInformationsValues(crudTarget.value?.informationsValues ?? {})
-        : buildInformationsValues()
+        : buildInformationsValues(
+            crudMode.value === 'duplicate' ? (crudTarget.value?.informationsValues ?? {}) : null,
+          )
 
-    if (crudMode.value === 'create') {
+    if (isCreateLike) {
       let siteId = selectedSiteId.value
-      if (siteMode.value === 'new') {
+      if (crudMode.value === 'create' && siteMode.value === 'new') {
         const created = await createSite({
           code: newSiteCode.value.trim(),
           title: newSiteTitle.value.trim(),
           clientId: props.clientId || null,
         })
         siteId = created.id
+      } else if (!siteId) {
+        crudErrors.value = { site: 'Sélectionnez un site.' }
+        crudLoading.value = false
+        return
       }
-      await addSiteToProject(props.projectId, {
+      const payload = {
         siteId,
         status: crudStatus.value,
         informationsValues,
-      })
+        employeeIds: crudEmployeeIds.value,
+      }
+      if (crudEmployeeIds.value.length) {
+        payload.technicianId = crudEmployeeIds.value[0]
+      }
+      await addSiteToProject(props.projectId, payload)
     } else {
       await updateProjectSite(crudTarget.value.id, {
         status: crudStatus.value,
@@ -517,10 +578,16 @@ async function submitCrud() {
     }
 
     crudDialog.value = false
+    const detail =
+      crudMode.value === 'create'
+        ? 'Site ajouté au projet.'
+        : crudMode.value === 'duplicate'
+          ? 'Site dupliqué.'
+          : 'Site modifié.'
     toast.add({
       severity: 'success',
       summary: 'Site',
-      detail: crudMode.value === 'create' ? 'Site ajouté au projet.' : 'Site modifié.',
+      detail,
       life: 2500,
     })
     emit('refresh')
@@ -536,6 +603,73 @@ async function submitCrud() {
   }
 }
 
+// ─── Technicians dialog ───────────────────────────────────────────────────────
+const techDialog = ref(false)
+const techTarget = ref(null)
+const techLoading = ref(false)
+const techSaving = ref(false)
+const techEmployeeIds = ref([])
+const employeeOptions = ref([])
+
+async function loadEmployeeOptions() {
+  techLoading.value = true
+  try {
+    const items = await listEmployees()
+    employeeOptions.value = (items ?? []).map((e) => ({
+      label: e.name,
+      value: e.id,
+    }))
+  } catch {
+    employeeOptions.value = []
+  } finally {
+    techLoading.value = false
+  }
+}
+
+function openTechnicians(site) {
+  techTarget.value = site
+  techEmployeeIds.value = [...(site.employeeIds ?? [])]
+  techDialog.value = true
+  loadEmployeeOptions()
+}
+
+async function saveTechnicians() {
+  if (!techTarget.value) return
+  techSaving.value = true
+  try {
+    const employeeIds = [...techEmployeeIds.value]
+    const payload = {
+      employeeIds,
+      technicianId: employeeIds.length ? employeeIds[0] : null,
+    }
+    await updateProjectSite(techTarget.value.id, payload)
+    techDialog.value = false
+    toast.add({ severity: 'success', summary: 'Techniciens', detail: 'Mis à jour.', life: 2500 })
+    emit('refresh')
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'Erreur',
+      detail: e?.response?.data?.error || 'Impossible de mettre à jour les techniciens.',
+      life: 4000,
+    })
+  } finally {
+    techSaving.value = false
+  }
+}
+
+const crudDialogHeader = computed(() => {
+  if (crudMode.value === 'edit') return 'Modifier le site du projet'
+  if (crudMode.value === 'duplicate') return 'Dupliquer le site du projet'
+  return 'Ajouter un site au projet'
+})
+
+const crudSubmitLabel = computed(() => {
+  if (crudMode.value === 'edit') return 'Enregistrer'
+  if (crudMode.value === 'duplicate') return 'Dupliquer'
+  return 'Ajouter'
+})
+
 // ─── Export ───────────────────────────────────────────────────────────────────
 const tableWrapperRef = ref(null)
 const exporting = ref(false)
@@ -549,11 +683,9 @@ function buildExportColumns() {
   for (const c of infoColumns.value) {
     if (isColVisible(c.key)) cols.push({ key: c.key, label: c.label })
   }
+  if (isColVisible('__technician')) cols.push({ key: '__technician', label: 'Techniciens' })
   if (isColVisible('__status')) cols.push({ key: '__status', label: 'Statut' })
   if (isColVisible('__comment')) cols.push({ key: '__comment', label: 'Commentaires' })
-  if (isColVisible('__technician') && allFilteredSites.value.some((s) => s.technicianName)) {
-    cols.push({ key: '__technician', label: 'Technicien' })
-  }
   return cols
 }
 
@@ -574,6 +706,7 @@ async function doExport(format) {
       ...s,
       statusLabel: projectSiteStatusLabel(s.status),
       status: s.status,
+      technicianName: techniciansLabel(s) === '—' ? '' : techniciansLabel(s),
     })),
   }))
   try {
@@ -759,7 +892,7 @@ onMounted(() => {
             <Column
               header="#"
               :frozen="isColumnFrozen('__num')"
-              style="min-width:2.8rem; width:2.8rem; text-align:center"
+              style="min-width:2.2rem; width:2.2rem; text-align:center"
             >
               <template #body="{ index }">
                 <span class="pst-num">{{ index + 1 }}</span>
@@ -770,7 +903,7 @@ onMounted(() => {
               field="siteCode"
               header="Code site"
               :frozen="isColumnFrozen('siteCode')"
-              style="min-width: 7rem"
+              style="min-width: 5.5rem"
             >
               <template #body="{ data }">
                 <Skeleton v-if="loadingRowIds.has(data.id)" width="5rem" height="1rem" />
@@ -782,7 +915,7 @@ onMounted(() => {
               field="siteTitle"
               header="Nom du site"
               :frozen="isColumnFrozen('siteTitle')"
-              style="min-width: 12rem"
+              style="min-width: 9rem"
             >
               <template #body="{ data }">
                 <Skeleton v-if="loadingRowIds.has(data.id)" width="9rem" height="1rem" />
@@ -795,7 +928,7 @@ onMounted(() => {
                 v-if="isColVisible(col.key)"
                 :header="col.label"
                 :frozen="isColumnFrozen(col.key)"
-                style="min-width: 8rem"
+                style="min-width: 6rem"
               >
                 <template #body="{ data }">
                   <Skeleton v-if="loadingRowIds.has(data.id)" width="6rem" height="1rem" />
@@ -805,10 +938,22 @@ onMounted(() => {
             </template>
 
             <Column
+              v-if="isColVisible('__technician')"
+              header="Techniciens"
+              :frozen="isColumnFrozen('__technician')"
+              style="min-width: 7.5rem"
+            >
+              <template #body="{ data }">
+                <Skeleton v-if="loadingRowIds.has(data.id)" width="7rem" height="1rem" />
+                <template v-else>{{ techniciansLabel(data) }}</template>
+              </template>
+            </Column>
+
+            <Column
               v-if="isColVisible('__status')"
               header="Statut"
               :frozen="isColumnFrozen('__status')"
-              style="min-width: 7rem"
+              style="min-width: 5.5rem"
             >
               <template #body="{ data }">
                 <Skeleton v-if="loadingRowIds.has(data.id)" width="5rem" height="1.5rem" border-radius="1rem" />
@@ -824,7 +969,7 @@ onMounted(() => {
               v-if="isColVisible('__comment')"
               header="Commentaires"
               :frozen="isColumnFrozen('__comment')"
-              style="min-width: 14rem"
+              style="min-width: 10rem"
             >
               <template #body="{ data }">
                 <Skeleton v-if="loadingRowIds.has(data.id)" width="10rem" height="1rem" />
@@ -832,62 +977,9 @@ onMounted(() => {
               </template>
             </Column>
 
-            <Column
-              v-if="isColVisible('__technician') && sites.some((s) => s.technicianName)"
-              header="Technicien"
-              :frozen="isColumnFrozen('__technician')"
-              style="min-width: 9rem"
-            >
+            <Column header="" style="min-width: 2.75rem; width: 2.75rem">
               <template #body="{ data }">
-                <Skeleton v-if="loadingRowIds.has(data.id)" width="7rem" height="1rem" />
-                <template v-else>{{ data.technicianName || '—' }}</template>
-              </template>
-            </Column>
-
-            <Column header="Options" style="min-width: 8rem; width: 8rem">
-              <template #body="{ data }">
-                <div class="pst-actions">
-                  <Button
-                    icon="pi pi-pencil"
-                    size="small"
-                    text
-                    rounded
-                    severity="info"
-                    v-tooltip.top="'Modifier'"
-                    :disabled="loadingRowIds.has(data.id)"
-                    @click="openEdit(data)"
-                  />
-                  <Button
-                    icon="pi pi-tag"
-                    size="small"
-                    text
-                    rounded
-                    severity="secondary"
-                    v-tooltip.top="'Changer le statut'"
-                    :disabled="loadingRowIds.has(data.id)"
-                    @click="openStatusMenu($event, data)"
-                  />
-                  <Button
-                    icon="pi pi-comment"
-                    size="small"
-                    text
-                    rounded
-                    severity="secondary"
-                    v-tooltip.top="'Commentaire'"
-                    :disabled="loadingRowIds.has(data.id)"
-                    @click="openCommentPanel($event, data)"
-                  />
-                  <Button
-                    icon="pi pi-trash"
-                    size="small"
-                    text
-                    rounded
-                    severity="danger"
-                    v-tooltip.top="'Supprimer'"
-                    :disabled="loadingRowIds.has(data.id)"
-                    @click="askDelete($event, data)"
-                  />
-                </div>
+                <AppTableActionsMenu menu-only :actions="siteRowActions(data)" aria-label="Options du site" />
               </template>
             </Column>
           </DataTable>
@@ -920,44 +1012,39 @@ onMounted(() => {
               class="pst-table p-datatable-sm"
               size="small"
             >
-              <Column header="#" :frozen="isColumnFrozen('__num')" style="min-width:2.8rem; width:2.8rem; text-align:center">
+              <Column header="#" :frozen="isColumnFrozen('__num')" style="min-width:2.2rem; width:2.2rem; text-align:center">
                 <template #body="{ index }"><span class="pst-num">{{ index + 1 }}</span></template>
               </Column>
-              <Column field="siteCode" header="Code site" :frozen="isColumnFrozen('siteCode')" style="min-width: 7rem">
+              <Column field="siteCode" header="Code site" :frozen="isColumnFrozen('siteCode')" style="min-width: 5.5rem">
                 <template #body="{ data }">{{ data.siteCode }}</template>
               </Column>
-              <Column field="siteTitle" header="Nom du site" :frozen="isColumnFrozen('siteTitle')" style="min-width: 12rem">
+              <Column field="siteTitle" header="Nom du site" :frozen="isColumnFrozen('siteTitle')" style="min-width: 9rem">
                 <template #body="{ data }">{{ data.siteTitle }}</template>
               </Column>
               <template v-for="col in infoColumns" :key="'f-' + col.key">
-                <Column v-if="isColVisible(col.key)" :header="col.label" :frozen="isColumnFrozen(col.key)" style="min-width: 8rem">
+                <Column v-if="isColVisible(col.key)" :header="col.label" :frozen="isColumnFrozen(col.key)" style="min-width: 6rem">
                   <template #body="{ data }">{{ cellValue(data, col.key) }}</template>
                 </Column>
               </template>
-              <Column v-if="isColVisible('__status')" header="Statut" :frozen="isColumnFrozen('__status')" style="min-width: 7rem">
+              <Column
+                v-if="isColVisible('__technician')"
+                header="Techniciens"
+                :frozen="isColumnFrozen('__technician')"
+                style="min-width: 7.5rem"
+              >
+                <template #body="{ data }">{{ techniciansLabel(data) }}</template>
+              </Column>
+              <Column v-if="isColVisible('__status')" header="Statut" :frozen="isColumnFrozen('__status')" style="min-width: 5.5rem">
                 <template #body="{ data }">
                   <Tag :value="projectSiteStatusLabel(data.status)" :severity="projectSiteStatusSeverity(data.status)" />
                 </template>
               </Column>
-              <Column v-if="isColVisible('__comment')" header="Commentaires" :frozen="isColumnFrozen('__comment')" style="min-width: 14rem">
+              <Column v-if="isColVisible('__comment')" header="Commentaires" :frozen="isColumnFrozen('__comment')" style="min-width: 10rem">
                 <template #body="{ data }"><span class="pst-comment-cell">{{ data.comment || '—' }}</span></template>
               </Column>
-              <Column
-                v-if="isColVisible('__technician') && sites.some((s) => s.technicianName)"
-                header="Technicien"
-                :frozen="isColumnFrozen('__technician')"
-                style="min-width: 9rem"
-              >
-                <template #body="{ data }">{{ data.technicianName || '—' }}</template>
-              </Column>
-              <Column header="Options" style="min-width: 8rem; width: 8rem">
+              <Column header="" style="min-width: 2.75rem; width: 2.75rem">
                 <template #body="{ data }">
-                  <div class="pst-actions">
-                    <Button icon="pi pi-pencil" size="small" text rounded severity="info" @click="openEdit(data)" />
-                    <Button icon="pi pi-tag" size="small" text rounded severity="secondary" @click="openStatusMenu($event, data)" />
-                    <Button icon="pi pi-comment" size="small" text rounded severity="secondary" @click="openCommentPanel($event, data)" />
-                    <Button icon="pi pi-trash" size="small" text rounded severity="danger" @click="askDelete($event, data)" />
-                  </div>
+                  <AppTableActionsMenu menu-only :actions="siteRowActions(data)" aria-label="Options du site" />
                 </template>
               </Column>
             </DataTable>
@@ -970,16 +1057,19 @@ onMounted(() => {
       </div>
     </template>
 
-    <!-- Add / Edit dialog -->
+    <!-- Add / Edit / Duplicate dialog -->
     <Dialog
       v-model:visible="crudDialog"
-      :header="crudMode === 'create' ? 'Ajouter un site au projet' : 'Modifier le site du projet'"
+      :header="crudDialogHeader"
       modal
       style="width: min(560px, 95vw)"
     >
       <div class="pst-dialog">
-        <template v-if="crudMode === 'create'">
-          <div class="pst-dialog__mode">
+        <template v-if="crudMode === 'create' || crudMode === 'duplicate'">
+          <p v-if="crudMode === 'duplicate'" class="pst-dialog__hint">
+            Les données sont reprises. Choisissez un autre site (déjà liés exclus).
+          </p>
+          <div v-if="crudMode === 'create'" class="pst-dialog__mode">
             <Button
               label="Site existant"
               size="small"
@@ -996,7 +1086,7 @@ onMounted(() => {
             />
           </div>
 
-          <div v-if="siteMode === 'existing'" class="field">
+          <div v-if="crudMode === 'duplicate' || siteMode === 'existing'" class="field">
             <label>Site <span class="required">*</span></label>
             <Select
               v-model="selectedSiteId"
@@ -1083,11 +1173,37 @@ onMounted(() => {
       <template #footer>
         <Button label="Annuler" severity="secondary" text :disabled="crudLoading" @click="crudDialog = false" />
         <Button
-          :label="crudMode === 'create' ? 'Ajouter' : 'Enregistrer'"
+          :label="crudSubmitLabel"
           icon="pi pi-check"
           :loading="crudLoading"
           @click="submitCrud"
         />
+      </template>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="techDialog"
+      header="Techniciens du site"
+      modal
+      style="width: min(480px, 95vw)"
+    >
+      <div class="field">
+        <label>Techniciens</label>
+        <MultiSelect
+          v-model="techEmployeeIds"
+          :options="employeeOptions"
+          option-label="label"
+          option-value="value"
+          placeholder="Sélectionner des techniciens"
+          filter
+          display="chip"
+          :loading="techLoading"
+          fluid
+        />
+      </div>
+      <template #footer>
+        <Button label="Annuler" severity="secondary" text :disabled="techSaving" @click="techDialog = false" />
+        <Button label="Enregistrer" icon="pi pi-check" :loading="techSaving" @click="saveTechnicians" />
       </template>
     </Dialog>
   </div>
@@ -1175,13 +1291,13 @@ onMounted(() => {
 }
 
 .pst-table :deep(.p-datatable-thead > tr > th) {
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   background: var(--pst-header-bg);
   color: var(--pst-text);
-  padding: 0.45rem 0.6rem;
+  padding: 0.35rem 0.45rem !important;
   white-space: nowrap;
   border-color: var(--pst-border);
 }
@@ -1192,8 +1308,9 @@ onMounted(() => {
 }
 
 .pst-table :deep(.p-datatable-tbody > tr > td) {
-  font-size: 0.79rem;
-  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.45rem !important;
+  line-height: 1.25;
   border-color: var(--pst-border);
   color: var(--pst-text);
   background: transparent;
@@ -1229,8 +1346,13 @@ onMounted(() => {
     3px 0 4px -2px color-mix(in srgb, var(--pst-text) 12%, transparent);
 }
 
+.pst-table :deep(.p-tag) {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+}
+
 .pst-num {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   color: var(--pst-text-muted);
   font-weight: 600;
   display: block;
@@ -1240,7 +1362,7 @@ onMounted(() => {
 .pst-comment-cell {
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   color: var(--pst-text);
 }
 
@@ -1248,6 +1370,7 @@ onMounted(() => {
   display: flex;
   gap: 0.1rem;
   align-items: center;
+  justify-content: center;
 }
 
 .pst-settings {

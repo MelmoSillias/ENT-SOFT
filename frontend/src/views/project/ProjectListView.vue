@@ -10,6 +10,9 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import ProjectFormFields from '@/domains/project/components/ProjectFormFields.vue'
 import { listProjects, createProject, updateProject, deleteProject } from '@/domains/project/services/projectService'
 import { listClients } from '@/domains/client/services/clientService'
@@ -28,6 +31,7 @@ const router = useRouter()
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
 const items = ref([])
 const clientOptions = ref([])
@@ -239,6 +243,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :count-label="countLabel"
           create-label="Nouveau projet"
           :show-create="canCreate"
+          :hide-create-on-mobile="isAppMobile"
+          :sticky="isAppMobile"
           :reloading="reloading"
           show-search
           v-model:search-term="searchTerm"
@@ -249,7 +255,18 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       </template>
       <template #content>
         <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-          <DataTable :value="filteredItems" paginator :rows="10" striped-rows>
+          <AppEntityDataView
+            v-if="isAppMobile"
+            :items="filteredItems"
+            :title-of="(item) => item.title"
+            :code-of="(item) => item.code"
+            :subtitle-of="(item) => item.object || null"
+            :status-of="(item) => ({ value: projectStatusLabel(item.status), severity: projectStatusSeverity(item.status) })"
+            :meta-of="(item) => formatMontant(item.budget, DEVISE_APP)"
+            :actions-of="buildMenuItems"
+            @select="(item) => router.push({ name: 'project-detail', params: { id: item.id } })"
+          />
+          <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
             <Column field="code" header="Code" />
             <Column field="title" header="Titre" />
             <Column header="Statut">
@@ -270,10 +287,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               </template>
             </Column>
           </DataTable>
-          <Menu ref="actionMenu" :model="menuModel" popup />
+          <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
         </AppTableState>
       </template>
     </Card>
+
+    <AppMobileFab
+      v-if="isAppMobile && canCreate"
+      aria-label="Nouveau projet"
+      @click="openCreate"
+    />
 
     <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(720px, 95vw)">
       <ProjectFormFields v-model="form" :errors="fieldErrors" :client-options="clientOptions" :show-code="Boolean(editingId)" />

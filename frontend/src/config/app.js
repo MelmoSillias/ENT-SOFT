@@ -86,7 +86,7 @@ export const appConfig = {
         shortLabel: 'RH',
         icon: 'pi pi-id-card',
         routeName: 'employees',
-        activeRouteNames: ['employees', 'employee-detail'],
+        activeRouteNames: ['employees', 'employee-detail', 'prestataire-detail'],
         requiredModule: 'employee',
       },
       {

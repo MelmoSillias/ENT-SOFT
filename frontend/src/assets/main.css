@@ -23,6 +23,7 @@
 @import "./layout/shell.css";
 @import "./layout/navigation.css";
 @import "./layout/appearance.css";
+@import "./layout/app-mobile.css";
 @import "./layout/dashboard-home.css";
 @import "./layout/exchange-rates.css";
 @import "./layout/analytics.css";

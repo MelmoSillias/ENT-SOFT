@@ -9,6 +9,9 @@ import Tag from 'primevue/tag'
 import Menu from 'primevue/menu'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import Dialog from 'primevue/dialog'
 import ClientFormFields from '@/domains/client/components/ClientFormFields.vue'
 import { listClients, createClient, updateClient, deleteClient } from '@/domains/client/services/clientService'
@@ -23,6 +26,7 @@ const router = useRouter()
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
 const items = ref([])
 const searchTerm = ref('')
@@ -190,6 +194,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :count-label="countLabel"
           create-label="Nouveau client"
           :show-create="canCreate"
+          :hide-create-on-mobile="isAppMobile"
+          :sticky="isAppMobile"
           :reloading="reloading"
           show-search
           v-model:search-term="searchTerm"
@@ -207,7 +213,17 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           empty-text="Ajoutez un client pour commencer."
           @retry="load"
         >
-          <DataTable :value="filteredItems" paginator :rows="10" striped-rows>
+          <AppEntityDataView
+            v-if="isAppMobile"
+            :items="filteredItems"
+            :title-of="(item) => item.title"
+            :code-of="(item) => item.code"
+            :subtitle-of="(item) => item.description || item.city || null"
+            :status-of="(item) => ({ value: item.isEnabled ? 'Actif' : 'Inactif', severity: item.isEnabled ? 'success' : 'secondary' })"
+            :actions-of="buildMenuItems"
+            @select="(item) => router.push({ name: 'client-detail', params: { id: item.id } })"
+          />
+          <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
             <Column field="code" header="Code" />
             <Column field="title" header="Titre" />
             <Column header="Description">
@@ -233,10 +249,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               </template>
             </Column>
           </DataTable>
-          <Menu ref="actionMenu" :model="menuModel" popup />
+          <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
         </AppTableState>
       </template>
     </Card>
+
+    <AppMobileFab
+      v-if="isAppMobile && canCreate"
+      aria-label="Nouveau client"
+      @click="openCreate"
+    />
 
     <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(640px, 95vw)">
       <ClientFormFields v-model="form" :errors="fieldErrors" :show-code="Boolean(editingId)" />

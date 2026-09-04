@@ -2,6 +2,7 @@
 
 namespace App\IdentityAccess\Application\Command\CreateUser;
 
+use App\AccessAudit\Domain\Repository\AppRoleRepositoryInterface;
 use App\IdentityAccess\Application\Dto\UserResponseDto;
 use App\IdentityAccess\Domain\Entity\Utilisateur;
 use App\IdentityAccess\Domain\Repository\UtilisateurRepositoryInterface;
@@ -13,6 +14,7 @@ final class CreateUserHandler
     public function __construct(
         private readonly UtilisateurRepositoryInterface $utilisateurRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly AppRoleRepositoryInterface $appRoleRepository,
     ) {
     }
 
@@ -23,6 +25,12 @@ final class CreateUserHandler
         $telephone = FieldValidator::requirePhone($command->telephone);
         $login = FieldValidator::requireNonEmpty($command->login, 'Login');
         $password = FieldValidator::requireMinLength($command->password, 6, 'Mot de passe');
+        $roleCode = strtoupper(FieldValidator::requireNonEmpty($command->roleCode, 'Rôle'));
+
+        $role = $this->appRoleRepository->findByCode($roleCode);
+        if (null === $role || !$role->isEnabled()) {
+            throw new \InvalidArgumentException('Rôle invalide ou masqué.');
+        }
 
         if (null !== $this->utilisateurRepository->findByLogin($login)) {
             throw new \InvalidArgumentException('Ce login est déjà utilisé.');
@@ -34,7 +42,7 @@ final class CreateUserHandler
             telephone: $telephone,
             login: $login,
             passwordHash: '',
-            role: $command->role,
+            roleCode: $role->getCode(),
         );
         $user->setPasswordHash($this->passwordHasher->hashPassword($user, $password));
 

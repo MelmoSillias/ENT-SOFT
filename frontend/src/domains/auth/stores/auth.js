@@ -8,7 +8,7 @@ import {
 } from '@/domains/auth/tokenStorage'
 import { useAgencyBrandStore } from '@/domains/configuration/stores/agencyBrand'
 
-const OPERATIONAL_ROLES = ['AGENT', 'SUPERVISEUR', 'ADMIN']
+const OPERATIONAL_ROLES = ['AGENT', 'COORDINATEUR', 'ADMIN', 'TECHNICIEN', 'SECRETAIRE', 'COMPTABLE', 'GERANT']
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({

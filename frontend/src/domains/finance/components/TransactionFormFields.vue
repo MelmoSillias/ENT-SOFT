@@ -18,7 +18,6 @@ const form = defineModel({ type: Object, required: true })
 defineProps({
   errors: { type: Object, default: () => ({}) },
   clientOptions: { type: Array, default: () => [] },
-  projectOptions: { type: Array, default: () => [] },
   siteOptions: { type: Array, default: () => [] },
   expenseOnly: { type: Boolean, default: false },
 })
@@ -55,22 +54,16 @@ defineProps({
       <Select v-model="form.status" :options="TRANSACTION_STATUS_OPTIONS" option-label="label" option-value="value" fluid />
     </div>
     <div class="field">
-      <label>Émetteur <span class="required">*</span></label>
-      <InputText v-model="form.fromParty" :invalid="Boolean(errors.fromParty)" fluid />
-      <AppFieldError :message="errors.fromParty" />
+      <label>Émetteur</label>
+      <InputText v-model="form.fromParty" fluid />
     </div>
     <div class="field">
-      <label>Destinataire <span class="required">*</span></label>
-      <InputText v-model="form.toParty" :invalid="Boolean(errors.toParty)" fluid />
-      <AppFieldError :message="errors.toParty" />
+      <label>Destinataire</label>
+      <InputText v-model="form.toParty" fluid />
     </div>
     <div class="field">
       <label>Client</label>
       <Select v-model="form.clientId" :options="clientOptions" option-label="label" option-value="value" show-clear filter fluid />
-    </div>
-    <div class="field">
-      <label>Projet</label>
-      <Select v-model="form.projectId" :options="projectOptions" option-label="label" option-value="value" show-clear filter fluid />
     </div>
     <div class="field">
       <label>Site</label>
