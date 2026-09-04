@@ -4,6 +4,9 @@ namespace App\Impression\Application\Service;
 
 /**
  * Convertit un montant en lettres françaises (style facture ENT).
+ *
+ * N'utilise pas NumberFormatter/ICU : sous Windows, SPELLOUT fr_FR
+ * retombe souvent en anglais tout en renvoyant une chaîne non vide.
  */
 final class AmountInWordsFrench
 {
@@ -13,8 +16,8 @@ final class AmountInWordsFrench
         $formattedNumber = number_format($rounded, 0, ',', ' ');
 
         $words = self::spellOut($rounded);
-        $words = mb_convert_case($words, MB_CASE_TITLE, 'UTF-8');
-        $words = str_replace('-', ' ', $words);
+        $words = mb_strtoupper(mb_substr($words, 0, 1, 'UTF-8'), 'UTF-8')
+            .mb_substr($words, 1, null, 'UTF-8');
 
         return sprintf(
             'Arrêté la présente facture à la somme de : %s ( %s ) %s',
@@ -26,14 +29,6 @@ final class AmountInWordsFrench
 
     private static function spellOut(int $amount): string
     {
-        if (class_exists(\NumberFormatter::class)) {
-            $formatter = new \NumberFormatter('fr_FR', \NumberFormatter::SPELLOUT);
-            $result = $formatter->format($amount);
-            if (is_string($result) && $result !== '') {
-                return $result;
-            }
-        }
-
         return self::fallbackSpellOut($amount);
     }
 
