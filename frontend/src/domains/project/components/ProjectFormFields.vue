@@ -1,9 +1,11 @@
 <script setup>
+import { ref } from 'vue'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import DatePicker from 'primevue/datepicker'
 import InputNumber from 'primevue/inputnumber'
+import AutoComplete from 'primevue/autocomplete'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import { PROJECT_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
@@ -17,6 +19,15 @@ defineProps({
 })
 
 const statusOptions = PROJECT_STATUS_OPTIONS
+const infoSuggestions = ref([])
+
+function onInfoComplete(event) {
+  const q = (event.query ?? '').trim().toLowerCase()
+  const existing = form.value.sitesInfoLabels ?? []
+  infoSuggestions.value = q
+    ? existing.filter((l) => l.toLowerCase().includes(q) && l.toLowerCase() !== q)
+    : []
+}
 </script>
 
 <template>
@@ -63,7 +74,31 @@ const statusOptions = PROJECT_STATUS_OPTIONS
     </div>
     <div class="field">
       <label>Budget</label>
-      <InputNumber v-model="form.budget" mode="currency" :currency="DEVISE_APP.code" locale="fr-FR" :min-fraction-digits="0" :max-fraction-digits="0" fluid />
+      <InputNumber
+        v-model="form.budget"
+        mode="currency"
+        :currency="DEVISE_APP.code"
+        locale="fr-FR"
+        :min-fraction-digits="0"
+        :max-fraction-digits="0"
+        fluid
+      />
+    </div>
+    <div class="field ent-form-grid__full">
+      <label>Informations supplémentaires (sites)</label>
+      <AutoComplete
+        v-model="form.sitesInfoLabels"
+        :suggestions="infoSuggestions"
+        multiple
+        typeahead
+        :force-selection="false"
+        placeholder="Saisir un libellé puis Entrée (ex. Start Date)"
+        fluid
+        @complete="onInfoComplete"
+      />
+      <small class="field-hint">
+        Tags éditables : chaque libellé devient une colonne dynamique sur les sites du projet.
+      </small>
     </div>
   </div>
 </template>

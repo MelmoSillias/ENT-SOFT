@@ -29,3 +29,18 @@ export async function deleteProject(id) {
   const { data } = await api.delete(`/projects/${id}`)
   return data
 }
+
+export async function addSiteToProject(projectId, payload) {
+  const { data } = await api.post(`/projects/${projectId}/sites`, payload)
+  return data
+}
+
+export async function updateProjectSite(projectSiteId, payload) {
+  const { data } = await api.put(`/projects/sites/${projectSiteId}`, payload)
+  return data
+}
+
+export async function removeSiteFromProject(projectSiteId) {
+  const { data } = await api.delete(`/projects/sites/${projectSiteId}`)
+  return data
+}

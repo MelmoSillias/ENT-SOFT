@@ -44,7 +44,49 @@ const menuModel = ref([])
 const canCreate = computed(() => hasPermission('project.projects.create'))
 
 function emptyForm() {
-  return { title: '', clientId: null, object: '', dateDebut: null, dateFin: null, status: 'draft', budget: 0 }
+  return {
+    title: '',
+    clientId: null,
+    object: '',
+    dateDebut: null,
+    dateFin: null,
+    status: 'draft',
+    budget: 0,
+    sitesInfoLabels: [],
+  }
+}
+
+function slugifyInfoKey(label) {
+  return String(label ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    || 'info'
+}
+
+function labelsToSitesInformations(labels, existing = []) {
+  const byLabel = new Map(
+    (existing ?? [])
+      .filter((c) => c?.label && c?.key)
+      .map((c) => [String(c.label).trim().toLowerCase(), c.key]),
+  )
+  const used = new Set()
+  return (labels ?? [])
+    .map((label) => String(label).trim())
+    .filter(Boolean)
+    .map((label) => {
+      let key = byLabel.get(label.toLowerCase()) || slugifyInfoKey(label)
+      let n = 2
+      const base = key
+      while (used.has(key)) {
+        key = `${base}_${n++}`
+      }
+      used.add(key)
+      return { key, label }
+    })
 }
 
 const form = ref(emptyForm())
@@ -117,6 +159,9 @@ function openEdit(item) {
     dateFin: parseApiDate(item.dateFin),
     status: item.status ?? 'draft',
     budget: item.budget ?? 0,
+    sitesInfoLabels: (item.sitesInformations ?? [])
+      .filter((c) => c?.label && !['status_raw', 'status_source', 'status-source'].includes(c.key))
+      .map((c) => c.label),
   }
   resetErrors()
   dialog.value = true
@@ -160,6 +205,9 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async (item) => {
 
 const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   if (!validateForm()) return
+  const existingInfos = editingId.value
+    ? (items.value.find((p) => p.id === editingId.value)?.sitesInformations ?? [])
+    : []
   const payload = {
     title: form.value.title.trim(),
     clientId: form.value.clientId,
@@ -168,6 +216,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     dateFin: toApiDate(form.value.dateFin),
     status: form.value.status,
     budget: form.value.budget ?? 0,
+    sitesInformations: labelsToSitesInformations(form.value.sitesInfoLabels, existingInfos),
   }
   try {
     if (editingId.value) await updateProject(editingId.value, payload)

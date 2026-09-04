@@ -79,6 +79,8 @@ onMounted(load)
                 :sites-informations="project.sitesInformations"
                 :lots="project.lots"
                 :project-id="project.id"
+                :client-id="project.clientId"
+                @refresh="load"
               />
             </TabPanel>
             <TabPanel value="2">

@@ -406,7 +406,8 @@ def insert_ps(proj_key, site_code, status, vals, tech=None, lot_code=None, idx=0
     tech_sql = bin_uuid("emp:"+tech) if tech and tech in employees else "NULL"
     emp_json = jesc([uid("emp:"+tech)] if tech and tech in employees else [])
     lot_sql = bin_uuid("lot:"+proj_key+":"+lot_code) if lot_code else "NULL"
-    lines.append(f"INSERT INTO project_sites (id, project_id, site_id, lot_id, technician_id, status, date_added, informations_values, employee_ids, created_at, updated_at) VALUES ({bin_uuid(f'ps:{proj_key}:{site_code}:{idx}')}, {bin_uuid(proj_key)}, {bin_uuid('site:'+site_code)}, {lot_sql}, {tech_sql}, {esc(status)}, '{now}', {jesc(vals)}, {emp_json}, '{now}', '{now}');")
+    clean_vals = {k: v for k, v in (vals or {}).items() if k not in ("status_raw", "status_source", "status-source")}
+    lines.append(f"INSERT INTO project_sites (id, project_id, site_id, lot_id, technician_id, status, date_added, informations_values, employee_ids, created_at, updated_at) VALUES ({bin_uuid(f'ps:{proj_key}:{site_code}:{idx}')}, {bin_uuid(proj_key)}, {bin_uuid('site:'+site_code)}, {lot_sql}, {tech_sql}, {esc(status)}, '{now}', {jesc(clean_vals)}, {emp_json}, '{now}', '{now}');")
 
 lines.append("-- === Projet Telecel (Feuil1) pending + lots ===")
 infos1 = [{"key":k,"label":l} for k,l in [
@@ -424,7 +425,7 @@ for i,r in enumerate(feuil1_rows):
 lines.append("")
 
 lines.append("-- === Installation PV 13 sites (Feuil2 T1) completed ===")
-infos13 = [{"key":"nbre_pv","label":"Nbre de PV"},{"key":"start_date","label":"Start Date"},{"key":"end_date","label":"End Date"},{"key":"status_raw","label":"Status source"}]
+infos13 = [{"key":"nbre_pv","label":"Nbre de PV"},{"key":"start_date","label":"Start Date"},{"key":"end_date","label":"End Date"}]
 insert_project("proj:pv-13","PRJ-PV-13SITES",proj_13_title,"completed","Planning Feuil2 tableau 1 (13 sites) — closed",t1_start,t1_end,infos13)
 for i,r in enumerate(feuil2_t1):
     insert_ps("proj:pv-13", r["code"], r["status"], r["vals"], tech=r["tech"] or None, idx=i)
@@ -434,7 +435,7 @@ lines.append("-- === Installation PV 22 sites (Feuil4) active ===")
 infos22 = [{"key":k,"label":l} for k,l in [
 ("type_pylone","Type de pylone"),("nombre_panneaux_595w","Nombre de panneaux 595 watt"),
 ("nombre_regulateurs_victron","Nombre regulateurs Victron"),("start_date","Start Date"),
-("end_date","End Date"),("comment","Commentaire"),("status_raw","Status source")]]
+("end_date","End Date"),("comment","Commentaire")]]
 insert_project("proj:pv-22","PRJ-PV-22SITES",proj_pv_title,"active","Planning Feuil4 (maj Feuil2 T2) — in progress",proj_pv_start,proj_pv_end,infos22)
 for i,r in enumerate(feuil4_rows):
     insert_ps("proj:pv-22", r["code"], r["status"], r["vals"], tech=r["tech"] or None, idx=i)
@@ -455,7 +456,6 @@ infos_atel = [{"key":k,"label":l} for k,l in [
 ("deploiement_solaire","Deploiement solaire"),
 ("nombre_panneaux","Nombre panneaux"),
 ("nombre_regulateurs_victron","Besoin regulateurs VICTRON"),
-("status_raw","Status source"),
 ("technicien","Technicien"),
 ("sources","Sources feuilles")]]
 # project status = active if any site not completed, else completed

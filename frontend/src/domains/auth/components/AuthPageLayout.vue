@@ -82,7 +82,7 @@ const brand = appConfig.branding
   width: 9rem;
   height: 9rem;
   border-radius: 999px;
-  background: #000000;
+  background: #ffffff;
   border: 1px solid var(--layout-logo-border, rgba(26, 48, 102, 0.12));
   box-shadow:
     0 16px 40px rgba(26, 48, 102, 0.12),

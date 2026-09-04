@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onMounted } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
@@ -10,49 +10,62 @@ import InputIcon from 'primevue/inputicon'
 import OverlayPanel from 'primevue/overlaypanel'
 import Checkbox from 'primevue/checkbox'
 import MultiSelect from 'primevue/multiselect'
+import Select from 'primevue/select'
 import Skeleton from 'primevue/skeleton'
 import Textarea from 'primevue/textarea'
 import Menu from 'primevue/menu'
-import SplitButton from 'primevue/splitbutton'
+import Dialog from 'primevue/dialog'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import AppCrudDialog from '@/domains/shared/components/AppCrudDialog.vue'
 import {
   formatDateFr,
   projectSiteStatusLabel,
   projectSiteStatusSeverity,
   PROJECT_SITE_STATUS_OPTIONS,
 } from '@/domains/shared/utils/entLabels'
-import { updateSite, createSite, deleteSite } from '@/domains/site/services/siteService'
+import { listSites, createSite } from '@/domains/site/services/siteService'
+import {
+  addSiteToProject,
+  updateProjectSite,
+  removeSiteFromProject,
+} from '@/domains/project/services/projectService'
 import {
   exportExcel,
   exportWord,
   exportClipboardImage,
 } from '@/domains/project/composables/useProjectSiteExport'
 
-// ─── Props ──────────────────────────────────────────────────────────────────────
 const props = defineProps({
   sites: { type: Array, default: () => [] },
   sitesInformations: { type: Array, default: () => [] },
   lots: { type: Array, default: () => [] },
   projectId: { type: [String, Number], default: null },
+  clientId: { type: [String, Number], default: null },
 })
 
 const emit = defineEmits(['refresh'])
 
-// ─── PrimeVue composables ────────────────────────────────────────────────────
 const confirm = useConfirm()
 const toast = useToast()
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-const EXCLUDED_KEYS = new Set(['comment', 'remarques', 'status_source', 'status-source'])
+const EXCLUDED_KEYS = new Set([
+  'comment',
+  'remarques',
+  'status_source',
+  'status-source',
+  'status_raw',
+])
 
-// ─── Info columns ─────────────────────────────────────────────────────────────
 const infoColumns = computed(() =>
   (props.sitesInformations ?? []).filter((col) => col?.key && !EXCLUDED_KEYS.has(col.key)),
 )
 
-// ─── localStorage settings key ────────────────────────────────────────────────
+const formInfoColumns = computed(() =>
+  (props.sitesInformations ?? []).filter(
+    (col) => col?.key && !EXCLUDED_KEYS.has(col.key) && col.key !== 'technicien' && col.key !== 'sources',
+  ),
+)
+
 const storageKey = computed(() =>
   props.projectId ? `pst_settings_${props.projectId}` : null,
 )
@@ -71,8 +84,6 @@ function saveSettings(val) {
   localStorage.setItem(storageKey.value, JSON.stringify(val))
 }
 
-// ─── Column visibility ────────────────────────────────────────────────────────
-const FIXED_COLS = ['__status', '__comment', '__technician']
 const ALL_EXTRA_COLS = computed(() => [
   ...infoColumns.value.map((c) => ({ key: c.key, label: c.label })),
   { key: '__status', label: 'Statut' },
@@ -84,13 +95,15 @@ const savedSettings = loadSettings()
 const visibleColKeys = ref(
   savedSettings?.visibleColKeys ?? ALL_EXTRA_COLS.value.map((c) => c.key),
 )
-const frozenCount = ref(savedSettings?.frozenCount ?? 2) // # + Code are always frozen
 const statusFilter = ref(savedSettings?.statusFilter ?? [])
 
-watch([visibleColKeys, frozenCount, statusFilter], () => {
+/** Key of the last frozen column (all previous are frozen too). */
+const frozenUntilKey = ref(savedSettings?.frozenUntilKey ?? 'siteTitle')
+
+watch([visibleColKeys, frozenUntilKey, statusFilter], () => {
   saveSettings({
     visibleColKeys: visibleColKeys.value,
-    frozenCount: frozenCount.value,
+    frozenUntilKey: frozenUntilKey.value,
     statusFilter: statusFilter.value,
   })
 })
@@ -99,19 +112,42 @@ function isColVisible(key) {
   return visibleColKeys.value.includes(key)
 }
 
-// ─── Search ───────────────────────────────────────────────────────────────────
+/** Ordered freezeable columns (left → right, excluding Options). */
+const freezeableColumns = computed(() => {
+  const cols = [
+    { key: '__num', label: '#' },
+    { key: 'siteCode', label: 'Code site' },
+    { key: 'siteTitle', label: 'Nom du site' },
+  ]
+  for (const c of infoColumns.value) {
+    if (isColVisible(c.key)) cols.push({ key: c.key, label: c.label })
+  }
+  if (isColVisible('__status')) cols.push({ key: '__status', label: 'Statut' })
+  if (isColVisible('__comment')) cols.push({ key: '__comment', label: 'Commentaires' })
+  if (isColVisible('__technician') && props.sites.some((s) => s.technicianName)) {
+    cols.push({ key: '__technician', label: 'Technicien' })
+  }
+  return cols
+})
+
+function isColumnFrozen(colKey) {
+  const keys = freezeableColumns.value.map((c) => c.key)
+  let untilIdx = keys.indexOf(frozenUntilKey.value)
+  if (untilIdx < 0) untilIdx = keys.indexOf('siteTitle')
+  const colIdx = keys.indexOf(colKey)
+  if (colIdx < 0) return false
+  return colIdx <= Math.max(untilIdx, 0)
+}
+
 const searchQuery = ref('')
 
-// ─── Grouped & filtered sites ─────────────────────────────────────────────────
 const groupedSites = computed(() => {
   let allSites = props.sites ?? []
 
-  // status filter
   if (statusFilter.value.length) {
     allSites = allSites.filter((s) => statusFilter.value.includes(s.status))
   }
 
-  // text search
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     allSites = allSites.filter((s) => {
@@ -154,8 +190,8 @@ const groupedSites = computed(() => {
 })
 
 const allFilteredSites = computed(() => groupedSites.value.flatMap((g) => g.sites))
+const hasSites = computed(() => (props.sites?.length ?? 0) > 0)
 
-// ─── Cell helpers ─────────────────────────────────────────────────────────────
 function cellValue(site, key) {
   const raw = site.informationsValues?.[key]
   if (raw === null || raw === undefined || raw === '') return '—'
@@ -172,7 +208,6 @@ function lotLabel(lot) {
   return lot.title ? `${lot.code} — ${lot.title}` : lot.code
 }
 
-// ─── Inline loading rows ──────────────────────────────────────────────────────
 const loadingRowIds = ref(new Set())
 
 function setRowLoading(siteId, val) {
@@ -182,14 +217,11 @@ function setRowLoading(siteId, val) {
   loadingRowIds.value = s
 }
 
-// ─── Settings overlay ────────────────────────────────────────────────────────
 const settingsPanel = ref(null)
-
 function toggleSettings(event) {
   settingsPanel.value.toggle(event)
 }
 
-// ─── Status overlay (per row) ────────────────────────────────────────────────
 const statusMenuRef = ref(null)
 const statusMenuTarget = ref(null)
 
@@ -201,8 +233,7 @@ function openStatusMenu(event, site) {
 const statusMenuItems = computed(() =>
   PROJECT_SITE_STATUS_OPTIONS.map((opt) => ({
     label: opt.label,
-    icon:
-      statusMenuTarget.value?.status === opt.value ? 'pi pi-check' : 'pi pi-circle',
+    icon: statusMenuTarget.value?.status === opt.value ? 'pi pi-check' : 'pi pi-circle',
     command: () => applyStatus(statusMenuTarget.value, opt.value),
   })),
 )
@@ -211,17 +242,21 @@ async function applyStatus(site, newStatus) {
   if (!site || site.status === newStatus) return
   setRowLoading(site.id, true)
   try {
-    await updateSite(site.id, { status: newStatus })
+    await updateProjectSite(site.id, { status: newStatus })
     site.status = newStatus
     toast.add({ severity: 'success', summary: 'Statut', detail: 'Mis à jour.', life: 2500 })
   } catch (e) {
-    toast.add({ severity: 'error', summary: 'Erreur', detail: e?.response?.data?.error || 'Impossible de modifier le statut.', life: 4000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Erreur',
+      detail: e?.response?.data?.error || 'Impossible de modifier le statut.',
+      life: 4000,
+    })
   } finally {
     setRowLoading(site.id, false)
   }
 }
 
-// ─── Comment overlay ─────────────────────────────────────────────────────────
 const commentPanel = ref(null)
 const commentTarget = ref(null)
 const commentText = ref('')
@@ -229,7 +264,7 @@ const savingComment = ref(false)
 
 function openCommentPanel(event, site) {
   commentTarget.value = site
-  commentText.value = site.comment ?? ''
+  commentText.value = site.comment ?? site.informationsValues?.comment ?? ''
   commentPanel.value.show(event)
 }
 
@@ -238,22 +273,31 @@ async function saveComment() {
   savingComment.value = true
   const site = commentTarget.value
   try {
-    await updateSite(site.id, { comment: commentText.value })
+    const nextValues = {
+      ...(site.informationsValues ?? {}),
+      comment: commentText.value,
+    }
+    await updateProjectSite(site.id, { informationsValues: nextValues })
+    site.informationsValues = nextValues
     site.comment = commentText.value
     commentPanel.value.hide()
     toast.add({ severity: 'success', summary: 'Commentaire', detail: 'Enregistré.', life: 2500 })
   } catch (e) {
-    toast.add({ severity: 'error', summary: 'Erreur', detail: e?.response?.data?.error || 'Erreur lors de l\'enregistrement.', life: 4000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Erreur',
+      detail: e?.response?.data?.error || "Erreur lors de l'enregistrement.",
+      life: 4000,
+    })
   } finally {
     savingComment.value = false
   }
 }
 
-// ─── Delete ───────────────────────────────────────────────────────────────────
 function askDelete(event, site) {
   confirm.require({
     target: event.currentTarget,
-    message: `Supprimer « ${site.siteTitle || site.siteCode} » ?`,
+    message: `Retirer « ${site.siteTitle || site.siteCode} » du projet ?`,
     icon: 'pi pi-exclamation-triangle',
     rejectProps: { label: 'Annuler', severity: 'secondary', outlined: true, size: 'small' },
     acceptProps: { label: 'Supprimer', severity: 'danger', size: 'small' },
@@ -264,82 +308,167 @@ function askDelete(event, site) {
 async function doDelete(site) {
   setRowLoading(site.id, true)
   try {
-    await deleteSite(site.id)
-    toast.add({ severity: 'success', summary: 'Site', detail: 'Supprimé.', life: 2500 })
+    await removeSiteFromProject(site.id)
+    toast.add({ severity: 'success', summary: 'Site', detail: 'Retiré du projet.', life: 2500 })
     emit('refresh')
   } catch (e) {
-    toast.add({ severity: 'error', summary: 'Erreur', detail: e?.response?.data?.error || 'Suppression impossible.', life: 4000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Erreur',
+      detail: e?.response?.data?.error || 'Suppression impossible.',
+      life: 4000,
+    })
     setRowLoading(site.id, false)
   }
 }
 
-// ─── Edit / Add dialog ────────────────────────────────────────────────────────
+// ─── Add / Edit dialog ────────────────────────────────────────────────────────
 const crudDialog = ref(false)
-const crudMode = ref('create') // 'create' | 'edit'
+const crudMode = ref('create')
 const crudTarget = ref(null)
-const crudForm = ref({})
-const crudErrors = ref({})
 const crudLoading = ref(false)
+const crudErrors = ref({})
+const siteMode = ref('existing') // 'existing' | 'new'
+const selectedSiteId = ref(null)
+const newSiteTitle = ref('')
+const siteOptions = ref([])
+const sitesLoading = ref(false)
 
-const crudFields = [
-  { name: 'title', label: 'Titre du site', type: 'text', required: true },
-  { name: 'description', label: 'Description', type: 'textarea' },
-  {
-    name: 'status',
-    label: 'Statut',
-    type: 'select',
-    options: PROJECT_SITE_STATUS_OPTIONS.map((o) => ({ label: o.label, value: o.value })),
-  },
-]
+const crudStatus = ref('pending')
+const crudInfoValues = ref({})
+const crudComment = ref('')
+
+async function loadSiteOptions() {
+  sitesLoading.value = true
+  try {
+    const items = await listSites()
+    const linkedIds = new Set((props.sites ?? []).map((s) => s.siteId).filter(Boolean))
+    siteOptions.value = items
+      .filter((s) => crudMode.value === 'edit' || !linkedIds.has(s.id))
+      .map((s) => ({
+        label: `${s.code} — ${s.title}`,
+        value: s.id,
+        code: s.code,
+        title: s.title,
+      }))
+  } catch {
+    siteOptions.value = []
+  } finally {
+    sitesLoading.value = false
+  }
+}
+
+function emptyInfoValues() {
+  const vals = {}
+  for (const col of formInfoColumns.value) {
+    vals[col.key] = ''
+  }
+  return vals
+}
 
 function openCreate() {
   crudMode.value = 'create'
   crudTarget.value = null
-  crudForm.value = { title: '', description: '', status: 'pending' }
+  siteMode.value = 'existing'
+  selectedSiteId.value = null
+  newSiteTitle.value = ''
+  crudStatus.value = 'pending'
+  crudInfoValues.value = emptyInfoValues()
+  crudComment.value = ''
   crudErrors.value = {}
   crudDialog.value = true
+  loadSiteOptions()
 }
 
 function openEdit(site) {
   crudMode.value = 'edit'
   crudTarget.value = site
-  crudForm.value = {
-    title: site.siteTitle ?? '',
-    description: site.description ?? '',
-    status: site.status ?? 'pending',
+  siteMode.value = 'existing'
+  selectedSiteId.value = site.siteId ?? null
+  newSiteTitle.value = ''
+  crudStatus.value = site.status ?? 'pending'
+  const vals = emptyInfoValues()
+  for (const col of formInfoColumns.value) {
+    const raw = site.informationsValues?.[col.key]
+    vals[col.key] = raw === null || raw === undefined ? '' : String(raw)
   }
+  crudInfoValues.value = vals
+  crudComment.value = site.comment ?? site.informationsValues?.comment ?? ''
   crudErrors.value = {}
   crudDialog.value = true
 }
 
+function buildInformationsValues() {
+  const values = { ...crudInfoValues.value }
+  for (const key of Object.keys(values)) {
+    if (values[key] === '') values[key] = null
+  }
+  if (crudComment.value?.trim()) {
+    values.comment = crudComment.value.trim()
+  } else {
+    values.comment = null
+  }
+  return values
+}
+
 async function submitCrud() {
   crudErrors.value = {}
-  if (!crudForm.value.title?.trim()) {
-    crudErrors.value = { title: 'Le titre est requis.' }
-    return
+
+  if (crudMode.value === 'create') {
+    if (siteMode.value === 'existing' && !selectedSiteId.value) {
+      crudErrors.value = { site: 'Sélectionnez un site.' }
+      return
+    }
+    if (siteMode.value === 'new' && !newSiteTitle.value.trim()) {
+      crudErrors.value = { title: 'Le titre du nouveau site est requis.' }
+      return
+    }
+    if (!props.projectId) {
+      toast.add({ severity: 'error', summary: 'Erreur', detail: 'Projet introuvable.', life: 4000 })
+      return
+    }
   }
+
   crudLoading.value = true
   try {
+    const informationsValues = buildInformationsValues()
+
     if (crudMode.value === 'create') {
-      await createSite({ ...crudForm.value })
+      let siteId = selectedSiteId.value
+      if (siteMode.value === 'new') {
+        const created = await createSite({
+          title: newSiteTitle.value.trim(),
+          clientId: props.clientId || null,
+        })
+        siteId = created.id
+      }
+      await addSiteToProject(props.projectId, {
+        siteId,
+        status: crudStatus.value,
+        informationsValues,
+      })
     } else {
-      await updateSite(crudTarget.value.id, { ...crudForm.value })
+      await updateProjectSite(crudTarget.value.id, {
+        status: crudStatus.value,
+        informationsValues,
+      })
     }
+
     crudDialog.value = false
     toast.add({
       severity: 'success',
       summary: 'Site',
-      detail: crudMode.value === 'create' ? 'Site ajouté.' : 'Site modifié.',
+      detail: crudMode.value === 'create' ? 'Site ajouté au projet.' : 'Site modifié.',
       life: 2500,
     })
     emit('refresh')
   } catch (e) {
-    const err = e?.response?.data
-    if (err?.fields) {
-      crudErrors.value = err.fields
-    } else {
-      toast.add({ severity: 'error', summary: 'Erreur', detail: err?.error || 'Impossible d\'enregistrer.', life: 4000 })
-    }
+    toast.add({
+      severity: 'error',
+      summary: 'Erreur',
+      detail: e?.response?.data?.error || "Impossible d'enregistrer.",
+      life: 4000,
+    })
   } finally {
     crudLoading.value = false
   }
@@ -348,6 +477,7 @@ async function submitCrud() {
 // ─── Export ───────────────────────────────────────────────────────────────────
 const tableWrapperRef = ref(null)
 const exporting = ref(false)
+const exportMenuRef = ref(null)
 
 function buildExportColumns() {
   const cols = [
@@ -359,34 +489,17 @@ function buildExportColumns() {
   }
   if (isColVisible('__status')) cols.push({ key: '__status', label: 'Statut' })
   if (isColVisible('__comment')) cols.push({ key: '__comment', label: 'Commentaires' })
-  if (
-    isColVisible('__technician') &&
-    allFilteredSites.value.some((s) => s.technicianName)
-  ) {
+  if (isColVisible('__technician') && allFilteredSites.value.some((s) => s.technicianName)) {
     cols.push({ key: '__technician', label: 'Technicien' })
   }
   return cols
 }
 
 const exportMenuItems = [
-  {
-    label: 'Excel (.xlsx)',
-    icon: 'pi pi-file-excel',
-    command: () => doExport('excel'),
-  },
-  {
-    label: 'Word (.docx)',
-    icon: 'pi pi-file-word',
-    command: () => doExport('word'),
-  },
-  {
-    label: 'Image (presse-papier)',
-    icon: 'pi pi-image',
-    command: () => doExport('image'),
-  },
+  { label: 'Excel (.xlsx)', icon: 'pi pi-file-excel', command: () => doExport('excel') },
+  { label: 'Word (.docx)', icon: 'pi pi-file-word', command: () => doExport('word') },
+  { label: 'Image (presse-papier)', icon: 'pi pi-image', command: () => doExport('image') },
 ]
-
-const exportMenuRef = ref(null)
 
 async function doExport(format) {
   if (exporting.value) return
@@ -408,28 +521,34 @@ async function doExport(format) {
       const el = tableWrapperRef.value
       if (!el) return
       const ok = await exportClipboardImage(el)
-      if (ok) {
-        toast.add({ severity: 'success', summary: 'Image copiée', detail: 'Tableau copié dans le presse-papier.', life: 2500 })
-      } else {
-        toast.add({ severity: 'error', summary: 'Erreur', detail: 'Impossible de copier l\'image.', life: 4000 })
-      }
+      toast.add({
+        severity: ok ? 'success' : 'error',
+        summary: ok ? 'Image copiée' : 'Erreur',
+        detail: ok ? 'Tableau copié dans le presse-papier.' : "Impossible de copier l'image.",
+        life: 2500,
+      })
     }
   } finally {
     exporting.value = false
   }
 }
+
+onMounted(() => {
+  // Ensure newly added info columns appear in visibility list
+  const known = new Set(visibleColKeys.value)
+  for (const col of ALL_EXTRA_COLS.value) {
+    if (!known.has(col.key) && !savedSettings?.visibleColKeys) {
+      visibleColKeys.value = [...visibleColKeys.value, col.key]
+    }
+  }
+})
 </script>
 
 <template>
-  <!-- ── Empty state ──────────────────────────────────────────────────────── -->
-  <div v-if="!sites?.length" class="pst-empty">Aucun site associé.</div>
-
-  <div v-else class="pst-root">
-
-    <!-- ── Toolbar ──────────────────────────────────────────────────────────── -->
+  <div class="pst-root">
+    <!-- Toolbar (always visible) -->
     <div class="pst-toolbar">
-      <!-- Search -->
-      <IconField>
+      <IconField v-if="hasSites">
         <InputIcon class="pi pi-search" />
         <InputText
           v-model="searchQuery"
@@ -440,16 +559,10 @@ async function doExport(format) {
       </IconField>
 
       <div class="pst-toolbar__right">
-        <!-- Add button -->
-        <Button
-          icon="pi pi-plus"
-          label="Ajouter"
-          size="small"
-          @click="openCreate"
-        />
+        <Button icon="pi pi-plus" label="Ajouter" size="small" @click="openCreate" />
 
-        <!-- Export button -->
         <Button
+          v-if="hasSites"
           icon="pi pi-download"
           label="Exporter"
           size="small"
@@ -460,8 +573,8 @@ async function doExport(format) {
         />
         <Menu ref="exportMenuRef" :model="exportMenuItems" popup />
 
-        <!-- Settings button -->
         <Button
+          v-if="hasSites"
           icon="pi pi-sliders-h"
           size="small"
           severity="secondary"
@@ -472,254 +585,340 @@ async function doExport(format) {
       </div>
     </div>
 
-    <!-- ── Settings overlay ─────────────────────────────────────────────────── -->
-    <OverlayPanel ref="settingsPanel" class="pst-settings-panel">
-      <div class="pst-settings">
-        <p class="pst-settings__title">Colonnes visibles</p>
-        <div class="pst-settings__cols">
-          <label v-for="col in ALL_EXTRA_COLS" :key="col.key" class="pst-settings__col-item">
-            <Checkbox
-              :model-value="visibleColKeys.includes(col.key)"
-              binary
-              @update:model-value="(v) => {
-                if (v) { if (!visibleColKeys.includes(col.key)) visibleColKeys = [...visibleColKeys, col.key] }
-                else { visibleColKeys = visibleColKeys.filter(k => k !== col.key) }
-              }"
-            />
-            <span>{{ col.label }}</span>
-          </label>
-        </div>
+    <div v-if="!hasSites" class="pst-empty">Aucun site associé.</div>
 
-        <p class="pst-settings__title">Colonnes figées (depuis gauche, hors #)</p>
-        <div class="pst-settings__frozen">
-          <Button
-            v-for="n in [0, 1, 2, 3]"
-            :key="n"
-            :label="String(n)"
+    <template v-else>
+      <!-- Settings overlay -->
+      <OverlayPanel ref="settingsPanel" class="pst-settings-panel">
+        <div class="pst-settings">
+          <p class="pst-settings__title">Colonnes visibles</p>
+          <div class="pst-settings__cols">
+            <label v-for="col in ALL_EXTRA_COLS" :key="col.key" class="pst-settings__col-item">
+              <Checkbox
+                :model-value="visibleColKeys.includes(col.key)"
+                binary
+                @update:model-value="(v) => {
+                  if (v) {
+                    if (!visibleColKeys.includes(col.key)) visibleColKeys = [...visibleColKeys, col.key]
+                  } else {
+                    visibleColKeys = visibleColKeys.filter((k) => k !== col.key)
+                  }
+                }"
+              />
+              <span>{{ col.label }}</span>
+            </label>
+          </div>
+
+          <p class="pst-settings__title">Figer jusqu’à la colonne</p>
+          <Select
+            v-model="frozenUntilKey"
+            :options="freezeableColumns"
+            option-label="label"
+            option-value="key"
+            placeholder="Choisir une colonne"
+            fluid
             size="small"
-            :severity="frozenCount === n ? 'primary' : 'secondary'"
-            :outlined="frozenCount !== n"
-            @click="frozenCount = n"
+          />
+          <small class="pst-settings__hint">
+            Toutes les colonnes à gauche (incluses) restent figées au défilement.
+          </small>
+
+          <p class="pst-settings__title">Filtrer par statut</p>
+          <MultiSelect
+            v-model="statusFilter"
+            :options="PROJECT_SITE_STATUS_OPTIONS"
+            option-label="label"
+            option-value="value"
+            placeholder="Tous les statuts"
+            display="chip"
+            fluid
+            size="small"
           />
         </div>
+      </OverlayPanel>
 
-        <p class="pst-settings__title">Filtrer par statut</p>
-        <MultiSelect
-          v-model="statusFilter"
-          :options="PROJECT_SITE_STATUS_OPTIONS"
-          option-label="label"
-          option-value="value"
-          placeholder="Tous les statuts"
-          display="chip"
-          fluid
-          size="small"
-        />
-      </div>
-    </OverlayPanel>
+      <Menu ref="statusMenuRef" :model="statusMenuItems" popup />
 
-    <!-- ── Status context menu ────────────────────────────────────────────── -->
-    <Menu ref="statusMenuRef" :model="statusMenuItems" popup />
-
-    <!-- ── Comment overlay ────────────────────────────────────────────────── -->
-    <OverlayPanel ref="commentPanel" class="pst-comment-panel">
-      <div class="pst-comment">
-        <p class="pst-settings__title">Commentaire</p>
-        <Textarea v-model="commentText" rows="4" auto-resize fluid style="min-width: 18rem" />
-        <div class="pst-comment__actions">
-          <Button label="Annuler" size="small" severity="secondary" text @click="commentPanel.hide()" />
-          <Button label="Enregistrer" size="small" :loading="savingComment" @click="saveComment" />
+      <OverlayPanel ref="commentPanel" class="pst-comment-panel">
+        <div class="pst-comment">
+          <p class="pst-settings__title">Commentaire</p>
+          <Textarea v-model="commentText" rows="4" auto-resize fluid style="min-width: 18rem" />
+          <div class="pst-comment__actions">
+            <Button label="Annuler" size="small" severity="secondary" text @click="commentPanel.hide()" />
+            <Button label="Enregistrer" size="small" :loading="savingComment" @click="saveComment" />
+          </div>
         </div>
-      </div>
-    </OverlayPanel>
+      </OverlayPanel>
 
-    <!-- ── Tables by lot ──────────────────────────────────────────────────── -->
-    <div ref="tableWrapperRef" class="pst-groups">
-      <section
-        v-for="group in groupedSites"
-        :key="group.lot?.code ?? 'all'"
-        class="pst-group"
-      >
-        <h3 v-if="group.lot" class="pst-lot-title">{{ lotLabel(group.lot) }}</h3>
-
-        <DataTable
-          :value="group.sites"
-          scrollable
-          scroll-height="flex"
-          show-gridlines
-          class="pst-table p-datatable-sm"
-          size="small"
+      <div ref="tableWrapperRef" class="pst-groups">
+        <section
+          v-for="group in groupedSites"
+          :key="group.lot?.code ?? 'all'"
+          class="pst-group"
         >
-          <!-- # numbering (always frozen) -->
-          <Column header="#" frozen style="min-width:2.8rem; width:2.8rem; text-align:center">
-            <template #body="{ index }">
-              <span class="pst-num">{{ index + 1 }}</span>
-            </template>
-          </Column>
+          <h3 v-if="group.lot" class="pst-lot-title">{{ lotLabel(group.lot) }}</h3>
 
-          <!-- Code site -->
-          <Column
-            field="siteCode"
-            header="Code site"
-            :frozen="frozenCount >= 1"
-            style="min-width: 7rem"
+          <DataTable
+            :value="group.sites"
+            scrollable
+            scroll-height="flex"
+            show-gridlines
+            class="pst-table p-datatable-sm"
+            size="small"
           >
-            <template #body="{ data }">
-              <template v-if="loadingRowIds.has(data.id)">
-                <Skeleton width="5rem" height="1rem" />
-              </template>
-              <template v-else>{{ data.siteCode }}</template>
-            </template>
-          </Column>
-
-          <!-- Nom du site -->
-          <Column
-            field="siteTitle"
-            header="Nom du site"
-            :frozen="frozenCount >= 2"
-            style="min-width: 12rem"
-          >
-            <template #body="{ data }">
-              <template v-if="loadingRowIds.has(data.id)">
-                <Skeleton width="9rem" height="1rem" />
-              </template>
-              <template v-else>{{ data.siteTitle }}</template>
-            </template>
-          </Column>
-
-          <!-- Dynamic info columns -->
-          <template v-for="(col, colIdx) in infoColumns" :key="col.key">
             <Column
-              v-if="isColVisible(col.key)"
-              :header="col.label"
-              :frozen="frozenCount >= colIdx + 3"
-              style="min-width: 8rem"
+              header="#"
+              :frozen="isColumnFrozen('__num')"
+              style="min-width:2.8rem; width:2.8rem; text-align:center"
             >
-              <template #body="{ data }">
-                <template v-if="loadingRowIds.has(data.id)">
-                  <Skeleton width="6rem" height="1rem" />
-                </template>
-                <template v-else>{{ cellValue(data, col.key) }}</template>
+              <template #body="{ index }">
+                <span class="pst-num">{{ index + 1 }}</span>
               </template>
             </Column>
-          </template>
 
-          <!-- Statut -->
-          <Column v-if="isColVisible('__status')" header="Statut" style="min-width: 7rem">
-            <template #body="{ data }">
-              <template v-if="loadingRowIds.has(data.id)">
-                <Skeleton width="5rem" height="1.5rem" border-radius="1rem" />
+            <Column
+              field="siteCode"
+              header="Code site"
+              :frozen="isColumnFrozen('siteCode')"
+              style="min-width: 7rem"
+            >
+              <template #body="{ data }">
+                <Skeleton v-if="loadingRowIds.has(data.id)" width="5rem" height="1rem" />
+                <template v-else>{{ data.siteCode }}</template>
               </template>
-              <template v-else>
+            </Column>
+
+            <Column
+              field="siteTitle"
+              header="Nom du site"
+              :frozen="isColumnFrozen('siteTitle')"
+              style="min-width: 12rem"
+            >
+              <template #body="{ data }">
+                <Skeleton v-if="loadingRowIds.has(data.id)" width="9rem" height="1rem" />
+                <template v-else>{{ data.siteTitle }}</template>
+              </template>
+            </Column>
+
+            <template v-for="col in infoColumns" :key="col.key">
+              <Column
+                v-if="isColVisible(col.key)"
+                :header="col.label"
+                :frozen="isColumnFrozen(col.key)"
+                style="min-width: 8rem"
+              >
+                <template #body="{ data }">
+                  <Skeleton v-if="loadingRowIds.has(data.id)" width="6rem" height="1rem" />
+                  <template v-else>{{ cellValue(data, col.key) }}</template>
+                </template>
+              </Column>
+            </template>
+
+            <Column
+              v-if="isColVisible('__status')"
+              header="Statut"
+              :frozen="isColumnFrozen('__status')"
+              style="min-width: 7rem"
+            >
+              <template #body="{ data }">
+                <Skeleton v-if="loadingRowIds.has(data.id)" width="5rem" height="1.5rem" border-radius="1rem" />
                 <Tag
+                  v-else
                   :value="projectSiteStatusLabel(data.status)"
                   :severity="projectSiteStatusSeverity(data.status)"
                 />
               </template>
-            </template>
-          </Column>
+            </Column>
 
-          <!-- Commentaires -->
-          <Column v-if="isColVisible('__comment')" header="Commentaires" style="min-width: 14rem">
-            <template #body="{ data }">
-              <template v-if="loadingRowIds.has(data.id)">
-                <Skeleton width="10rem" height="1rem" />
+            <Column
+              v-if="isColVisible('__comment')"
+              header="Commentaires"
+              :frozen="isColumnFrozen('__comment')"
+              style="min-width: 14rem"
+            >
+              <template #body="{ data }">
+                <Skeleton v-if="loadingRowIds.has(data.id)" width="10rem" height="1rem" />
+                <span v-else class="pst-comment-cell">{{ data.comment || '—' }}</span>
               </template>
-              <template v-else>
-                <span class="pst-comment-cell">{{ data.comment || '—' }}</span>
+            </Column>
+
+            <Column
+              v-if="isColVisible('__technician') && sites.some((s) => s.technicianName)"
+              header="Technicien"
+              :frozen="isColumnFrozen('__technician')"
+              style="min-width: 9rem"
+            >
+              <template #body="{ data }">
+                <Skeleton v-if="loadingRowIds.has(data.id)" width="7rem" height="1rem" />
+                <template v-else>{{ data.technicianName || '—' }}</template>
               </template>
-            </template>
-          </Column>
+            </Column>
 
-          <!-- Technicien -->
-          <Column
-            v-if="isColVisible('__technician') && sites.some((s) => s.technicianName)"
-            header="Technicien"
-            style="min-width: 9rem"
-          >
-            <template #body="{ data }">
-              <template v-if="loadingRowIds.has(data.id)">
-                <Skeleton width="7rem" height="1rem" />
+            <Column header="Options" style="min-width: 8rem; width: 8rem">
+              <template #body="{ data }">
+                <div class="pst-actions">
+                  <Button
+                    icon="pi pi-pencil"
+                    size="small"
+                    text
+                    rounded
+                    severity="info"
+                    v-tooltip.top="'Modifier'"
+                    :disabled="loadingRowIds.has(data.id)"
+                    @click="openEdit(data)"
+                  />
+                  <Button
+                    icon="pi pi-tag"
+                    size="small"
+                    text
+                    rounded
+                    severity="secondary"
+                    v-tooltip.top="'Changer le statut'"
+                    :disabled="loadingRowIds.has(data.id)"
+                    @click="openStatusMenu($event, data)"
+                  />
+                  <Button
+                    icon="pi pi-comment"
+                    size="small"
+                    text
+                    rounded
+                    severity="secondary"
+                    v-tooltip.top="'Commentaire'"
+                    :disabled="loadingRowIds.has(data.id)"
+                    @click="openCommentPanel($event, data)"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    size="small"
+                    text
+                    rounded
+                    severity="danger"
+                    v-tooltip.top="'Supprimer'"
+                    :disabled="loadingRowIds.has(data.id)"
+                    @click="askDelete($event, data)"
+                  />
+                </div>
               </template>
-              <template v-else>{{ data.technicianName || '—' }}</template>
-            </template>
-          </Column>
+            </Column>
+          </DataTable>
+        </section>
+      </div>
 
-          <!-- Options column -->
-          <Column header="Options" frozen-align-last style="min-width: 8rem; width: 8rem">
-            <template #body="{ data }">
-              <div class="pst-actions">
-                <!-- Edit -->
-                <Button
-                  icon="pi pi-pencil"
-                  size="small"
-                  text
-                  rounded
-                  severity="info"
-                  v-tooltip.top="'Modifier'"
-                  :disabled="loadingRowIds.has(data.id)"
-                  @click="openEdit(data)"
-                />
-                <!-- Status picker -->
-                <Button
-                  icon="pi pi-tag"
-                  size="small"
-                  text
-                  rounded
-                  severity="secondary"
-                  v-tooltip.top="'Changer le statut'"
-                  :disabled="loadingRowIds.has(data.id)"
-                  @click="openStatusMenu($event, data)"
-                />
-                <!-- Comment -->
-                <Button
-                  icon="pi pi-comment"
-                  size="small"
-                  text
-                  rounded
-                  severity="secondary"
-                  v-tooltip.top="'Commentaire'"
-                  :disabled="loadingRowIds.has(data.id)"
-                  @click="openCommentPanel($event, data)"
-                />
-                <!-- Delete -->
-                <Button
-                  icon="pi pi-trash"
-                  size="small"
-                  text
-                  rounded
-                  severity="danger"
-                  v-tooltip.top="'Supprimer'"
-                  :disabled="loadingRowIds.has(data.id)"
-                  @click="askDelete($event, data)"
-                />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
-      </section>
-    </div>
+      <div v-if="allFilteredSites.length === 0" class="pst-empty pst-empty--filtered">
+        Aucun site ne correspond à votre recherche.
+      </div>
+    </template>
 
-    <!-- ── No results ────────────────────────────────────────────────────────── -->
-    <div v-if="allFilteredSites.length === 0" class="pst-empty pst-empty--filtered">
-      Aucun site ne correspond à votre recherche.
-    </div>
-
-    <!-- ── CRUD Dialog ────────────────────────────────────────────────────────── -->
-    <AppCrudDialog
+    <!-- Add / Edit dialog -->
+    <Dialog
       v-model:visible="crudDialog"
-      :title="crudMode === 'create' ? 'Ajouter un site' : 'Modifier le site'"
-      :fields="crudFields"
-      v-model="crudForm"
-      :loading="crudLoading"
-      :field-errors="crudErrors"
-      :submit-label="crudMode === 'create' ? 'Ajouter' : 'Enregistrer'"
-      @submit="submitCrud"
-    />
+      :header="crudMode === 'create' ? 'Ajouter un site au projet' : 'Modifier le site du projet'"
+      modal
+      style="width: min(560px, 95vw)"
+    >
+      <div class="pst-dialog">
+        <template v-if="crudMode === 'create'">
+          <div class="pst-dialog__mode">
+            <Button
+              label="Site existant"
+              size="small"
+              :severity="siteMode === 'existing' ? 'primary' : 'secondary'"
+              :outlined="siteMode !== 'existing'"
+              @click="siteMode = 'existing'"
+            />
+            <Button
+              label="Nouveau site"
+              size="small"
+              :severity="siteMode === 'new' ? 'primary' : 'secondary'"
+              :outlined="siteMode !== 'new'"
+              @click="siteMode = 'new'"
+            />
+          </div>
+
+          <div v-if="siteMode === 'existing'" class="field">
+            <label>Site <span class="required">*</span></label>
+            <Select
+              v-model="selectedSiteId"
+              :options="siteOptions"
+              option-label="label"
+              option-value="value"
+              placeholder="Rechercher par code ou titre…"
+              filter
+              filter-placeholder="Code ou titre"
+              :loading="sitesLoading"
+              :invalid="Boolean(crudErrors.site)"
+              fluid
+            />
+            <small v-if="crudErrors.site" class="pst-dialog__error">{{ crudErrors.site }}</small>
+          </div>
+
+          <div v-else class="field">
+            <label>Titre du nouveau site <span class="required">*</span></label>
+            <InputText
+              v-model="newSiteTitle"
+              :invalid="Boolean(crudErrors.title)"
+              placeholder="Ex. Site Nord"
+              fluid
+            />
+            <small v-if="crudErrors.title" class="pst-dialog__error">{{ crudErrors.title }}</small>
+            <small class="pst-dialog__hint">Le site sera créé automatiquement puis lié au projet.</small>
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="field">
+            <label>Site</label>
+            <InputText
+              :model-value="`${crudTarget?.siteCode ?? ''} — ${crudTarget?.siteTitle ?? ''}`"
+              disabled
+              fluid
+            />
+          </div>
+        </template>
+
+        <div class="field">
+          <label>Statut</label>
+          <Select
+            v-model="crudStatus"
+            :options="PROJECT_SITE_STATUS_OPTIONS"
+            option-label="label"
+            option-value="value"
+            fluid
+          />
+        </div>
+
+        <template v-if="formInfoColumns.length">
+          <p class="pst-dialog__section">Informations supplémentaires</p>
+          <div
+            v-for="col in formInfoColumns"
+            :key="col.key"
+            class="field"
+          >
+            <label>{{ col.label }}</label>
+            <InputText v-model="crudInfoValues[col.key]" fluid />
+          </div>
+        </template>
+
+        <div class="field">
+          <label>Commentaire</label>
+          <Textarea v-model="crudComment" rows="3" auto-resize fluid />
+        </div>
+      </div>
+
+      <template #footer>
+        <Button label="Annuler" severity="secondary" text :disabled="crudLoading" @click="crudDialog = false" />
+        <Button
+          :label="crudMode === 'create' ? 'Ajouter' : 'Enregistrer'"
+          icon="pi pi-check"
+          :loading="crudLoading"
+          @click="submitCrud"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 
 <style scoped>
-/* ── Layout ──────────────────────────────────────────────────────────────── */
 .pst-root {
   display: flex;
   flex-direction: column;
@@ -748,7 +947,6 @@ async function doExport(format) {
   padding: 0.1rem 0;
 }
 
-/* ── Empty states ────────────────────────────────────────────────────────── */
 .pst-empty {
   padding: 2rem;
   text-align: center;
@@ -760,7 +958,6 @@ async function doExport(format) {
   padding: 1rem;
 }
 
-/* ── Toolbar ─────────────────────────────────────────────────────────────── */
 .pst-toolbar {
   display: flex;
   align-items: center;
@@ -779,7 +976,6 @@ async function doExport(format) {
   width: 14rem;
 }
 
-/* ── Table ───────────────────────────────────────────────────────────────── */
 .pst-table :deep(.p-datatable-thead > tr > th) {
   font-size: 0.78rem;
   font-weight: 700;
@@ -802,7 +998,25 @@ async function doExport(format) {
   background: var(--surface-50, #f8fafc);
 }
 
-/* ── Row number ──────────────────────────────────────────────────────────── */
+/* Opaque frozen columns so scrolled cells don’t show through */
+.pst-table :deep(.p-datatable-frozen-column),
+.pst-table :deep(td.p-datatable-frozen-column),
+.pst-table :deep(th.p-datatable-frozen-column) {
+  background: var(--p-datatable-body-cell-background, var(--surface-0, #ffffff)) !important;
+}
+
+.pst-table :deep(th.p-datatable-frozen-column) {
+  background: var(--surface-100, #f1f5f9) !important;
+}
+
+.pst-table :deep(.p-datatable-tbody > tr:nth-child(even) > td.p-datatable-frozen-column) {
+  background: var(--p-datatable-row-striped-background, var(--surface-50, #f8fafc)) !important;
+}
+
+.pst-table :deep(.p-datatable-tbody > tr:hover > td.p-datatable-frozen-column) {
+  background: var(--surface-50, #f8fafc) !important;
+}
+
 .pst-num {
   font-size: 0.72rem;
   color: var(--layout-text-muted, #94a3b8);
@@ -811,21 +1025,18 @@ async function doExport(format) {
   text-align: center;
 }
 
-/* ── Comment cell ────────────────────────────────────────────────────────── */
 .pst-comment-cell {
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 0.78rem;
 }
 
-/* ── Actions ─────────────────────────────────────────────────────────────── */
 .pst-actions {
   display: flex;
   gap: 0.1rem;
   align-items: center;
 }
 
-/* ── Settings panel ──────────────────────────────────────────────────────── */
 .pst-settings {
   display: flex;
   flex-direction: column;
@@ -843,6 +1054,12 @@ async function doExport(format) {
   color: var(--layout-text-muted, #64748b);
 }
 
+.pst-settings__hint {
+  font-size: 0.75rem;
+  color: var(--layout-text-muted, #64748b);
+  margin-top: -0.35rem;
+}
+
 .pst-settings__cols {
   display: flex;
   flex-direction: column;
@@ -857,12 +1074,6 @@ async function doExport(format) {
   cursor: pointer;
 }
 
-.pst-settings__frozen {
-  display: flex;
-  gap: 0.4rem;
-}
-
-/* ── Comment panel ───────────────────────────────────────────────────────── */
 .pst-comment {
   display: flex;
   flex-direction: column;
@@ -873,5 +1084,45 @@ async function doExport(format) {
   display: flex;
   justify-content: flex-end;
   gap: 0.4rem;
+}
+
+.pst-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.pst-dialog__mode {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pst-dialog .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pst-dialog__section {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--layout-text-muted, #64748b);
+}
+
+.pst-dialog__error {
+  color: var(--p-red-500, #ef4444);
+  font-size: 0.75rem;
+}
+
+.pst-dialog__hint {
+  color: var(--layout-text-muted, #64748b);
+  font-size: 0.75rem;
+}
+
+.required {
+  color: var(--p-red-500, #ef4444);
 }
 </style>
