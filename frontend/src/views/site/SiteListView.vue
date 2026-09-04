@@ -38,13 +38,14 @@ const menuModel = ref([])
 const canCreate = computed(() => hasPermission('site.sites.create'))
 
 function emptyForm() {
-  return { title: '', description: '', clientId: null }
+  return { code: '', title: '', description: '', clientId: null }
 }
 
 const form = ref(emptyForm())
 
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
+  if (!editingId.value && !hasRequiredText(form.value.code)) errs.code = requiredMessage('Code')
   if (!hasRequiredText(form.value.title)) errs.title = requiredMessage('Titre')
   return errs
 })
@@ -143,7 +144,14 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async (item) => {
 
 const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   if (!validateForm()) return
-  const payload = { title: form.value.title.trim(), description: form.value.description || null, clientId: form.value.clientId || null }
+  const payload = {
+    title: form.value.title.trim(),
+    description: form.value.description || null,
+    clientId: form.value.clientId || null,
+  }
+  if (!editingId.value) {
+    payload.code = form.value.code.trim()
+  }
   try {
     if (editingId.value) await updateSite(editingId.value, payload)
     else await createSite(payload)
@@ -193,7 +201,13 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     </Card>
 
     <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(640px, 95vw)">
-      <SiteFormFields v-model="form" :errors="fieldErrors" :client-options="clientOptions" :show-code="Boolean(editingId)" />
+      <SiteFormFields
+        v-model="form"
+        :errors="fieldErrors"
+        :client-options="clientOptions"
+        :show-code="Boolean(editingId)"
+        :require-code="!editingId"
+      />
       <template #footer>
         <Button label="Annuler" severity="secondary" text :disabled="saving" @click="dialog = false" />
         <Button :label="editingId ? 'Enregistrer' : 'Créer'" icon="pi pi-check" :loading="saving" @click="saveItem" />

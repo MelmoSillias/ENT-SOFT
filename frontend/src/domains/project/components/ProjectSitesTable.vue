@@ -7,7 +7,7 @@ import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
-import OverlayPanel from 'primevue/overlaypanel'
+import Popover from 'primevue/popover'
 import Checkbox from 'primevue/checkbox'
 import MultiSelect from 'primevue/multiselect'
 import Select from 'primevue/select'
@@ -15,6 +15,7 @@ import Skeleton from 'primevue/skeleton'
 import Textarea from 'primevue/textarea'
 import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
+import Divider from 'primevue/divider'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import {
@@ -34,6 +35,7 @@ import {
   exportWord,
   exportClipboardImage,
 } from '@/domains/project/composables/useProjectSiteExport'
+import { useAppBusyStore } from '@/domains/layout/stores/appBusy'
 
 const props = defineProps({
   sites: { type: Array, default: () => [] },
@@ -47,6 +49,7 @@ const emit = defineEmits(['refresh'])
 
 const confirm = useConfirm()
 const toast = useToast()
+const busyStore = useAppBusyStore()
 
 const EXCLUDED_KEYS = new Set([
   'comment',
@@ -98,13 +101,16 @@ const visibleColKeys = ref(
 const statusFilter = ref(savedSettings?.statusFilter ?? [])
 
 /** Key of the last frozen column (all previous are frozen too). */
-const frozenUntilKey = ref(savedSettings?.frozenUntilKey ?? 'siteTitle')
+const frozenUntilKey = ref(savedSettings?.frozenUntilKey ?? 'siteCode')
+const searchQuery = ref(savedSettings?.searchQuery ?? '')
+const fluidExpanded = ref(false)
 
-watch([visibleColKeys, frozenUntilKey, statusFilter], () => {
+watch([visibleColKeys, frozenUntilKey, statusFilter, searchQuery], () => {
   saveSettings({
     visibleColKeys: visibleColKeys.value,
     frozenUntilKey: frozenUntilKey.value,
     statusFilter: statusFilter.value,
+    searchQuery: searchQuery.value,
   })
 })
 
@@ -133,13 +139,11 @@ const freezeableColumns = computed(() => {
 function isColumnFrozen(colKey) {
   const keys = freezeableColumns.value.map((c) => c.key)
   let untilIdx = keys.indexOf(frozenUntilKey.value)
-  if (untilIdx < 0) untilIdx = keys.indexOf('siteTitle')
+  if (untilIdx < 0) untilIdx = keys.indexOf('siteCode')
   const colIdx = keys.indexOf(colKey)
   if (colIdx < 0) return false
   return colIdx <= Math.max(untilIdx, 0)
 }
-
-const searchQuery = ref('')
 
 const groupedSites = computed(() => {
   let allSites = props.sites ?? []
@@ -331,6 +335,7 @@ const crudErrors = ref({})
 const siteMode = ref('existing') // 'existing' | 'new'
 const selectedSiteId = ref(null)
 const newSiteTitle = ref('')
+const newSiteCode = ref('')
 const siteOptions = ref([])
 const sitesLoading = ref(false)
 
@@ -372,6 +377,7 @@ function openCreate() {
   siteMode.value = 'existing'
   selectedSiteId.value = null
   newSiteTitle.value = ''
+  newSiteCode.value = ''
   crudStatus.value = 'pending'
   crudInfoValues.value = emptyInfoValues()
   crudComment.value = ''
@@ -386,6 +392,7 @@ function openEdit(site) {
   siteMode.value = 'existing'
   selectedSiteId.value = site.siteId ?? null
   newSiteTitle.value = ''
+  newSiteCode.value = ''
   crudStatus.value = site.status ?? 'pending'
   const vals = emptyInfoValues()
   for (const col of formInfoColumns.value) {
@@ -398,9 +405,12 @@ function openEdit(site) {
   crudDialog.value = true
 }
 
-function buildInformationsValues() {
-  const values = { ...crudInfoValues.value }
-  for (const key of Object.keys(values)) {
+function buildInformationsValues(preserveExisting = null) {
+  const values = {
+    ...(preserveExisting ?? {}),
+    ...crudInfoValues.value,
+  }
+  for (const key of Object.keys(crudInfoValues.value)) {
     if (values[key] === '') values[key] = null
   }
   if (crudComment.value?.trim()) {
@@ -419,9 +429,14 @@ async function submitCrud() {
       crudErrors.value = { site: 'Sélectionnez un site.' }
       return
     }
-    if (siteMode.value === 'new' && !newSiteTitle.value.trim()) {
-      crudErrors.value = { title: 'Le titre du nouveau site est requis.' }
-      return
+    if (siteMode.value === 'new') {
+      const errs = {}
+      if (!newSiteCode.value.trim()) errs.code = 'Le code du nouveau site est requis.'
+      if (!newSiteTitle.value.trim()) errs.title = 'Le titre du nouveau site est requis.'
+      if (Object.keys(errs).length) {
+        crudErrors.value = errs
+        return
+      }
     }
     if (!props.projectId) {
       toast.add({ severity: 'error', summary: 'Erreur', detail: 'Projet introuvable.', life: 4000 })
@@ -431,12 +446,16 @@ async function submitCrud() {
 
   crudLoading.value = true
   try {
-    const informationsValues = buildInformationsValues()
+    const informationsValues =
+      crudMode.value === 'edit'
+        ? buildInformationsValues(crudTarget.value?.informationsValues ?? {})
+        : buildInformationsValues()
 
     if (crudMode.value === 'create') {
       let siteId = selectedSiteId.value
       if (siteMode.value === 'new') {
         const created = await createSite({
+          code: newSiteCode.value.trim(),
           title: newSiteTitle.value.trim(),
           clientId: props.clientId || null,
         })
@@ -504,10 +523,15 @@ const exportMenuItems = [
 async function doExport(format) {
   if (exporting.value) return
   exporting.value = true
+  busyStore.startExport(format === 'excel' ? 'Export Excel…' : format === 'word' ? 'Export Word…' : 'Export image…')
   const columns = buildExportColumns()
   const enrichedGroups = groupedSites.value.map((g) => ({
     ...g,
-    sites: g.sites.map((s) => ({ ...s, statusLabel: projectSiteStatusLabel(s.status) })),
+    sites: g.sites.map((s) => ({
+      ...s,
+      statusLabel: projectSiteStatusLabel(s.status),
+      status: s.status,
+    })),
   }))
   try {
     if (format === 'excel') {
@@ -528,8 +552,16 @@ async function doExport(format) {
         life: 2500,
       })
     }
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'Export',
+      detail: e?.message || "Échec de l'export.",
+      life: 4000,
+    })
   } finally {
     exporting.value = false
+    busyStore.endExport()
   }
 }
 
@@ -575,6 +607,16 @@ onMounted(() => {
 
         <Button
           v-if="hasSites"
+          :icon="fluidExpanded ? 'pi pi-window-minimize' : 'pi pi-window-maximize'"
+          size="small"
+          severity="secondary"
+          outlined
+          v-tooltip.top="fluidExpanded ? 'Réduire' : 'Agrandir (plein écran)'"
+          @click="fluidExpanded = !fluidExpanded"
+        />
+
+        <Button
+          v-if="hasSites"
           icon="pi pi-sliders-h"
           size="small"
           severity="secondary"
@@ -588,8 +630,8 @@ onMounted(() => {
     <div v-if="!hasSites" class="pst-empty">Aucun site associé.</div>
 
     <template v-else>
-      <!-- Settings overlay -->
-      <OverlayPanel ref="settingsPanel" class="pst-settings-panel">
+      <!-- Settings popover -->
+      <Popover ref="settingsPanel" class="pst-settings-panel">
         <div class="pst-settings">
           <p class="pst-settings__title">Colonnes visibles</p>
           <div class="pst-settings__cols">
@@ -635,11 +677,11 @@ onMounted(() => {
             size="small"
           />
         </div>
-      </OverlayPanel>
+      </Popover>
 
       <Menu ref="statusMenuRef" :model="statusMenuItems" popup />
 
-      <OverlayPanel ref="commentPanel" class="pst-comment-panel">
+      <Popover ref="commentPanel" class="pst-comment-panel">
         <div class="pst-comment">
           <p class="pst-settings__title">Commentaire</p>
           <Textarea v-model="commentText" rows="4" auto-resize fluid style="min-width: 18rem" />
@@ -648,9 +690,9 @@ onMounted(() => {
             <Button label="Enregistrer" size="small" :loading="savingComment" @click="saveComment" />
           </div>
         </div>
-      </OverlayPanel>
+      </Popover>
 
-      <div ref="tableWrapperRef" class="pst-groups">
+      <div v-show="!fluidExpanded" ref="tableWrapperRef" class="pst-groups">
         <section
           v-for="group in groupedSites"
           :key="group.lot?.code ?? 'all'"
@@ -804,6 +846,76 @@ onMounted(() => {
         </section>
       </div>
 
+      <Dialog
+        v-model:visible="fluidExpanded"
+        modal
+        maximizable
+        :maximized="true"
+        header="Sites du projet"
+        class="pst-fluid-dialog"
+        :style="{ width: '98vw' }"
+        :content-style="{ overflow: 'auto', maxHeight: 'calc(100vh - 7rem)' }"
+      >
+        <div class="pst-groups">
+          <section
+            v-for="group in groupedSites"
+            :key="'fluid-' + (group.lot?.code ?? 'all')"
+            class="pst-group"
+          >
+            <h3 v-if="group.lot" class="pst-lot-title">{{ lotLabel(group.lot) }}</h3>
+            <DataTable
+              :value="group.sites"
+              scrollable
+              scroll-height="flex"
+              show-gridlines
+              class="pst-table p-datatable-sm"
+              size="small"
+            >
+              <Column header="#" :frozen="isColumnFrozen('__num')" style="min-width:2.8rem; width:2.8rem; text-align:center">
+                <template #body="{ index }"><span class="pst-num">{{ index + 1 }}</span></template>
+              </Column>
+              <Column field="siteCode" header="Code site" :frozen="isColumnFrozen('siteCode')" style="min-width: 7rem">
+                <template #body="{ data }">{{ data.siteCode }}</template>
+              </Column>
+              <Column field="siteTitle" header="Nom du site" :frozen="isColumnFrozen('siteTitle')" style="min-width: 12rem">
+                <template #body="{ data }">{{ data.siteTitle }}</template>
+              </Column>
+              <template v-for="col in infoColumns" :key="'f-' + col.key">
+                <Column v-if="isColVisible(col.key)" :header="col.label" :frozen="isColumnFrozen(col.key)" style="min-width: 8rem">
+                  <template #body="{ data }">{{ cellValue(data, col.key) }}</template>
+                </Column>
+              </template>
+              <Column v-if="isColVisible('__status')" header="Statut" :frozen="isColumnFrozen('__status')" style="min-width: 7rem">
+                <template #body="{ data }">
+                  <Tag :value="projectSiteStatusLabel(data.status)" :severity="projectSiteStatusSeverity(data.status)" />
+                </template>
+              </Column>
+              <Column v-if="isColVisible('__comment')" header="Commentaires" :frozen="isColumnFrozen('__comment')" style="min-width: 14rem">
+                <template #body="{ data }"><span class="pst-comment-cell">{{ data.comment || '—' }}</span></template>
+              </Column>
+              <Column
+                v-if="isColVisible('__technician') && sites.some((s) => s.technicianName)"
+                header="Technicien"
+                :frozen="isColumnFrozen('__technician')"
+                style="min-width: 9rem"
+              >
+                <template #body="{ data }">{{ data.technicianName || '—' }}</template>
+              </Column>
+              <Column header="Options" style="min-width: 8rem; width: 8rem">
+                <template #body="{ data }">
+                  <div class="pst-actions">
+                    <Button icon="pi pi-pencil" size="small" text rounded severity="info" @click="openEdit(data)" />
+                    <Button icon="pi pi-tag" size="small" text rounded severity="secondary" @click="openStatusMenu($event, data)" />
+                    <Button icon="pi pi-comment" size="small" text rounded severity="secondary" @click="openCommentPanel($event, data)" />
+                    <Button icon="pi pi-trash" size="small" text rounded severity="danger" @click="askDelete($event, data)" />
+                  </div>
+                </template>
+              </Column>
+            </DataTable>
+          </section>
+        </div>
+      </Dialog>
+
       <div v-if="allFilteredSites.length === 0" class="pst-empty pst-empty--filtered">
         Aucun site ne correspond à votre recherche.
       </div>
@@ -852,16 +964,28 @@ onMounted(() => {
             <small v-if="crudErrors.site" class="pst-dialog__error">{{ crudErrors.site }}</small>
           </div>
 
-          <div v-else class="field">
-            <label>Titre du nouveau site <span class="required">*</span></label>
-            <InputText
-              v-model="newSiteTitle"
-              :invalid="Boolean(crudErrors.title)"
-              placeholder="Ex. Site Nord"
-              fluid
-            />
-            <small v-if="crudErrors.title" class="pst-dialog__error">{{ crudErrors.title }}</small>
-            <small class="pst-dialog__hint">Le site sera créé automatiquement puis lié au projet.</small>
+          <div v-else class="pst-dialog__new-site">
+            <div class="field">
+              <label>Code du site <span class="required">*</span></label>
+              <InputText
+                v-model="newSiteCode"
+                :invalid="Boolean(crudErrors.code)"
+                placeholder="Ex. SIT-0042"
+                fluid
+              />
+              <small v-if="crudErrors.code" class="pst-dialog__error">{{ crudErrors.code }}</small>
+            </div>
+            <div class="field">
+              <label>Titre du nouveau site <span class="required">*</span></label>
+              <InputText
+                v-model="newSiteTitle"
+                :invalid="Boolean(crudErrors.title)"
+                placeholder="Ex. Site Nord"
+                fluid
+              />
+              <small v-if="crudErrors.title" class="pst-dialog__error">{{ crudErrors.title }}</small>
+            </div>
+            <small class="pst-dialog__hint">Le site sera créé puis lié au projet. Le code doit être unique.</small>
           </div>
         </template>
 
@@ -888,6 +1012,7 @@ onMounted(() => {
         </div>
 
         <template v-if="formInfoColumns.length">
+          <Divider />
           <p class="pst-dialog__section">Informations supplémentaires</p>
           <div
             v-for="col in formInfoColumns"
@@ -897,6 +1022,7 @@ onMounted(() => {
             <label>{{ col.label }}</label>
             <InputText v-model="crudInfoValues[col.key]" fluid />
           </div>
+          <Divider />
         </template>
 
         <div class="field">
@@ -1103,8 +1229,14 @@ onMounted(() => {
   gap: 0.35rem;
 }
 
+.pst-dialog__new-site {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
 .pst-dialog__section {
-  margin: 0.25rem 0 0;
+  margin: 0;
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;

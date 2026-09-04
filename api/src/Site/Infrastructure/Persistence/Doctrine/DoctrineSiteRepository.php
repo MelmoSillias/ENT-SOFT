@@ -28,6 +28,16 @@ class DoctrineSiteRepository extends ServiceEntityRepository implements SiteRepo
         return $this->find($id);
     }
 
+    public function findByCode(string $code): ?Site
+    {
+        return $this->createQueryBuilder('s')
+            ->andWhere('s.code = :code')
+            ->setParameter('code', trim($code))
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function findAllEnabled(?string $search = null): array
     {
         $qb = $this->createQueryBuilder('s')

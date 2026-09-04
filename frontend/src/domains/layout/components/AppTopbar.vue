@@ -14,6 +14,7 @@ import Popover from 'primevue/popover'
 import AppTopbarDateClock from '@/domains/layout/components/AppTopbarDateClock.vue'
 import { useBreakpoint } from '@/domains/layout/composables/useBreakpoint'
 import { useLayoutStore } from '@/domains/layout/stores/layout'
+import { useAppBusyStore } from '@/domains/layout/stores/appBusy'
 
 const props = defineProps({
   brand: {
@@ -58,7 +59,9 @@ const emit = defineEmits(['toggle-navigation', 'toggle-dark-mode', 'logout'])
 
 const router = useRouter()
 const layoutStore = useLayoutStore()
+const busyStore = useAppBusyStore()
 const { topbarLogoVisibility, topbarProfilePosition, topbarSearchPosition } = storeToRefs(layoutStore)
+const { exporting, exportLabel } = storeToRefs(busyStore)
 const { isMobile, isCompact } = useBreakpoint()
 
 const profileMenu = ref()
@@ -180,6 +183,15 @@ const goToProfile = () => {
       </div>
 
       <div class="app-topbar__actions">
+        <div
+          v-if="exporting"
+          class="app-topbar__export"
+          role="status"
+          aria-live="polite"
+        >
+          <i class="pi pi-spin pi-spinner" aria-hidden="true" />
+          <span>{{ exportLabel || 'Export en cours…' }}</span>
+        </div>
         <div class="app-topbar__status">
           <AppTopbarDateClock
             v-if="!isMobile"

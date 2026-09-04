@@ -3,6 +3,7 @@
 namespace App\Project\Application\Command\UpdateProject;
 
 use App\Project\Application\Dto\ProjectResponseDto;
+use App\Project\Application\Service\SitesInformationsNormalizer;
 use App\Project\Domain\Enum\ProjectStatus;
 use App\Project\Domain\Exception\ProjectNotFoundException;
 use App\Project\Domain\Repository\ProjectRepositoryInterface;
@@ -45,7 +46,9 @@ final class UpdateProjectHandler
             $project->setClientId(Uuid::fromString($command->clientId));
         }
         if ($command->sitesInformations !== null) {
-            $project->setSitesInformations($command->sitesInformations);
+            $project->setSitesInformations(
+                SitesInformationsNormalizer::normalizeDefinitions($command->sitesInformations),
+            );
         }
 
         $this->projectRepository->save($project);

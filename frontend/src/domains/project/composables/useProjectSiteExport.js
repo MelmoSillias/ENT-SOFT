@@ -1,16 +1,25 @@
-import { toRaw } from 'vue'
-
 /**
- * Export composable for the ProjectSitesTable.
- * Supports Excel (xlsx/SheetJS), Word (docx), and clipboard image (html-to-image).
- * All exports use landscape orientation.
+ * Shared export helpers for ProjectSitesTable.
+ * Excel generation runs in a Web Worker (ExcelJS) so the UI stays responsive.
+ * Word uses docx on the main thread after yielding to the event loop.
  */
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+import { toRaw } from 'vue'
 
-function buildRows(sites, columns) {
+export const STATUS_COLORS = {
+  pending: '64748B',
+  in_progress: 'D97706',
+  completed: '16A34A',
+  blocked: 'DC2626',
+}
+
+function statusFill(status) {
+  return STATUS_COLORS[status] ?? STATUS_COLORS.pending
+}
+
+export function buildRows(sites, columns) {
   return sites.map((site, idx) => {
-    const row = { '#': idx + 1 }
+    const row = { '#': idx + 1, __statusKey: site.status ?? 'pending' }
     for (const col of columns) {
       if (col.field === 'siteCode') row['Code site'] = site.siteCode ?? ''
       else if (col.field === 'siteTitle') row['Nom du site'] = site.siteTitle ?? ''
@@ -27,71 +36,77 @@ function buildRows(sites, columns) {
   })
 }
 
-function flatSites(groupedSites) {
+export function flatSites(groupedSites) {
   return groupedSites.flatMap((g) => g.sites)
 }
 
-// ─── Excel ─────────────────────────────────────────────────────────────────────
+function displayHeaders(rows) {
+  const keys = Object.keys(rows[0] ?? { '#': 1 })
+  return keys.filter((k) => k !== '__statusKey')
+}
+
+function yieldToMain() {
+  return new Promise((resolve) => {
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => resolve(), { timeout: 50 })
+    } else {
+      setTimeout(resolve, 0)
+    }
+  })
+}
+
+// ─── Excel (Web Worker + ExcelJS) ─────────────────────────────────────────────
 
 export async function exportExcel({ groupedSites, columns, projectTitle = 'export' }) {
-  const { utils, writeFile } = await import('xlsx')
-
   const sites = flatSites(toRaw(groupedSites))
   const rows = buildRows(sites, columns)
-  const headers = Object.keys(rows[0] ?? { '#': 1 })
+  const headers = displayHeaders(rows)
 
-  const ws = utils.json_to_sheet(rows, { header: headers })
+  const worker = new Worker(new URL('../workers/projectSiteExport.worker.js', import.meta.url), {
+    type: 'module',
+  })
 
-  // Column widths
-  ws['!cols'] = headers.map((h) => ({ wch: Math.max(h.length + 2, 12) }))
-
-  // Landscape page setup
-  ws['!pageSetup'] = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
-
-  // Style header row (bold + fill)
-  const range = utils.decode_range(ws['!ref'])
-  for (let C = range.s.c; C <= range.e.c; C++) {
-    const addr = utils.encode_cell({ r: 0, c: C })
-    if (!ws[addr]) continue
-    ws[addr].s = {
-      font: { bold: true, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: '1E3A5F' } },
-      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-      border: {
-        top: { style: 'thin', color: { rgb: 'AAAAAA' } },
-        bottom: { style: 'thin', color: { rgb: 'AAAAAA' } },
-        left: { style: 'thin', color: { rgb: 'AAAAAA' } },
-        right: { style: 'thin', color: { rgb: 'AAAAAA' } },
-      },
-    }
-  }
-
-  // Data rows alternating fill + borders
-  for (let R = 1; R <= range.e.r; R++) {
-    for (let C = range.s.c; C <= range.e.c; C++) {
-      const addr = utils.encode_cell({ r: R, c: C })
-      if (!ws[addr]) ws[addr] = { t: 's', v: '' }
-      ws[addr].s = {
-        fill: { fgColor: { rgb: R % 2 === 0 ? 'F0F4FA' : 'FFFFFF' } },
-        border: {
-          top: { style: 'thin', color: { rgb: 'DDDDDD' } },
-          bottom: { style: 'thin', color: { rgb: 'DDDDDD' } },
-          left: { style: 'thin', color: { rgb: 'DDDDDD' } },
-          right: { style: 'thin', color: { rgb: 'DDDDDD' } },
-        },
-        alignment: { wrapText: true },
+  try {
+    const buffer = await new Promise((resolve, reject) => {
+      const onMessage = (event) => {
+        worker.removeEventListener('message', onMessage)
+        worker.removeEventListener('error', onError)
+        if (event.data?.ok) resolve(event.data.buffer)
+        else reject(new Error(event.data?.error || 'Export Excel échoué'))
       }
-    }
-  }
+      const onError = (err) => {
+        worker.removeEventListener('message', onMessage)
+        worker.removeEventListener('error', onError)
+        reject(err instanceof Error ? err : new Error('Worker export error'))
+      }
+      worker.addEventListener('message', onMessage)
+      worker.addEventListener('error', onError)
+      worker.postMessage({
+        type: 'excel',
+        payload: {
+          headers,
+          rows,
+          statusColors: STATUS_COLORS,
+          sheetName: 'Sites',
+        },
+      })
+    })
 
-  const wb = utils.book_new()
-  utils.book_append_sheet(wb, ws, 'Sites')
-  writeFile(wb, `${projectTitle}_sites.xlsx`, { bookType: 'xlsx', cellStyles: true })
+    const { saveAs } = await import('file-saver')
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    saveAs(blob, `${projectTitle}_sites.xlsx`)
+  } finally {
+    worker.terminate()
+  }
 }
 
 // ─── Word ──────────────────────────────────────────────────────────────────────
 
 export async function exportWord({ groupedSites, columns, projectTitle = 'export' }) {
+  await yieldToMain()
+
   const {
     Document, Packer, Table, TableRow, TableCell, Paragraph, TextRun,
     HeadingLevel, AlignmentType, WidthType, ShadingType, BorderStyle,
@@ -99,9 +114,11 @@ export async function exportWord({ groupedSites, columns, projectTitle = 'export
   } = await import('docx')
   const { saveAs } = await import('file-saver')
 
+  await yieldToMain()
+
   const sites = flatSites(toRaw(groupedSites))
   const rows = buildRows(sites, columns)
-  const headers = Object.keys(rows[0] ?? {})
+  const headers = displayHeaders(rows)
 
   const HEADER_COLOR = '1E3A5F'
   const ALT_COLOR = 'F0F4FA'
@@ -131,27 +148,36 @@ export async function exportWord({ groupedSites, columns, projectTitle = 'export
     ),
   })
 
-  const dataRows = rows.map(
-    (row, idx) =>
-      new TableRow({
-        children: headers.map(
-          (h) =>
-            new TableCell({
-              borders: cellBorder,
-              shading:
-                idx % 2 === 1
-                  ? { type: ShadingType.SOLID, color: ALT_COLOR }
-                  : { type: ShadingType.CLEAR, color: 'FFFFFF' },
+  const dataRows = rows.map((row, idx) => {
+    return new TableRow({
+      children: headers.map((h) => {
+        const isStatus = h === 'Statut'
+        const fill = isStatus
+          ? statusFill(row.__statusKey)
+          : idx % 2 === 1
+            ? ALT_COLOR
+            : 'FFFFFF'
+        const textColor = isStatus ? 'FFFFFF' : '000000'
+        return new TableCell({
+          borders: cellBorder,
+          shading: { type: ShadingType.SOLID, color: fill },
+          children: [
+            new Paragraph({
               children: [
-                new Paragraph({
-                  children: [new TextRun({ text: String(row[h] ?? ''), size: 16 })],
+                new TextRun({
+                  text: String(row[h] ?? ''),
+                  size: 16,
+                  color: textColor,
+                  bold: isStatus,
                 }),
               ],
-              width: { size: Math.floor(9000 / headers.length), type: WidthType.DXA },
             }),
-        ),
+          ],
+          width: { size: Math.floor(9000 / headers.length), type: WidthType.DXA },
+        })
       }),
-  )
+    })
+  })
 
   const table = new Table({ rows: [headerRow, ...dataRows], width: { size: 100, type: WidthType.PERCENTAGE } })
 

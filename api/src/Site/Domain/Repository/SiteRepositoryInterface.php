@@ -11,6 +11,8 @@ interface SiteRepositoryInterface
 
     public function findById(Uuid $id): ?Site;
 
+    public function findByCode(string $code): ?Site;
+
     /** @return list<Site> */
     public function findAllEnabled(?string $search = null): array;
 

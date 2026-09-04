@@ -5,10 +5,12 @@ import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import DatePicker from 'primevue/datepicker'
 import InputNumber from 'primevue/inputnumber'
-import AutoComplete from 'primevue/autocomplete'
+import Chips from 'primevue/chips'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import { PROJECT_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
+
+const MAX_INFO_LABEL_LENGTH = 80
 
 const form = defineModel({ type: Object, required: true })
 
@@ -19,14 +21,32 @@ defineProps({
 })
 
 const statusOptions = PROJECT_STATUS_OPTIONS
-const infoSuggestions = ref([])
+const chipError = ref('')
 
-function onInfoComplete(event) {
-  const q = (event.query ?? '').trim().toLowerCase()
-  const existing = form.value.sitesInfoLabels ?? []
-  infoSuggestions.value = q
-    ? existing.filter((l) => l.toLowerCase().includes(q) && l.toLowerCase() !== q)
-    : []
+function sanitizeInfoLabel(raw) {
+  return String(raw ?? '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .trim()
+    .slice(0, MAX_INFO_LABEL_LENGTH)
+}
+
+function onInfoLabelsUpdate(next) {
+  chipError.value = ''
+  const seen = new Set()
+  const cleaned = []
+  for (const item of next ?? []) {
+    const label = sanitizeInfoLabel(item)
+    if (!label) continue
+    const key = label.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    cleaned.push(label)
+  }
+  if ((next?.length ?? 0) > cleaned.length) {
+    chipError.value = 'Libellé invalide, trop long ou déjà présent.'
+  }
+  form.value.sitesInfoLabels = cleaned
 }
 </script>
 
@@ -86,18 +106,16 @@ function onInfoComplete(event) {
     </div>
     <div class="field ent-form-grid__full">
       <label>Informations supplémentaires (sites)</label>
-      <AutoComplete
-        v-model="form.sitesInfoLabels"
-        :suggestions="infoSuggestions"
-        multiple
-        typeahead
-        :force-selection="false"
+      <Chips
+        :model-value="form.sitesInfoLabels"
         placeholder="Saisir un libellé puis Entrée (ex. Start Date)"
         fluid
-        @complete="onInfoComplete"
+        class="pst-info-chips"
+        @update:model-value="onInfoLabelsUpdate"
       />
-      <small class="field-hint">
-        Tags éditables : chaque libellé devient une colonne dynamique sur les sites du projet.
+      <small v-if="chipError" class="field-error">{{ chipError }}</small>
+      <small v-else class="field-hint">
+        Saisir un texte libre puis Entrée pour créer un tag. Survolez un tag pour le supprimer.
       </small>
     </div>
   </div>
@@ -125,7 +143,27 @@ function onInfoComplete(event) {
   font-size: 0.75rem;
 }
 
+.field-error {
+  color: var(--p-red-500, #ef4444);
+  font-size: 0.75rem;
+}
+
 .required {
   color: var(--p-red-500, #ef4444);
+}
+
+.pst-info-chips :deep(.p-chip-remove-icon) {
+  opacity: 0;
+  width: 0;
+  margin: 0;
+  overflow: hidden;
+  transition: opacity 0.15s ease, width 0.15s ease, margin 0.15s ease;
+}
+
+.pst-info-chips :deep(.p-chip:hover .p-chip-remove-icon),
+.pst-info-chips :deep(.p-chip:focus-within .p-chip-remove-icon) {
+  opacity: 1;
+  width: 1rem;
+  margin-inline-start: 0.35rem;
 }
 </style>

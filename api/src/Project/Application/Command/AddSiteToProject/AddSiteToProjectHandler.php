@@ -3,6 +3,7 @@
 namespace App\Project\Application\Command\AddSiteToProject;
 
 use App\Project\Application\Dto\ProjectSiteResponseDto;
+use App\Project\Application\Service\SitesInformationsNormalizer;
 use App\Project\Domain\Entity\ProjectSite;
 use App\Project\Domain\Enum\ProjectSiteStatus;
 use App\Project\Domain\Exception\ProjectNotFoundException;
@@ -50,7 +51,7 @@ final class AddSiteToProjectHandler
             projectId: $projectId,
             siteId: $siteId,
             status: ProjectSiteStatus::from($command->status),
-            informationsValues: $command->informationsValues,
+            informationsValues: SitesInformationsNormalizer::normalizeValues($command->informationsValues),
             employeeIds: $employeeIds,
             lotId: $lotId,
             technicianId: $technicianId,

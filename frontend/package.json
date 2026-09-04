@@ -13,6 +13,7 @@
     "axios": "^1.7.9",
     "chart.js": "^4.5.1",
     "docx": "^9.7.1",
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "html-to-image": "^1.11.13",
     "pinia": "^2.3.0",
@@ -21,8 +22,7 @@
     "tailwindcss": "^4.3.0",
     "tailwindcss-primeui": "^0.6.1",
     "vue": "^3.5.13",
-    "vue-router": "^4.5.0",
-    "xlsx": "^0.18.5"
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",

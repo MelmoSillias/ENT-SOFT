@@ -35,6 +35,7 @@ final class SiteController extends AbstractController
     {
         $data = $request->toArray();
         $result = $handler->handle(new CreateSiteCommand(
+            code: $data['code'] ?? '',
             title: $data['title'] ?? '',
             description: $data['description'] ?? null,
             clientId: $data['clientId'] ?? null,

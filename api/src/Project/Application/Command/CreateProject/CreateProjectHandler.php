@@ -3,6 +3,7 @@
 namespace App\Project\Application\Command\CreateProject;
 
 use App\Project\Application\Dto\ProjectResponseDto;
+use App\Project\Application\Service\SitesInformationsNormalizer;
 use App\Project\Domain\Entity\Project;
 use App\Project\Domain\Enum\ProjectStatus;
 use App\Project\Domain\Repository\ProjectRepositoryInterface;
@@ -32,7 +33,7 @@ final class CreateProjectHandler
             dateDebut: $command->dateDebut ? new \DateTimeImmutable($command->dateDebut) : null,
             dateFin: $command->dateFin ? new \DateTimeImmutable($command->dateFin) : null,
             budget: $command->budget,
-            sitesInformations: $command->sitesInformations,
+            sitesInformations: SitesInformationsNormalizer::normalizeDefinitions($command->sitesInformations),
         );
         $this->projectRepository->save($project);
 

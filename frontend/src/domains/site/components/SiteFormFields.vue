@@ -9,16 +9,26 @@ const form = defineModel({ type: Object, required: true })
 defineProps({
   errors: { type: Object, default: () => ({}) },
   clientOptions: { type: Array, default: () => [] },
+  /** When true, code is shown read-only (edit mode). */
   showCode: { type: Boolean, default: false },
+  /** When true (create mode), code is editable and required. */
+  requireCode: { type: Boolean, default: false },
 })
 </script>
 
 <template>
   <div class="ent-form-grid">
-    <div v-if="showCode" class="field">
-      <label>Code</label>
-      <InputText v-model="form.code" disabled fluid />
-      <small class="field-hint">Généré automatiquement</small>
+    <div v-if="showCode || requireCode" class="field">
+      <label>Code <span v-if="requireCode" class="required">*</span></label>
+      <InputText
+        v-model="form.code"
+        :disabled="showCode && !requireCode"
+        :invalid="Boolean(errors.code)"
+        placeholder="Ex. SIT-0001"
+        fluid
+      />
+      <AppFieldError :message="errors.code" />
+      <small v-if="showCode && !requireCode" class="field-hint">Non modifiable</small>
     </div>
     <div class="field ent-form-grid__full">
       <label>Titre <span class="required">*</span></label>

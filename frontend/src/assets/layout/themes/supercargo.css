@@ -82,7 +82,7 @@
   width: 9.5rem;
   height: 9.5rem;
   padding: 0.2rem;
-  background: #000000;
+  background: #fff;
 }
 
 :root[data-layout-theme='supercargo'] .auth-page__brand-logo {

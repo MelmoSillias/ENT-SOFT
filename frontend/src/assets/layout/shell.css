@@ -686,6 +686,23 @@
   margin-left: auto;
 }
 
+.app-topbar__export {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  background: var(--layout-accent-soft, #e0f2fe);
+  color: var(--layout-accent-strong, #0369a1);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.app-topbar__export .pi {
+  font-size: 0.9rem;
+}
+
 .app-topbar__brand {
   display: flex;
   align-items: center;

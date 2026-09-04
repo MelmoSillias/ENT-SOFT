@@ -3,6 +3,7 @@
 namespace App\Project\Application\Command\UpdateProjectSite;
 
 use App\Project\Application\Dto\ProjectSiteResponseDto;
+use App\Project\Application\Service\SitesInformationsNormalizer;
 use App\Project\Domain\Enum\ProjectSiteStatus;
 use App\Project\Domain\Exception\ProjectSiteNotFoundException;
 use App\Project\Domain\Repository\ProjectSiteRepositoryInterface;
@@ -26,7 +27,12 @@ final class UpdateProjectSiteHandler
             $projectSite->setStatus(ProjectSiteStatus::from($command->status));
         }
         if ($command->informationsValues !== null) {
-            $projectSite->setInformationsValues($command->informationsValues);
+            // Merge so orphan keys (removed from project sitesInformations) are preserved.
+            $merged = array_merge(
+                $projectSite->getInformationsValues(),
+                SitesInformationsNormalizer::normalizeValues($command->informationsValues),
+            );
+            $projectSite->setInformationsValues($merged);
         }
         if ($command->employeeIds !== null) {
             $projectSite->setEmployeeIds($command->employeeIds);
