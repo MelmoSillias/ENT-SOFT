@@ -25,11 +25,13 @@ final class UpdateEquipmentHandler
         if ($command->title !== null) {
             $equipment->setTitle(FieldValidator::requireNonEmpty($command->title, 'Titre'));
         }
-        if ($command->description !== null) {
+        if ($command->hasDescription) {
             $equipment->setDescription($command->description);
         }
-        if ($command->clientId !== null) {
-            $equipment->setClientId($command->clientId !== '' ? Uuid::fromString($command->clientId) : null);
+        if ($command->hasClientId) {
+            $equipment->setClientId($command->clientId !== null && $command->clientId !== ''
+                ? Uuid::fromString($command->clientId)
+                : null);
         }
 
         $this->equipmentRepository->save($equipment);

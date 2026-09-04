@@ -26,11 +26,13 @@ final class UpdateTaskHandler
         if ($command->title !== null) {
             $task->setTitle(FieldValidator::requireNonEmpty($command->title, 'Titre'));
         }
-        if ($command->description !== null) {
+        if ($command->hasDescription) {
             $task->setDescription($command->description);
         }
-        if ($command->dateDue !== null) {
-            $task->setDateDue(new \DateTimeImmutable($command->dateDue));
+        if ($command->hasDateDue) {
+            $task->setDateDue($command->dateDue !== null && $command->dateDue !== ''
+                ? new \DateTimeImmutable($command->dateDue)
+                : null);
         }
         if ($command->status !== null) {
             $task->setStatus(TaskStatus::from($command->status));
@@ -38,8 +40,10 @@ final class UpdateTaskHandler
         if ($command->siteId !== null) {
             $task->setSiteId(Uuid::fromString($command->siteId));
         }
-        if ($command->employeeId !== null) {
-            $task->setEmployeeId($command->employeeId !== '' ? Uuid::fromString($command->employeeId) : null);
+        if ($command->hasEmployeeId) {
+            $task->setEmployeeId($command->employeeId !== null && $command->employeeId !== ''
+                ? Uuid::fromString($command->employeeId)
+                : null);
         }
 
         $this->taskRepository->save($task);

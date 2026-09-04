@@ -14,6 +14,9 @@ final readonly class UpdateProjectCommand
         public ?float $budget = null,
         public ?string $clientId = null,
         public ?array $sitesInformations = null,
+        public bool $hasObject = false,
+        public bool $hasDateDebut = false,
+        public bool $hasDateFin = false,
     ) {
     }
 }

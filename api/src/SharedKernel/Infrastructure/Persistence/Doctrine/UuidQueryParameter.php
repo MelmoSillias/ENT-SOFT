@@ -12,8 +12,9 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Liaison UUID compatible SQLite.
  *
- * Sous SQLite, les UUID Doctrine sont stockés en TEXT et ceux des seeds SQL en BLOB.
- * Un seul type de bind ne matche jamais les deux ; on compare donc en dual (blob|text).
+ * Sous SQLite, Doctrine stocke les UUID en TEXT (octets binaires).
+ * Les anciens seeds en BLOB sont normalisés par Version20260904160000 ;
+ * le dual match reste une sécurité si des BLOB réapparaissent.
  */
 final class UuidQueryParameter
 {

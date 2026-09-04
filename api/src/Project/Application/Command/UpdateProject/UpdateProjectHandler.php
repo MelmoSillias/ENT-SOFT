@@ -27,14 +27,18 @@ final class UpdateProjectHandler
         if ($command->title !== null) {
             $project->setTitle(FieldValidator::requireNonEmpty($command->title, 'Titre'));
         }
-        if ($command->object !== null) {
+        if ($command->hasObject) {
             $project->setObject($command->object);
         }
-        if ($command->dateDebut !== null) {
-            $project->setDateDebut(new \DateTimeImmutable($command->dateDebut));
+        if ($command->hasDateDebut) {
+            $project->setDateDebut($command->dateDebut !== null && $command->dateDebut !== ''
+                ? new \DateTimeImmutable($command->dateDebut)
+                : null);
         }
-        if ($command->dateFin !== null) {
-            $project->setDateFin(new \DateTimeImmutable($command->dateFin));
+        if ($command->hasDateFin) {
+            $project->setDateFin($command->dateFin !== null && $command->dateFin !== ''
+                ? new \DateTimeImmutable($command->dateFin)
+                : null);
         }
         if ($command->status !== null) {
             $project->setStatus(ProjectStatus::from($command->status));

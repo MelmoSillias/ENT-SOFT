@@ -34,11 +34,13 @@ final class UpdateEmployeeHandler
         if ($command->function !== null) {
             $employee->setFunction(FieldValidator::requireNonEmpty($command->function, 'Fonction'));
         }
-        if ($command->address !== null) {
+        if ($command->hasAddress) {
             $employee->setAddress($command->address);
         }
-        if ($command->userId !== null) {
-            $employee->setUserId($command->userId !== '' ? Uuid::fromString($command->userId) : null);
+        if ($command->hasUserId) {
+            $employee->setUserId($command->userId !== null && $command->userId !== ''
+                ? Uuid::fromString($command->userId)
+                : null);
         }
 
         $this->employeeRepository->save($employee);

@@ -20,8 +20,8 @@ def uid(key: str) -> str:
     return str(uuid.uuid5(NS, key))
 
 def bin_uuid(key: str) -> str:
-    """SQLite BLOB literal (Doctrine uuid type stores 16-byte binary)."""
-    return f"X'{uid(key).replace('-', '')}'"
+    """SQLite TEXT UUID (même octets que Doctrine ; CAST évite l'affinity BLOB de X'…')."""
+    return f"CAST(X'{uid(key).replace('-', '')}' AS TEXT)"
 
 def esc(s) -> str:
     if s is None:
@@ -378,7 +378,7 @@ for r in atel_rows:
 now = "2026-09-03 12:00:00"
 lines = []
 lines.append("-- Seed ENT-SOFT : ATEL MALI, techniciens, sites, projets Planning + Survey")
-lines.append("-- Genere pour SQLite (UUID en BLOB hex)")
+lines.append("-- Genere pour SQLite (UUID en TEXT via CAST, compatible Doctrine)")
 lines.append("-- Prerequis : migration Version20260903122230 (+ Version20260904120000 pour adresse client)")
 lines.append("")
 client_bin = bin_uuid("client:telecel")  # UUID stable (historique client:telecel)

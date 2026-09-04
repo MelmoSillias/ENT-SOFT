@@ -80,13 +80,16 @@ final class ProjectController extends AbstractController
         $result = $handler->handle(new UpdateProjectCommand(
             id: $id,
             title: $data['title'] ?? null,
-            object: $data['object'] ?? null,
-            dateDebut: $data['dateDebut'] ?? null,
-            dateFin: $data['dateFin'] ?? null,
+            object: array_key_exists('object', $data) ? $data['object'] : null,
+            dateDebut: array_key_exists('dateDebut', $data) ? $data['dateDebut'] : null,
+            dateFin: array_key_exists('dateFin', $data) ? $data['dateFin'] : null,
             status: $data['status'] ?? null,
             budget: isset($data['budget']) ? (float) $data['budget'] : null,
             clientId: $data['clientId'] ?? null,
             sitesInformations: $data['sitesInformations'] ?? null,
+            hasObject: array_key_exists('object', $data),
+            hasDateDebut: array_key_exists('dateDebut', $data),
+            hasDateFin: array_key_exists('dateFin', $data),
         ));
 
         return $this->json($result->toArray());

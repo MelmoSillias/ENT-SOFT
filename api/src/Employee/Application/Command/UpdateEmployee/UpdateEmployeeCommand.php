@@ -12,6 +12,8 @@ final readonly class UpdateEmployeeCommand
         public ?string $function = null,
         public ?string $address = null,
         public ?string $userId = null,
+        public bool $hasAddress = false,
+        public bool $hasUserId = false,
     ) {
     }
 }

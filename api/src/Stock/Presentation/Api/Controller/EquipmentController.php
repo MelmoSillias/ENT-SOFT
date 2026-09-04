@@ -58,8 +58,10 @@ final class EquipmentController extends AbstractController
         $result = $handler->handle(new UpdateEquipmentCommand(
             id: $id,
             title: $data['title'] ?? null,
-            description: $data['description'] ?? null,
-            clientId: $data['clientId'] ?? null,
+            description: array_key_exists('description', $data) ? $data['description'] : null,
+            clientId: array_key_exists('clientId', $data) ? $data['clientId'] : null,
+            hasDescription: array_key_exists('description', $data),
+            hasClientId: array_key_exists('clientId', $data),
         ));
 
         return $this->json($result->toArray());

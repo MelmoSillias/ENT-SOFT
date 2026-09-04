@@ -67,11 +67,14 @@ final class TaskController extends AbstractController
         $result = $handler->handle(new UpdateTaskCommand(
             id: $id,
             title: $data['title'] ?? null,
-            description: $data['description'] ?? null,
-            dateDue: $data['dateDue'] ?? null,
+            description: array_key_exists('description', $data) ? $data['description'] : null,
+            dateDue: array_key_exists('dateDue', $data) ? $data['dateDue'] : null,
             status: $data['status'] ?? null,
             siteId: $data['siteId'] ?? null,
-            employeeId: $data['employeeId'] ?? null,
+            employeeId: array_key_exists('employeeId', $data) ? $data['employeeId'] : null,
+            hasDescription: array_key_exists('description', $data),
+            hasDateDue: array_key_exists('dateDue', $data),
+            hasEmployeeId: array_key_exists('employeeId', $data),
         ));
 
         return $this->json($result->toArray());

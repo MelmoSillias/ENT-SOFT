@@ -25,11 +25,13 @@ final class UpdateSiteHandler
         if ($command->title !== null) {
             $site->setTitle(FieldValidator::requireNonEmpty($command->title, 'Titre'));
         }
-        if ($command->description !== null) {
+        if ($command->hasDescription) {
             $site->setDescription($command->description);
         }
-        if ($command->clientId !== null) {
-            $site->setClientId(Uuid::fromString($command->clientId));
+        if ($command->hasClientId) {
+            $site->setClientId($command->clientId !== null && $command->clientId !== ''
+                ? Uuid::fromString($command->clientId)
+                : null);
         }
 
         $this->siteRepository->save($site);

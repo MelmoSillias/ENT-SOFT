@@ -9,6 +9,8 @@ final readonly class UpdateEquipmentCommand
         public ?string $title = null,
         public ?string $description = null,
         public ?string $clientId = null,
+        public bool $hasDescription = false,
+        public bool $hasClientId = false,
     ) {
     }
 }

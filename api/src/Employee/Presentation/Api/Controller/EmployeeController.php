@@ -64,8 +64,10 @@ final class EmployeeController extends AbstractController
             email: $data['email'] ?? null,
             phone: $data['phone'] ?? null,
             function: $data['function'] ?? null,
-            address: $data['address'] ?? null,
-            userId: $data['userId'] ?? null,
+            address: array_key_exists('address', $data) ? $data['address'] : null,
+            userId: array_key_exists('userId', $data) ? $data['userId'] : null,
+            hasAddress: array_key_exists('address', $data),
+            hasUserId: array_key_exists('userId', $data),
         ));
 
         return $this->json($result->toArray());
