@@ -31,9 +31,8 @@ class DoctrineClientContactRepository extends ServiceEntityRepository implements
 
     public function findById(Uuid $id): ?ClientContact
     {
-        $qb = $this->createQueryBuilder('c')
-            ->andWhere('c.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('c');
+        UuidQueryParameter::eq($qb, 'c.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -41,9 +40,8 @@ class DoctrineClientContactRepository extends ServiceEntityRepository implements
     public function findByClientId(Uuid $clientId): array
     {
         $qb = $this->createQueryBuilder('c')
-            ->andWhere('c.clientId = :clientId')
             ->orderBy('c.name', 'ASC');
-        UuidQueryParameter::bind($qb, 'clientId', $clientId);
+        UuidQueryParameter::eq($qb, 'c.clientId', 'clientId', $clientId);
 
         return $qb->getQuery()->getResult();
     }

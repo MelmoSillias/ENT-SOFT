@@ -26,9 +26,8 @@ class DoctrineDocumentRepository extends ServiceEntityRepository implements Docu
 
     public function findById(Uuid $id): ?Document
     {
-        $qb = $this->createQueryBuilder('d')
-            ->andWhere('d.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('d');
+        UuidQueryParameter::eq($qb, 'd.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -37,12 +36,11 @@ class DoctrineDocumentRepository extends ServiceEntityRepository implements Docu
     {
         $qb = $this->createQueryBuilder('d')
             ->andWhere('d.ownerType = :ownerType')
-            ->andWhere('d.ownerId = :ownerId')
             ->andWhere('d.isEnabled = :enabled')
             ->setParameter('ownerType', $ownerType)
             ->setParameter('enabled', true)
             ->orderBy('d.createdAt', 'DESC');
-        UuidQueryParameter::bind($qb, 'ownerId', $ownerId);
+        UuidQueryParameter::eq($qb, 'd.ownerId', 'ownerId', $ownerId);
 
         return $qb->getQuery()->getResult();
     }

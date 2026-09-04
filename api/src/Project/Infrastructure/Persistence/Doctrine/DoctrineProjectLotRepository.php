@@ -25,9 +25,8 @@ class DoctrineProjectLotRepository extends ServiceEntityRepository implements Pr
 
     public function findById(Uuid $id): ?ProjectLot
     {
-        $qb = $this->createQueryBuilder('l')
-            ->andWhere('l.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('l');
+        UuidQueryParameter::eq($qb, 'l.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -35,9 +34,8 @@ class DoctrineProjectLotRepository extends ServiceEntityRepository implements Pr
     public function findByProjectId(Uuid $projectId): array
     {
         $qb = $this->createQueryBuilder('l')
-            ->andWhere('l.projectId = :projectId')
             ->orderBy('l.code', 'ASC');
-        UuidQueryParameter::bind($qb, 'projectId', $projectId);
+        UuidQueryParameter::eq($qb, 'l.projectId', 'projectId', $projectId);
 
         return $qb->getQuery()->getResult();
     }
@@ -45,10 +43,9 @@ class DoctrineProjectLotRepository extends ServiceEntityRepository implements Pr
     public function findByProjectAndCode(Uuid $projectId, string $code): ?ProjectLot
     {
         $qb = $this->createQueryBuilder('l')
-            ->andWhere('l.projectId = :projectId')
             ->andWhere('l.code = :code')
             ->setParameter('code', $code);
-        UuidQueryParameter::bind($qb, 'projectId', $projectId);
+        UuidQueryParameter::eq($qb, 'l.projectId', 'projectId', $projectId);
 
         return $qb->getQuery()->getOneOrNullResult();
     }

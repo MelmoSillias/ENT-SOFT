@@ -25,8 +25,17 @@ final class UpdateClientHandler
         if ($command->title !== null) {
             $client->setTitle(FieldValidator::requireNonEmpty($command->title, 'Titre'));
         }
-        if ($command->description !== null) {
+        if ($command->hasDescription) {
             $client->setDescription($command->description);
+        }
+        if ($command->hasAddress) {
+            $client->setAddress($command->address);
+        }
+        if ($command->hasPostalBox) {
+            $client->setPostalBox($command->postalBox);
+        }
+        if ($command->hasCity) {
+            $client->setCity($command->city);
         }
 
         $this->clientRepository->save($client);

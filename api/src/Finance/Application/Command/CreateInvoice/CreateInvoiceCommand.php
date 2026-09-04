@@ -10,6 +10,7 @@ final readonly class CreateInvoiceCommand
         public string $clientId,
         public string $status = 'draft',
         public ?string $projectId = null,
+        public ?string $projectLabel = null,
         public array $lines = [],
     ) {
     }

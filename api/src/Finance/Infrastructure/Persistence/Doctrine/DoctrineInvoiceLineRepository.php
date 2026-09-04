@@ -32,9 +32,8 @@ class DoctrineInvoiceLineRepository extends ServiceEntityRepository implements I
     public function findByInvoiceId(Uuid $invoiceId): array
     {
         $qb = $this->createQueryBuilder('l')
-            ->join('l.invoice', 'i')
-            ->andWhere('i.id = :invoiceId');
-        UuidQueryParameter::bind($qb, 'invoiceId', $invoiceId);
+            ->join('l.invoice', 'i');
+        UuidQueryParameter::eq($qb, 'i.id', 'invoiceId', $invoiceId);
 
         return $qb->getQuery()->getResult();
     }

@@ -21,7 +21,14 @@ final class CreateClientHandler
     {
         $title = FieldValidator::requireNonEmpty($command->title, 'Titre');
         $code = $this->codeGenerator->generate(ReferenceSequenceType::CLIENT);
-        $client = new Client($code, $title, $command->description);
+        $client = new Client(
+            $code,
+            $title,
+            $command->description,
+            $command->address,
+            $command->postalBox,
+            $command->city,
+        );
         $this->clientRepository->save($client);
 
         return ClientResponseDto::fromEntity($client);

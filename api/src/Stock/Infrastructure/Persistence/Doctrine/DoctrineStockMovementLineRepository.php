@@ -32,9 +32,8 @@ class DoctrineStockMovementLineRepository extends ServiceEntityRepository implem
     public function findByMovementId(Uuid $movementId): array
     {
         $qb = $this->createQueryBuilder('l')
-            ->join('l.movement', 'm')
-            ->andWhere('m.id = :movementId');
-        UuidQueryParameter::bind($qb, 'movementId', $movementId);
+            ->join('l.movement', 'm');
+        UuidQueryParameter::eq($qb, 'm.id', 'movementId', $movementId);
 
         return $qb->getQuery()->getResult();
     }

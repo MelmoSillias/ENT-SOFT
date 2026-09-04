@@ -38,7 +38,7 @@ const invoices = ref([])
 const loading = ref(true)
 const error = ref(null)
 const dialog = ref(false)
-const form = ref({ title: '', description: '', code: '' })
+const form = ref({ title: '', description: '', address: '', postalBox: '', city: '', code: '' })
 
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
@@ -67,6 +67,9 @@ function openEdit() {
   form.value = {
     title: client.value.title ?? '',
     description: client.value.description ?? '',
+    address: client.value.address ?? '',
+    postalBox: client.value.postalBox ?? '',
+    city: client.value.city ?? '',
     code: client.value.code,
   }
   resetErrors()
@@ -79,6 +82,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     await updateClient(client.value.id, {
       title: form.value.title.trim(),
       description: form.value.description || null,
+      address: form.value.address || null,
+      postalBox: form.value.postalBox || null,
+      city: form.value.city || null,
     })
     dialog.value = false
     await load()
@@ -155,6 +161,9 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async () => {
                 <dl class="detail-dl">
                   <div><dt>Code</dt><dd>{{ client.code }}</dd></div>
                   <div><dt>Titre</dt><dd>{{ client.title }}</dd></div>
+                  <div><dt>Adresse de service</dt><dd>{{ client.address || '—' }}</dd></div>
+                  <div><dt>Boîte postale</dt><dd>{{ client.postalBox || '—' }}</dd></div>
+                  <div><dt>Ville</dt><dd>{{ client.city || '—' }}</dd></div>
                   <div><dt>Description</dt><dd>{{ client.description || '—' }}</dd></div>
                   <div><dt>Statut</dt><dd><Tag :value="client.isEnabled ? 'Actif' : 'Inactif'" /></dd></div>
                   <div><dt>Créé le</dt><dd>{{ formatDateFr(client.createdAt) }}</dd></div>

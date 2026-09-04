@@ -42,6 +42,7 @@ final class InvoiceController extends AbstractController
             clientId: $data['clientId'] ?? '',
             status: $data['status'] ?? 'draft',
             projectId: $data['projectId'] ?? null,
+            projectLabel: $data['projectLabel'] ?? null,
             lines: $data['lines'] ?? [],
         ));
 
@@ -87,8 +88,10 @@ final class InvoiceController extends AbstractController
             date: $data['date'] ?? null,
             status: $data['status'] ?? null,
             clientId: $data['clientId'] ?? null,
-            projectId: $data['projectId'] ?? null,
+            projectId: array_key_exists('projectId', $data) ? ($data['projectId'] ?? '') : null,
+            projectLabel: array_key_exists('projectLabel', $data) ? ($data['projectLabel'] ?? '') : null,
             lines: $data['lines'] ?? null,
+            updateProject: array_key_exists('projectId', $data) || array_key_exists('projectLabel', $data),
         ));
 
         return $this->json($result->toArray());

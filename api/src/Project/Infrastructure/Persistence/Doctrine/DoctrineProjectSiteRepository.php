@@ -25,9 +25,8 @@ class DoctrineProjectSiteRepository extends ServiceEntityRepository implements P
 
     public function findById(Uuid $id): ?ProjectSite
     {
-        $qb = $this->createQueryBuilder('ps')
-            ->andWhere('ps.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('e');
+        UuidQueryParameter::eq($qb, 'e.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -35,20 +34,17 @@ class DoctrineProjectSiteRepository extends ServiceEntityRepository implements P
     public function findByProjectId(Uuid $projectId): array
     {
         $qb = $this->createQueryBuilder('ps')
-            ->andWhere('ps.projectId = :projectId')
             ->orderBy('ps.dateAdded', 'ASC');
-        UuidQueryParameter::bind($qb, 'projectId', $projectId);
+        UuidQueryParameter::eq($qb, 'ps.projectId', 'projectId', $projectId);
 
         return $qb->getQuery()->getResult();
     }
 
     public function findByProjectAndSite(Uuid $projectId, Uuid $siteId): ?ProjectSite
     {
-        $qb = $this->createQueryBuilder('ps')
-            ->andWhere('ps.projectId = :projectId')
-            ->andWhere('ps.siteId = :siteId');
-        UuidQueryParameter::bind($qb, 'projectId', $projectId);
-        UuidQueryParameter::bind($qb, 'siteId', $siteId);
+        $qb = $this->createQueryBuilder('ps');
+        UuidQueryParameter::eq($qb, 'ps.projectId', 'projectId', $projectId);
+        UuidQueryParameter::eq($qb, 'ps.siteId', 'siteId', $siteId);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -68,8 +64,7 @@ class DoctrineProjectSiteRepository extends ServiceEntityRepository implements P
         $qb = $this->createQueryBuilder('ps')
             ->select('ps.projectId AS projectId, COUNT(ps.id) AS siteCount')
             ->groupBy('ps.projectId');
-        UuidQueryParameter::bindList($qb, 'projectIds', $projectIds);
-        $qb->andWhere('ps.projectId IN (:projectIds)');
+        UuidQueryParameter::in($qb, 'ps.projectId', 'projectIds', $projectIds);
 
         $counts = [];
         foreach ($qb->getQuery()->getArrayResult() as $row) {

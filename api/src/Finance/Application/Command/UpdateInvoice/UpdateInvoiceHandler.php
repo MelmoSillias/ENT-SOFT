@@ -43,8 +43,16 @@ final class UpdateInvoiceHandler
         if ($command->clientId !== null) {
             $invoice->setClientId(Uuid::fromString($command->clientId));
         }
-        if ($command->projectId !== null) {
-            $invoice->setProjectId($command->projectId !== '' ? Uuid::fromString($command->projectId) : null);
+        if ($command->updateProject) {
+            $projectId = $command->projectId !== null && $command->projectId !== ''
+                ? Uuid::fromString($command->projectId)
+                : null;
+            $projectLabel = $command->projectLabel !== null ? trim($command->projectLabel) : null;
+            if ($projectLabel === '') {
+                $projectLabel = null;
+            }
+            $invoice->setProjectId($projectId);
+            $invoice->setProjectLabel($projectId ? null : $projectLabel);
         }
 
         $this->invoiceRepository->save($invoice);

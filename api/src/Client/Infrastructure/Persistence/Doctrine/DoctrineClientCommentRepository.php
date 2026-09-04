@@ -26,9 +26,8 @@ class DoctrineClientCommentRepository extends ServiceEntityRepository implements
     public function findByClientId(Uuid $clientId): array
     {
         $qb = $this->createQueryBuilder('c')
-            ->andWhere('c.clientId = :clientId')
             ->orderBy('c.createdAt', 'DESC');
-        UuidQueryParameter::bind($qb, 'clientId', $clientId);
+        UuidQueryParameter::eq($qb, 'c.clientId', 'clientId', $clientId);
 
         return $qb->getQuery()->getResult();
     }

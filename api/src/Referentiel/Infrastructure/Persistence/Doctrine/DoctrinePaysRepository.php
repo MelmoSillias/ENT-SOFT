@@ -2,9 +2,9 @@
 
 namespace App\Referentiel\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Referentiel\Domain\Entity\Pays;
 use App\Referentiel\Domain\Repository\PaysRepositoryInterface;
-use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -21,9 +21,8 @@ class DoctrinePaysRepository extends ServiceEntityRepository implements PaysRepo
 
     public function findById(Uuid $id): ?Pays
     {
-        $qb = $this->createQueryBuilder('p')
-            ->andWhere('p.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('p');
+        UuidQueryParameter::eq($qb, 'p.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }

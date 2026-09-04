@@ -14,6 +14,7 @@ final class InvoiceAssembler
     public function __construct(
         private readonly InvoiceLineRepositoryInterface $lineRepository,
         private readonly FinancialTransactionRepositoryInterface $transactionRepository,
+        private readonly InvoiceNumberResolver $numberResolver,
     ) {
     }
 
@@ -28,6 +29,11 @@ final class InvoiceAssembler
             $this->transactionRepository->findEnabledPaymentsByInvoiceId($invoice->getId()),
         );
 
-        return InvoiceResponseDto::fromEntity($invoice, $lines, $payments);
+        return InvoiceResponseDto::fromEntity(
+            $invoice,
+            $this->numberResolver->resolve($invoice),
+            $lines,
+            $payments,
+        );
     }
 }

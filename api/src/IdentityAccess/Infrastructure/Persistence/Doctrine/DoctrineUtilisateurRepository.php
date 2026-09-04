@@ -25,9 +25,8 @@ class DoctrineUtilisateurRepository extends ServiceEntityRepository implements U
 
     public function findById(Uuid $id): ?Utilisateur
     {
-        $qb = $this->createQueryBuilder('u')
-            ->andWhere('u.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('u');
+        UuidQueryParameter::eq($qb, 'u.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -54,8 +53,7 @@ class DoctrineUtilisateurRepository extends ServiceEntityRepository implements U
 
         $systemAdmin = $this->findSystemAdmin();
         if ($systemAdmin !== null) {
-            $qb->andWhere('u.id != :systemAdminId');
-            UuidQueryParameter::bind($qb, 'systemAdminId', $systemAdmin->getId());
+            UuidQueryParameter::neq($qb, 'u.id', 'systemAdminId', $systemAdmin->getId());
         }
 
         return $qb->getQuery()->getResult();

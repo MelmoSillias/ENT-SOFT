@@ -11,7 +11,9 @@ final readonly class UpdateInvoiceCommand
         public ?string $status = null,
         public ?string $clientId = null,
         public ?string $projectId = null,
+        public ?string $projectLabel = null,
         public ?array $lines = null,
+        public bool $updateProject = false,
     ) {
     }
 }

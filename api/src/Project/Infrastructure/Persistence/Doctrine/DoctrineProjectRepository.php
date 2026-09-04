@@ -26,9 +26,8 @@ class DoctrineProjectRepository extends ServiceEntityRepository implements Proje
 
     public function findById(Uuid $id): ?Project
     {
-        $qb = $this->createQueryBuilder('p')
-            ->andWhere('p.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('p');
+        UuidQueryParameter::eq($qb, 'p.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -52,10 +51,9 @@ class DoctrineProjectRepository extends ServiceEntityRepository implements Proje
     {
         $qb = $this->createQueryBuilder('p')
             ->select('COUNT(p.id)')
-            ->andWhere('p.clientId = :clientId')
             ->andWhere('p.isEnabled = :enabled')
             ->setParameter('enabled', true);
-        UuidQueryParameter::bind($qb, 'clientId', $clientId);
+        UuidQueryParameter::eq($qb, 'p.clientId', 'clientId', $clientId);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }

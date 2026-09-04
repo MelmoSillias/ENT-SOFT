@@ -25,9 +25,8 @@ class DoctrineEquipmentRepository extends ServiceEntityRepository implements Equ
 
     public function findById(Uuid $id): ?Equipment
     {
-        $qb = $this->createQueryBuilder('e')
-            ->andWhere('e.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('e');
+        UuidQueryParameter::eq($qb, 'e.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }

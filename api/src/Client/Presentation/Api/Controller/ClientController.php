@@ -43,6 +43,9 @@ final class ClientController extends AbstractController
         $result = $handler->handle(new CreateClientCommand(
             title: $data['title'] ?? '',
             description: $data['description'] ?? null,
+            address: $data['address'] ?? null,
+            postalBox: $data['postalBox'] ?? null,
+            city: $data['city'] ?? null,
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -71,6 +74,13 @@ final class ClientController extends AbstractController
             id: $id,
             title: $data['title'] ?? null,
             description: array_key_exists('description', $data) ? $data['description'] : null,
+            address: array_key_exists('address', $data) ? $data['address'] : null,
+            postalBox: array_key_exists('postalBox', $data) ? $data['postalBox'] : null,
+            city: array_key_exists('city', $data) ? $data['city'] : null,
+            hasAddress: array_key_exists('address', $data),
+            hasPostalBox: array_key_exists('postalBox', $data),
+            hasCity: array_key_exists('city', $data),
+            hasDescription: array_key_exists('description', $data),
         ));
 
         return $this->json($result->toArray());

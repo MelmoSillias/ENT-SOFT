@@ -60,11 +60,11 @@ const expandedRows = ref([])
 const canCreate = computed(() => hasPermission('finance.invoices.create'))
 
 function emptyLine() {
-  return { description: '', quantity: 1, unitPrice: 0 }
+  return { description: '', unit: 'Lot', quantity: 1, unitPrice: 0 }
 }
 
 function emptyForm() {
-  return { date: new Date(), clientId: null, projectId: null, status: 'draft', lines: [emptyLine()] }
+  return { date: new Date(), clientId: null, projectId: null, projectLabel: '', status: 'draft', lines: [emptyLine()] }
 }
 
 const form = ref(emptyForm())
@@ -137,9 +137,30 @@ function openEdit(item) {
     date: parseApiDate(item.date),
     clientId: item.clientId,
     projectId: item.projectId,
+    projectLabel: item.projectLabel ?? '',
     status: item.status ?? 'draft',
     lines: (item.lines?.length ? item.lines : [emptyLine()]).map((l) => ({
       description: l.description ?? '',
+      unit: l.unit ?? 'Lot',
+      quantity: l.quantity ?? 1,
+      unitPrice: l.unitPrice ?? 0,
+    })),
+  }
+  resetErrors()
+  dialog.value = true
+}
+
+function openDuplicate(item) {
+  editingId.value = null
+  form.value = {
+    date: new Date(),
+    clientId: item.clientId,
+    projectId: item.projectId,
+    projectLabel: item.projectLabel ?? '',
+    status: 'draft',
+    lines: (item.lines?.length ? item.lines : [emptyLine()]).map((l) => ({
+      description: l.description ?? '',
+      unit: l.unit ?? 'Lot',
       quantity: l.quantity ?? 1,
       unitPrice: l.unitPrice ?? 0,
     })),
@@ -159,6 +180,9 @@ function buildMenuItems(item) {
   const menu = []
   if (hasPermission('finance.transactions.create')) {
     menu.push({ label: 'Payer', icon: 'pi pi-wallet', command: () => openPay(item) })
+  }
+  if (hasPermission('finance.invoices.create')) {
+    menu.push({ label: 'Dupliquer', icon: 'pi pi-copy', command: () => openDuplicate(item) })
   }
   if (hasPermission('finance.invoices.update')) {
     menu.push({
@@ -243,11 +267,13 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     date: toApiDate(form.value.date),
     clientId: form.value.clientId,
     projectId: form.value.projectId || null,
+    projectLabel: String(form.value.projectLabel || '').trim() || null,
     status: form.value.status,
     lines: (form.value.lines ?? [])
       .filter((l) => String(l.description || '').trim())
       .map((l) => ({
         description: String(l.description).trim(),
+        unit: String(l.unit || 'Lot').trim() || 'Lot',
         quantity: Number(l.quantity || 0),
         unitPrice: Number(l.unitPrice || 0),
       })),
@@ -335,16 +361,42 @@ const printFormatItems = computed(() => [
               </template>
             </Column>
             <template #expansion="{ data }">
-              <div class="invoice-payments">
-                <p class="invoice-payments__title">Paiements</p>
-                <p v-if="!(data.payments ?? []).length" class="invoice-payments__empty">Aucun paiement.</p>
-                <div v-for="payment in data.payments" :key="payment.id" class="invoice-payments__row">
-                  <div>
-                    <strong>{{ formatDateFr(payment.date) }}</strong>
-                    — {{ formatMontant(payment.amount, DEVISE_APP) }}
-                    <span v-if="payment.description"> · {{ payment.description }}</span>
+              <div class="invoice-expansion">
+                <div class="invoice-expansion__section">
+                  <p class="invoice-expansion__title">Lignes</p>
+                  <p v-if="!(data.lines ?? []).length" class="invoice-expansion__empty">Aucune ligne.</p>
+                  <table v-else class="invoice-lines-table">
+                    <thead>
+                      <tr>
+                        <th>Libellé</th>
+                        <th>Unité</th>
+                        <th>Qté</th>
+                        <th>P.U.</th>
+                        <th>Montant</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(line, idx) in data.lines" :key="line.id || idx">
+                        <td>{{ line.description }}</td>
+                        <td>{{ line.unit || 'Lot' }}</td>
+                        <td>{{ line.quantity }}</td>
+                        <td>{{ formatMontant(line.unitPrice, DEVISE_APP) }}</td>
+                        <td>{{ formatMontant(line.amount ?? Number(line.quantity || 0) * Number(line.unitPrice || 0), DEVISE_APP) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="invoice-expansion__section">
+                  <p class="invoice-expansion__title">Paiements</p>
+                  <p v-if="!(data.payments ?? []).length" class="invoice-expansion__empty">Aucun paiement.</p>
+                  <div v-for="payment in data.payments" :key="payment.id" class="invoice-payments__row">
+                    <div>
+                      <strong>{{ formatDateFr(payment.date) }}</strong>
+                      — {{ formatMontant(payment.amount, DEVISE_APP) }}
+                      <span v-if="payment.description"> · {{ payment.description }}</span>
+                    </div>
+                    <TransactionAttachments :owner-id="payment.id" />
                   </div>
-                  <TransactionAttachments :owner-id="payment.id" />
                 </div>
               </div>
             </template>
@@ -386,18 +438,40 @@ const printFormatItems = computed(() => [
 </template>
 
 <style scoped>
-.invoice-payments {
+.invoice-expansion {
   padding: 0.75rem 0.5rem 1rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
-.invoice-payments__title {
+.invoice-expansion__title {
   margin: 0 0 0.5rem;
   font-weight: 600;
 }
 
-.invoice-payments__empty {
+.invoice-expansion__empty {
   margin: 0;
   color: var(--layout-text-muted);
+}
+
+.invoice-lines-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.invoice-lines-table th,
+.invoice-lines-table td {
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--p-content-border-color, #e2e8f0);
+}
+
+.invoice-lines-table th:nth-child(n + 3),
+.invoice-lines-table td:nth-child(n + 3) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .invoice-payments__row {

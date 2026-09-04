@@ -44,14 +44,15 @@ const GROUPS = [
     titleKey: 'REFERENCE_EQUIPMENT_TITRE_RECU',
     defaultTitle: 'EQUIPEMENT',
   },
-  {
-    id: 'invoice',
-    label: 'Factures',
-    prefixKey: 'REFERENCE_INVOICE_PREFIXE',
-    digitsKey: 'REFERENCE_INVOICE_NB_CHIFFRES',
-    titleKey: 'REFERENCE_INVOICE_TITRE_RECU',
-    defaultTitle: 'FACTURE',
-  },
+]
+
+const INVOICE_FORMAT_KEY = 'REFERENCE_INVOICE_FORMAT'
+const INVOICE_SIGLE_KEY = 'REFERENCE_INVOICE_SIGLE'
+const INVOICE_TITLE_KEY = 'REFERENCE_INVOICE_TITRE_RECU'
+
+const INVOICE_FORMAT_OPTIONS = [
+  { value: 'sequential', label: 'Séquentiel (1, 2, 3…)' },
+  { value: 'monthly', label: 'Mensuel (ENT1/9-2026)' },
 ]
 
 const DIGIT_OPTIONS = Array.from({ length: 8 }, (_, i) => ({
@@ -64,7 +65,12 @@ const loading = ref(true)
 const error = ref(null)
 const success = ref(null)
 
-const allKeys = GROUPS.flatMap((group) => [group.prefixKey, group.digitsKey, group.titleKey])
+const allKeys = [
+  ...GROUPS.flatMap((group) => [group.prefixKey, group.digitsKey, group.titleKey]),
+  INVOICE_FORMAT_KEY,
+  INVOICE_SIGLE_KEY,
+  INVOICE_TITLE_KEY,
+]
 
 function previewForGroup(group) {
   const prefix = String(form.value[group.prefixKey] ?? '')
@@ -77,6 +83,17 @@ function previewForGroup(group) {
 const previews = computed(() =>
   Object.fromEntries(GROUPS.map((group) => [group.id, previewForGroup(group)])),
 )
+
+const invoicePreview = computed(() => {
+  const format = form.value[INVOICE_FORMAT_KEY] === 'monthly' ? 'monthly' : 'sequential'
+  if (format === 'sequential') {
+    return '1'
+  }
+  const sigle = String(form.value[INVOICE_SIGLE_KEY] || 'ENT').trim() || 'ENT'
+  const now = new Date()
+
+  return `${sigle}1/${now.getMonth() + 1}-${now.getFullYear()}`
+})
 
 async function load() {
   loading.value = true
@@ -93,6 +110,9 @@ async function load() {
       form.value[group.digitsKey] = map[group.digitsKey] ?? '3'
       form.value[group.titleKey] = map[group.titleKey] ?? group.defaultTitle
     }
+    form.value[INVOICE_FORMAT_KEY] = map[INVOICE_FORMAT_KEY] === 'monthly' ? 'monthly' : 'sequential'
+    form.value[INVOICE_SIGLE_KEY] = map[INVOICE_SIGLE_KEY] ?? 'ENT'
+    form.value[INVOICE_TITLE_KEY] = map[INVOICE_TITLE_KEY] ?? 'FACTURE'
   } catch (e) {
     error.value = e.response?.data?.error || 'Impossible de charger les paramètres de numérotation.'
   } finally {
@@ -175,6 +195,54 @@ onMounted(load)
 
         <p class="numerotation-settings__preview">
           Exemple : <strong>{{ previews[group.id] }}</strong>
+        </p>
+      </section>
+
+      <section class="numerotation-settings__group">
+        <h3 class="numerotation-settings__group-title">Factures</h3>
+
+        <div class="field">
+          <label for="invoice-format">Format affiché</label>
+          <Select
+            id="invoice-format"
+            v-model="form[INVOICE_FORMAT_KEY]"
+            :options="INVOICE_FORMAT_OPTIONS"
+            option-label="label"
+            option-value="value"
+            :disabled="!canEdit"
+            fluid
+          />
+          <small class="numerotation-settings__hint">
+            Les deux formats sont générés à la création ; seul celui choisi est affiché et imprimé. Modifiable à tout moment.
+          </small>
+        </div>
+
+        <div class="field">
+          <label for="invoice-sigle">Sigle (format mensuel)</label>
+          <InputText
+            id="invoice-sigle"
+            v-model="form[INVOICE_SIGLE_KEY]"
+            fluid
+            :readonly="!canEdit"
+            placeholder="ENT"
+          />
+        </div>
+
+        <div class="field">
+          <label for="invoice-title">Titre du reçu</label>
+          <InputText
+            id="invoice-title"
+            v-model="form[INVOICE_TITLE_KEY]"
+            fluid
+            :readonly="!canEdit"
+          />
+          <small class="numerotation-settings__hint">
+            Texte affiché comme libellé interne.
+          </small>
+        </div>
+
+        <p class="numerotation-settings__preview">
+          Exemple : <strong>{{ invoicePreview }}</strong>
         </p>
       </section>
 

@@ -30,9 +30,8 @@ class DoctrineHistoriqueTauxRepository extends ServiceEntityRepository implement
     public function findByLiaisonId(Uuid $liaisonId): array
     {
         $qb = $this->createQueryBuilder('h')
-            ->andWhere('h.liaisonId = :liaisonId')
             ->orderBy('h.dateModification', 'DESC');
-        UuidQueryParameter::bind($qb, 'liaisonId', $liaisonId);
+        UuidQueryParameter::eq($qb, 'h.liaisonId', 'liaisonId', $liaisonId);
 
         return $qb->getQuery()->getResult();
     }

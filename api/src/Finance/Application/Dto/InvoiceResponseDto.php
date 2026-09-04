@@ -13,11 +13,14 @@ final readonly class InvoiceResponseDto
     public function __construct(
         public string $id,
         public string $number,
+        public string $numberSequential,
+        public string $numberMonthly,
         public string $date,
         public float $amount,
         public string $status,
         public string $clientId,
         public ?string $projectId,
+        public ?string $projectLabel,
         public bool $isEnabled,
         public string $createdAt,
         public string $updatedAt,
@@ -28,8 +31,12 @@ final readonly class InvoiceResponseDto
     ) {
     }
 
-    public static function fromEntity(Invoice $invoice, array $lines = [], array $payments = []): self
-    {
+    public static function fromEntity(
+        Invoice $invoice,
+        string $displayNumber,
+        array $lines = [],
+        array $payments = [],
+    ): self {
         $paidAmount = 0.0;
         foreach ($payments as $payment) {
             $paidAmount += (float) ($payment['amount'] ?? 0);
@@ -37,12 +44,15 @@ final readonly class InvoiceResponseDto
 
         return new self(
             id: (string) $invoice->getId(),
-            number: $invoice->getNumber(),
+            number: $displayNumber,
+            numberSequential: $invoice->getNumber(),
+            numberMonthly: $invoice->getNumberMonthly(),
             date: $invoice->getDate()->format('Y-m-d'),
             amount: $invoice->getAmount(),
             status: $invoice->getStatus()->value,
             clientId: (string) $invoice->getClientId(),
             projectId: $invoice->getProjectId()?->toRfc4122(),
+            projectLabel: $invoice->getProjectLabel(),
             isEnabled: $invoice->isEnabled(),
             createdAt: $invoice->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $invoice->getUpdatedAt()->format(\DateTimeInterface::ATOM),
@@ -59,11 +69,14 @@ final readonly class InvoiceResponseDto
         return [
             'id' => $this->id,
             'number' => $this->number,
+            'numberSequential' => $this->numberSequential,
+            'numberMonthly' => $this->numberMonthly,
             'date' => $this->date,
             'amount' => $this->amount,
             'status' => $this->status,
             'clientId' => $this->clientId,
             'projectId' => $this->projectId,
+            'projectLabel' => $this->projectLabel,
             'isEnabled' => $this->isEnabled,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,

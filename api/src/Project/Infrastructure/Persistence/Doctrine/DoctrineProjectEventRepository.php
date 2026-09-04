@@ -26,9 +26,8 @@ class DoctrineProjectEventRepository extends ServiceEntityRepository implements 
     public function findByProjectId(Uuid $projectId): array
     {
         $qb = $this->createQueryBuilder('e')
-            ->andWhere('e.projectId = :projectId')
             ->orderBy('e.date', 'DESC');
-        UuidQueryParameter::bind($qb, 'projectId', $projectId);
+        UuidQueryParameter::eq($qb, 'e.projectId', 'projectId', $projectId);
 
         return $qb->getQuery()->getResult();
     }

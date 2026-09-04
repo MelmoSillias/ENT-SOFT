@@ -38,7 +38,7 @@ const menuModel = ref([])
 const canCreate = computed(() => hasPermission('client.clients.create'))
 
 function emptyForm() {
-  return { title: '', description: '' }
+  return { title: '', description: '', address: '', postalBox: '', city: '' }
 }
 
 const form = ref(emptyForm())
@@ -103,7 +103,14 @@ function openCreate() {
 
 function openEdit(item) {
   editingId.value = item.id
-  form.value = { title: item.title ?? '', description: item.description ?? '', code: item.code }
+  form.value = {
+    title: item.title ?? '',
+    description: item.description ?? '',
+    address: item.address ?? '',
+    postalBox: item.postalBox ?? '',
+    city: item.city ?? '',
+    code: item.code,
+  }
   resetErrors()
   dialog.value = true
 }
@@ -150,7 +157,13 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async (item) => {
 
 const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   if (!validateForm()) return
-  const payload = { title: form.value.title.trim(), description: form.value.description || null }
+  const payload = {
+    title: form.value.title.trim(),
+    description: form.value.description || null,
+    address: form.value.address || null,
+    postalBox: form.value.postalBox || null,
+    city: form.value.city || null,
+  }
   try {
     if (editingId.value) {
       await updateClient(editingId.value, payload)

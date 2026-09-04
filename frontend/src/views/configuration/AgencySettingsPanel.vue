@@ -18,6 +18,9 @@ const AGENCY_KEYS = [
   { cle: 'AGENCE_VILLE', label: 'Ville', type: 'text' },
   { cle: 'AGENCE_EMAIL', label: 'Email', type: 'email' },
   { cle: 'AGENCE_SITE_WEB', label: 'Site web', type: 'url' },
+  { cle: 'AGENCE_NINA', label: 'N° Matricule National Nina', type: 'text' },
+  { cle: 'AGENCE_NIF_FISCAL', label: 'N° Fiscal', type: 'text' },
+  { cle: 'AGENCE_PAYEE', label: 'Bénéficiaire des paiements', type: 'text' },
 ]
 
 const form = ref({})

@@ -26,9 +26,8 @@ class DoctrineInvoiceRepository extends ServiceEntityRepository implements Invoi
 
     public function findById(Uuid $id): ?Invoice
     {
-        $qb = $this->createQueryBuilder('i')
-            ->andWhere('i.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('i');
+        UuidQueryParameter::eq($qb, 'i.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -47,10 +46,9 @@ class DoctrineInvoiceRepository extends ServiceEntityRepository implements Invoi
     {
         $qb = $this->createQueryBuilder('i')
             ->select('COUNT(i.id)')
-            ->andWhere('i.clientId = :clientId')
             ->andWhere('i.isEnabled = :enabled')
             ->setParameter('enabled', true);
-        UuidQueryParameter::bind($qb, 'clientId', $clientId);
+        UuidQueryParameter::eq($qb, 'i.clientId', 'clientId', $clientId);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }

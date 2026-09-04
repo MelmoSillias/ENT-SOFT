@@ -2,9 +2,9 @@
 
 namespace App\Employee\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Employee\Domain\Entity\Employee;
 use App\Employee\Domain\Repository\EmployeeRepositoryInterface;
-use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -25,9 +25,8 @@ class DoctrineEmployeeRepository extends ServiceEntityRepository implements Empl
 
     public function findById(Uuid $id): ?Employee
     {
-        $qb = $this->createQueryBuilder('e')
-            ->andWhere('e.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('e');
+        UuidQueryParameter::eq($qb, 'e.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }

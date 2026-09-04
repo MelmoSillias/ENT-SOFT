@@ -30,10 +30,14 @@ final class InvoiceLineWriter
             $description = FieldValidator::requireNonEmpty((string) ($lineData['description'] ?? ''), 'Libellé de ligne');
             $quantity = (float) ($lineData['quantity'] ?? 0);
             $unitPrice = (float) ($lineData['unitPrice'] ?? 0);
+            $unit = trim((string) ($lineData['unit'] ?? 'Lot'));
+            if ($unit === '') {
+                $unit = 'Lot';
+            }
             if ($quantity <= 0) {
                 throw new \InvalidArgumentException('La quantité de ligne doit être supérieure à 0.');
             }
-            $line = new InvoiceLine($invoice, $description, $quantity, $unitPrice);
+            $line = new InvoiceLine($invoice, $description, $quantity, $unitPrice, $unit);
             $this->lineRepository->save($line);
             $total += $line->getAmount();
         }

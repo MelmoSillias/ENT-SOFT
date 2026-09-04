@@ -25,9 +25,8 @@ class DoctrineStockMovementRepository extends ServiceEntityRepository implements
 
     public function findById(Uuid $id): ?StockMovement
     {
-        $qb = $this->createQueryBuilder('m')
-            ->andWhere('m.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('m');
+        UuidQueryParameter::eq($qb, 'm.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }

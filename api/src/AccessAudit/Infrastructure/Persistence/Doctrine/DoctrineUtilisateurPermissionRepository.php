@@ -21,20 +21,17 @@ class DoctrineUtilisateurPermissionRepository extends ServiceEntityRepository im
 
     public function findByUtilisateurId(Uuid $utilisateurId): array
     {
-        $qb = $this->createQueryBuilder('up')
-            ->andWhere('up.utilisateurId = :utilisateurId');
-        UuidQueryParameter::bind($qb, 'utilisateurId', $utilisateurId);
+        $qb = $this->createQueryBuilder('up');
+        UuidQueryParameter::eq($qb, 'up.utilisateurId', 'utilisateurId', $utilisateurId);
 
         return $qb->getQuery()->getResult();
     }
 
     public function findOneByUtilisateurAndPermission(Uuid $utilisateurId, Uuid $permissionId): ?UtilisateurPermission
     {
-        $qb = $this->createQueryBuilder('up')
-            ->where('up.utilisateurId = :utilisateurId')
-            ->andWhere('up.permission = :permissionId');
-        UuidQueryParameter::bind($qb, 'utilisateurId', $utilisateurId);
-        UuidQueryParameter::bind($qb, 'permissionId', $permissionId);
+        $qb = $this->createQueryBuilder('up');
+        UuidQueryParameter::eq($qb, 'up.utilisateurId', 'utilisateurId', $utilisateurId);
+        UuidQueryParameter::eq($qb, 'up.permission', 'permissionId', $permissionId);
 
         return $qb->getQuery()->getOneOrNullResult();
     }

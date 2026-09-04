@@ -25,9 +25,8 @@ class DoctrineSiteRepository extends ServiceEntityRepository implements SiteRepo
 
     public function findById(Uuid $id): ?Site
     {
-        $qb = $this->createQueryBuilder('s')
-            ->andWhere('s.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('s');
+        UuidQueryParameter::eq($qb, 's.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -63,9 +62,8 @@ class DoctrineSiteRepository extends ServiceEntityRepository implements SiteRepo
             return [];
         }
 
-        $qb = $this->createQueryBuilder('s')
-            ->andWhere('s.id IN (:ids)');
-        UuidQueryParameter::bindList($qb, 'ids', $ids);
+        $qb = $this->createQueryBuilder('s');
+        UuidQueryParameter::in($qb, 's.id', 'ids', $ids);
 
         return $qb->getQuery()->getResult();
     }

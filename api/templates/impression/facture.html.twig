@@ -1,47 +1,240 @@
 {% extends 'impression/_layout.html.twig' %}
 
+{% block header %}{% endblock %}
+
+{% block footer %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    body {
+        font-family: 'DejaVu Serif', 'Times New Roman', Times, serif;
+        font-size: 11pt;
+        color: #000;
+        line-height: 1.35;
+    }
+
+    .inv-top {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 6px;
+    }
+    .inv-top td { vertical-align: top; padding: 0; }
+    .inv-company-name {
+        font-size: 22pt;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        line-height: 1.1;
+        margin: 0;
+    }
+    .inv-company-addr {
+        font-size: 11pt;
+        margin: 2px 0 0;
+    }
+    .inv-number {
+        text-align: right;
+        font-size: 12pt;
+        text-decoration: underline;
+        white-space: nowrap;
+        padding-top: 4px;
+    }
+    .inv-meta-box {
+        border: 1px solid #000;
+        border-collapse: collapse;
+        margin-top: 8px;
+        float: right;
+        width: 46mm;
+    }
+    .inv-meta-box th,
+    .inv-meta-box td {
+        border: 1px solid #000;
+        padding: 3px 6px;
+        text-align: center;
+        font-size: 10pt;
+    }
+    .inv-meta-box th {
+        font-weight: 700;
+        background: #fff;
+    }
+
+    .inv-legal {
+        clear: both;
+        margin: 10px 0 14px;
+        font-size: 10.5pt;
+        line-height: 1.45;
+    }
+    .inv-legal div { margin: 0; }
+
+    .inv-section-bar {
+        background: #4a4a4a;
+        color: #fff;
+        font-weight: 700;
+        font-size: 11pt;
+        letter-spacing: 0.04em;
+        padding: 4px 10px;
+        margin: 0;
+        text-transform: uppercase;
+    }
+    .inv-section-bar--light {
+        background: #9a9a9a;
+        color: #000;
+        text-transform: none;
+        letter-spacing: 0;
+        font-weight: 700;
+    }
+    .inv-section-body {
+        padding: 6px 4px 10px;
+        font-size: 11pt;
+    }
+
+    .inv-project {
+        text-align: center;
+        font-weight: 700;
+        font-size: 11.5pt;
+        margin: 8px 0 12px;
+    }
+
+    .inv-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0 0 14px;
+        font-size: 10.5pt;
+    }
+    .inv-table th,
+    .inv-table td {
+        border: 1px solid #000;
+        padding: 5px 6px;
+        vertical-align: middle;
+    }
+    .inv-table thead th {
+        background: #4a4a4a;
+        color: #fff;
+        font-weight: 700;
+        text-align: center;
+    }
+    .inv-table .col-desc { text-align: left; width: 48%; }
+    .inv-table .col-unit { text-align: center; width: 10%; }
+    .inv-table .col-qty { text-align: center; width: 10%; }
+    .inv-table .col-pu { text-align: right; width: 16%; white-space: nowrap; }
+    .inv-table .col-amt { text-align: right; width: 16%; white-space: nowrap; }
+    .inv-table .row-total td {
+        font-weight: 700;
+        text-align: right;
+    }
+    .inv-table .row-total .total-label {
+        text-align: right;
+        padding-right: 10px;
+    }
+
+    .inv-words {
+        margin: 12px 0 18px;
+        font-size: 10.5pt;
+    }
+    .inv-pay {
+        text-align: center;
+        margin: 18px 0 8px;
+        font-size: 11pt;
+    }
+    .inv-footer-contact {
+        text-align: center;
+        font-weight: 700;
+        font-size: 10.5pt;
+        text-decoration: underline;
+        margin-top: 6px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-    <div class="doc-title-band">
-        <h1 class="doc-title">{{ data.statusLabel }}</h1>
-        <div>
-            <div class="doc-number-badge">{{ data.invoice.number }}</div>
-            <div class="doc-date">{{ data.invoice.date }}</div>
-        </div>
+    <table class="inv-top">
+        <tr>
+            <td style="width:58%">
+                <p class="inv-company-name">{{ profile.shop_name }}</p>
+                {% if profile.address %}
+                    <p class="inv-company-addr">{{ profile.address }}</p>
+                {% endif %}
+            </td>
+            <td style="width:42%">
+                <div class="inv-number">Facture N°{{ data.invoice.number }}</div>
+                <table class="inv-meta-box">
+                    <tr>
+                        <th>Facture</th>
+                        <th>Date</th>
+                    </tr>
+                    <tr>
+                        <td>{{ data.invoice.number }}</td>
+                        <td>{{ data.invoice.date }}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <div class="inv-legal">
+        {% if profile.ville_bracket %}<div>{{ profile.ville_bracket }}</div>{% endif %}
+        {% if profile.nina %}<div>N° Matricule National Nina : {{ profile.nina }}</div>{% endif %}
+        {% if profile.nif_fiscal %}<div>N° Fiscal {{ profile.nif_fiscal }}</div>{% endif %}
+        {% if profile.phone %}<div>Phone : {{ profile.phone }}</div>{% endif %}
+        {% if profile.email %}<div>{{ profile.email }}</div>{% endif %}
     </div>
 
-    <div class="info-card">
-        <p class="doc-meta"><strong>Client :</strong> {{ data.clientName }}</p>
-        {% if data.projectName %}
-            <p class="doc-meta"><strong>Projet :</strong> {{ data.projectName }}</p>
+    <div class="inv-section-bar">BILL TO</div>
+    <div class="inv-section-body">{{ data.clientName }}</div>
+
+    <div class="inv-section-bar inv-section-bar--light">Information sur le Service</div>
+    <div class="inv-section-body">
+        {% if data.serviceLines is empty %}
+            —
+        {% else %}
+            {% for line in data.serviceLines %}
+                <div>{{ line }}</div>
+            {% endfor %}
         {% endif %}
-        <p class="doc-meta"><strong>Statut :</strong> {{ data.statusLabel }}</p>
     </div>
 
-    <table class="doc-table">
+    {% if data.projectName %}
+        <div class="inv-project">Project : {{ data.projectName }}</div>
+    {% endif %}
+
+    <table class="inv-table">
         <thead>
             <tr>
-                <th>Désignation</th>
-                <th class="col-num">Qté</th>
-                <th class="col-num">Prix unitaire</th>
-                <th class="col-num">Montant</th>
+                <th class="col-desc">Description</th>
+                <th class="col-unit">Unit</th>
+                <th class="col-qty">QTY</th>
+                <th class="col-pu">Prix/U</th>
+                <th class="col-amt">Montant</th>
             </tr>
         </thead>
         <tbody>
             {% if data.invoice.lines is empty %}
-                <tr><td colspan="4" class="empty">Aucune ligne</td></tr>
+                <tr>
+                    <td colspan="5" style="text-align:center">Aucune ligne</td>
+                </tr>
             {% else %}
                 {% for line in data.invoice.lines %}
                     <tr>
-                        <td>{{ line.description }}</td>
-                        <td class="col-num">{{ line.quantity }}</td>
-                        <td class="col-num">{{ line.unitPrice }}</td>
-                        <td class="col-num">{{ line.amount }}</td>
+                        <td class="col-desc">{{ line.description }}</td>
+                        <td class="col-unit">{{ line.unit }}</td>
+                        <td class="col-qty">{{ line.quantity }}</td>
+                        <td class="col-pu">{{ line.unitPrice }}</td>
+                        <td class="col-amt">{{ line.amount }}</td>
                     </tr>
                 {% endfor %}
             {% endif %}
+            <tr class="row-total">
+                <td colspan="4" class="total-label">TOTAL</td>
+                <td class="col-amt">{{ data.invoice.amount }}</td>
+            </tr>
         </tbody>
     </table>
 
-    <p class="doc-meta" style="text-align:right"><strong>Total : {{ data.invoice.amount }}</strong></p>
-    <p class="doc-meta" style="text-align:right">Payé : {{ data.invoice.paidAmount }}</p>
+    <div class="inv-words">{{ data.amountInWords }}</div>
+
+    {% if profile.payee %}
+        <div class="inv-pay">Veuillez Paye à l'ordre de {{ profile.payee }}</div>
+    {% endif %}
+
+    {% if profile.footer_text %}
+        <div class="inv-footer-contact">{{ profile.footer_text }}</div>
+    {% endif %}
 {% endblock %}

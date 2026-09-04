@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Generate ENT-SOFT SQL seed from Planning + Survey Excel files."""
 from __future__ import annotations
 
@@ -377,14 +377,14 @@ for r in atel_rows:
 
 now = "2026-09-03 12:00:00"
 lines = []
-lines.append("-- Seed ENT-SOFT : Telecel, techniciens, sites, projets Planning + Survey")
+lines.append("-- Seed ENT-SOFT : ATEL MALI, techniciens, sites, projets Planning + Survey")
 lines.append("-- Genere pour SQLite (UUID en BLOB hex)")
-lines.append("-- Prerequis : migration Version20260903122230")
+lines.append("-- Prerequis : migration Version20260903122230 (+ Version20260904120000 pour adresse client)")
 lines.append("")
-client_bin = bin_uuid("client:telecel")
-lines.append("-- === Client Telecel ===")
-lines.append(f"INSERT INTO clients (id, code, title, description, created_at, updated_at, is_enabled) VALUES ({client_bin}, 'CLI-TELECEL', 'Telecel', 'Operateur telecoms — projets ENT', '{now}', '{now}', 1);")
-lines.append(f"INSERT INTO client_contacts (id, client_id, name, phone, created_at) VALUES ({bin_uuid('contact:telecel:ops')}, {client_bin}, 'Contact operations Telecel', '00000000', '{now}');")
+client_bin = bin_uuid("client:telecel")  # UUID stable (historique client:telecel)
+lines.append("-- === Client ATEL MALI ===")
+lines.append(f"INSERT INTO clients (id, code, title, description, address, postal_box, city, created_at, updated_at, is_enabled) VALUES ({client_bin}, 'CLI-ATEL', 'ATEL MALI', 'Client principal — projets ENT', 'HAMDALLAYE ACI 2000, Immeuble TELECEL', 'BP 2842', 'Bamako', '{now}', '{now}', 1);")
+lines.append(f"INSERT INTO client_contacts (id, client_id, name, phone, created_at) VALUES ({bin_uuid('contact:telecel:ops')}, {client_bin}, 'Contact operations ATEL', '00000000', '{now}');")
 lines.append("")
 lines.append("-- === Techniciens ===")
 for name, phone in employees.items():
@@ -475,6 +475,30 @@ insert_project(
 for i, r in enumerate(atel_rows):
     # technicien volontairement vide (NULL) — champ present dans informationsValues
     insert_ps("proj:atel-solaire", r["code"], r["status"], r["vals"], tech=None, idx=i)
+
+lines.append("")
+lines.append("-- === Paramètres agence / impression (upsert) ===")
+agency_settings = [
+    ("AGENCE_NOM", "ENT TECHNOLOGY", "STRING", "Nom de l'entreprise"),
+    ("AGENCE_TELEPHONE", "(+223) 74 50 45 92 / 50 30 70 70", "STRING", "Téléphone de l'entreprise"),
+    ("AGENCE_ADRESSE", "ACI 2000", "STRING", "Adresse de l'entreprise"),
+    ("AGENCE_VILLE", "Bamako, Mali", "STRING", "Ville de l'entreprise"),
+    ("AGENCE_EMAIL", "Ouattarahamidou@gmail.com", "STRING", "Email de l'entreprise"),
+    ("AGENCE_NINA", "42509195397048P", "STRING", "N° Matricule National Nina"),
+    ("AGENCE_NIF_FISCAL", "085157253V", "STRING", "N° Fiscal"),
+    ("AGENCE_PAYEE", "Mr Hamidou OUTTARA", "STRING", "Bénéficiaire des paiements (factures)"),
+    ("IMPRESSION_FOOTER_TEXT", "[ENT, 74 50 45 92 / 50 30 70 70 ouattarahamidou2@gmail.com]", "STRING", "Pied de page des documents"),
+    ("IMPRESSION_SHOW_LOGO", "false", "STRING", "Afficher le logo sur les documents"),
+    ("IMPRESSION_MARGIN_MM", "18", "INTEGER", "Marges d'impression (mm)"),
+    ("REFERENCE_INVOICE_PREFIXE", "", "STRING", "Préfixe des numéros de facture"),
+    ("REFERENCE_INVOICE_NB_CHIFFRES", "2", "INTEGER", "Nombre de chiffres du numéro de facture"),
+]
+for cle, valeur, typ, desc in agency_settings:
+    lines.append(
+        f"INSERT INTO settings (cle, valeur, type, description, created_at, updated_at) VALUES "
+        f"({esc(cle)}, {esc(valeur)}, {esc(typ)}, {esc(desc)}, '{now}', '{now}') "
+        f"ON CONFLICT(cle) DO UPDATE SET valeur=excluded.valeur, updated_at=excluded.updated_at;"
+    )
 
 OUT.write_text("\n".join(lines)+"\n", encoding="utf-8")
 # fix accents

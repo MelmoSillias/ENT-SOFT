@@ -24,6 +24,18 @@ defineProps({
       <AppFieldError :message="errors.title" />
     </div>
     <div class="field ent-form-grid__full">
+      <label>Adresse de service</label>
+      <InputText v-model="form.address" placeholder="Ex. HAMDALLAYE ACI 2000, Immeuble TELECEL" fluid />
+    </div>
+    <div class="field">
+      <label>Boîte postale</label>
+      <InputText v-model="form.postalBox" placeholder="Ex. BP 2842" fluid />
+    </div>
+    <div class="field">
+      <label>Ville</label>
+      <InputText v-model="form.city" placeholder="Ex. Bamako" fluid />
+    </div>
+    <div class="field ent-form-grid__full">
       <label>Description</label>
       <Textarea v-model="form.description" rows="3" auto-resize fluid />
     </div>

@@ -26,9 +26,8 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
 
     public function findById(Uuid $id): ?FinancialTransaction
     {
-        $qb = $this->createQueryBuilder('t')
-            ->andWhere('t.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('t');
+        UuidQueryParameter::eq($qb, 't.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -46,13 +45,12 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
     public function findEnabledPaymentsByInvoiceId(Uuid $invoiceId): array
     {
         $qb = $this->createQueryBuilder('t')
-            ->andWhere('t.invoiceId = :invoiceId')
             ->andWhere('t.isEnabled = :enabled')
             ->andWhere('t.category = :category')
             ->setParameter('enabled', true)
             ->setParameter('category', TransactionCategory::INVOICE_PAYMENT)
             ->orderBy('t.date', 'DESC');
-        UuidQueryParameter::bind($qb, 'invoiceId', $invoiceId);
+        UuidQueryParameter::eq($qb, 't.invoiceId', 'invoiceId', $invoiceId);
 
         return $qb->getQuery()->getResult();
     }

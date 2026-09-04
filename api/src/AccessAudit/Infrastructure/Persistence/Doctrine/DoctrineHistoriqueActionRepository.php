@@ -69,13 +69,11 @@ class DoctrineHistoriqueActionRepository extends ServiceEntityRepository impleme
         $qb = $this->createQueryBuilder('h');
 
         if (null !== $utilisateurId) {
-            $qb->andWhere('h.utilisateurId = :utilisateurId');
-            UuidQueryParameter::bind($qb, 'utilisateurId', $utilisateurId);
+            UuidQueryParameter::eq($qb, 'h.utilisateurId', 'utilisateurId', $utilisateurId);
         }
 
         if (null !== $excludeUtilisateurId) {
-            $qb->andWhere('h.utilisateurId != :excludeUtilisateurId');
-            UuidQueryParameter::bind($qb, 'excludeUtilisateurId', $excludeUtilisateurId);
+            UuidQueryParameter::neq($qb, 'h.utilisateurId', 'excludeUtilisateurId', $excludeUtilisateurId);
         }
 
         if (null !== $action && '' !== $action) {

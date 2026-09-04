@@ -26,9 +26,8 @@ class DoctrineTaskRepository extends ServiceEntityRepository implements TaskRepo
 
     public function findById(Uuid $id): ?Task
     {
-        $qb = $this->createQueryBuilder('t')
-            ->andWhere('t.id = :id');
-        UuidQueryParameter::bind($qb, 'id', $id);
+        $qb = $this->createQueryBuilder('t');
+        UuidQueryParameter::eq($qb, 't.id', 'id', $id);
 
         return $qb->getQuery()->getOneOrNullResult();
     }
@@ -46,12 +45,10 @@ class DoctrineTaskRepository extends ServiceEntityRepository implements TaskRepo
             ->orderBy('t.dateDue', 'ASC');
 
         if ($siteId !== null) {
-            $qb->andWhere('t.siteId = :siteId');
-            UuidQueryParameter::bind($qb, 'siteId', $siteId);
+            UuidQueryParameter::eq($qb, 't.siteId', 'siteId', $siteId);
         }
         if ($employeeId !== null) {
-            $qb->andWhere('t.employeeId = :employeeId');
-            UuidQueryParameter::bind($qb, 'employeeId', $employeeId);
+            UuidQueryParameter::eq($qb, 't.employeeId', 'employeeId', $employeeId);
         }
         if ($status !== null) {
             $qb->andWhere('t.status = :status')->setParameter('status', $status);
