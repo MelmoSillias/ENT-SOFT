@@ -4,6 +4,7 @@ namespace App\Referentiel\Infrastructure\Persistence\Doctrine;
 
 use App\Referentiel\Domain\Entity\PaysDeviseLiaison;
 use App\Referentiel\Domain\Repository\PaysDeviseLiaisonRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -20,30 +21,34 @@ class DoctrinePaysDeviseLiaisonRepository extends ServiceEntityRepository implem
 
     public function findById(Uuid $id): ?PaysDeviseLiaison
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('l')
+            ->andWhere('l.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findByPaysId(Uuid $paysId): array
     {
-        return $this->createQueryBuilder('l')
+        $qb = $this->createQueryBuilder('l')
             ->innerJoin('l.devise', 'd')
             ->andWhere('l.pays = :paysId')
-            ->setParameter('paysId', $paysId, 'uuid')
             ->orderBy('l.isDefaut', 'DESC')
-            ->addOrderBy('d.code', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->addOrderBy('d.code', 'ASC');
+        UuidQueryParameter::bind($qb, 'paysId', $paysId);
+
+        return $qb->getQuery()->getResult();
     }
 
     public function findByPaysAndDevise(Uuid $paysId, Uuid $deviseId): ?PaysDeviseLiaison
     {
-        return $this->createQueryBuilder('l')
+        $qb = $this->createQueryBuilder('l')
             ->andWhere('l.pays = :paysId')
-            ->andWhere('l.devise = :deviseId')
-            ->setParameter('paysId', $paysId, 'uuid')
-            ->setParameter('deviseId', $deviseId, 'uuid')
-            ->getQuery()
-            ->getOneOrNullResult();
+            ->andWhere('l.devise = :deviseId');
+        UuidQueryParameter::bind($qb, 'paysId', $paysId);
+        UuidQueryParameter::bind($qb, 'deviseId', $deviseId);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findAll(): array
@@ -67,8 +72,8 @@ class DoctrinePaysDeviseLiaisonRepository extends ServiceEntityRepository implem
             ->setParameter('true', true);
 
         if (null !== $exceptId) {
-            $qb->andWhere('l.id != :exceptId')
-                ->setParameter('exceptId', $exceptId, 'uuid');
+            $qb->andWhere('l.id != :exceptId');
+            UuidQueryParameter::bind($qb, 'exceptId', $exceptId);
         }
 
         $qb->getQuery()->execute();

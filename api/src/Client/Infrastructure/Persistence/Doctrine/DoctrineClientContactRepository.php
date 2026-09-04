@@ -4,6 +4,7 @@ namespace App\Client\Infrastructure\Persistence\Doctrine;
 
 use App\Client\Domain\Entity\ClientContact;
 use App\Client\Domain\Repository\ClientContactRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -30,16 +31,20 @@ class DoctrineClientContactRepository extends ServiceEntityRepository implements
 
     public function findById(Uuid $id): ?ClientContact
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('c')
+            ->andWhere('c.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findByClientId(Uuid $clientId): array
     {
-        return $this->createQueryBuilder('c')
+        $qb = $this->createQueryBuilder('c')
             ->andWhere('c.clientId = :clientId')
-            ->setParameter('clientId', $clientId, 'uuid')
-            ->orderBy('c.name', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('c.name', 'ASC');
+        UuidQueryParameter::bind($qb, 'clientId', $clientId);
+
+        return $qb->getQuery()->getResult();
     }
 }

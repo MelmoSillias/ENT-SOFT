@@ -4,6 +4,7 @@ namespace App\AccessAudit\Infrastructure\Persistence\Doctrine;
 
 use App\AccessAudit\Domain\Entity\UtilisateurPermission;
 use App\AccessAudit\Domain\Repository\UtilisateurPermissionRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -20,18 +21,22 @@ class DoctrineUtilisateurPermissionRepository extends ServiceEntityRepository im
 
     public function findByUtilisateurId(Uuid $utilisateurId): array
     {
-        return $this->findBy(['utilisateurId' => $utilisateurId]);
+        $qb = $this->createQueryBuilder('up')
+            ->andWhere('up.utilisateurId = :utilisateurId');
+        UuidQueryParameter::bind($qb, 'utilisateurId', $utilisateurId);
+
+        return $qb->getQuery()->getResult();
     }
 
     public function findOneByUtilisateurAndPermission(Uuid $utilisateurId, Uuid $permissionId): ?UtilisateurPermission
     {
-        return $this->createQueryBuilder('up')
+        $qb = $this->createQueryBuilder('up')
             ->where('up.utilisateurId = :utilisateurId')
-            ->andWhere('up.permission = :permissionId')
-            ->setParameter('utilisateurId', $utilisateurId, 'uuid')
-            ->setParameter('permissionId', $permissionId, 'uuid')
-            ->getQuery()
-            ->getOneOrNullResult();
+            ->andWhere('up.permission = :permissionId');
+        UuidQueryParameter::bind($qb, 'utilisateurId', $utilisateurId);
+        UuidQueryParameter::bind($qb, 'permissionId', $permissionId);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function save(UtilisateurPermission $utilisateurPermission, bool $flush = true): void

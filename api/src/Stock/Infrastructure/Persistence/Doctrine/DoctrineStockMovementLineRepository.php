@@ -2,6 +2,7 @@
 
 namespace App\Stock\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Stock\Domain\Entity\StockMovementLine;
 use App\Stock\Domain\Repository\StockMovementLineRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -30,11 +31,11 @@ class DoctrineStockMovementLineRepository extends ServiceEntityRepository implem
 
     public function findByMovementId(Uuid $movementId): array
     {
-        return $this->createQueryBuilder('l')
+        $qb = $this->createQueryBuilder('l')
             ->join('l.movement', 'm')
-            ->andWhere('m.id = :movementId')
-            ->setParameter('movementId', $movementId, 'uuid')
-            ->getQuery()
-            ->getResult();
+            ->andWhere('m.id = :movementId');
+        UuidQueryParameter::bind($qb, 'movementId', $movementId);
+
+        return $qb->getQuery()->getResult();
     }
 }

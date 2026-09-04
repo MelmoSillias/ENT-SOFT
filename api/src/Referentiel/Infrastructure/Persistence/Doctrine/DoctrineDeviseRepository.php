@@ -4,6 +4,7 @@ namespace App\Referentiel\Infrastructure\Persistence\Doctrine;
 
 use App\Referentiel\Domain\Entity\Devise;
 use App\Referentiel\Domain\Repository\DeviseRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -20,7 +21,11 @@ class DoctrineDeviseRepository extends ServiceEntityRepository implements Devise
 
     public function findById(Uuid $id): ?Devise
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('d')
+            ->andWhere('d.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findByCode(string $code): ?Devise

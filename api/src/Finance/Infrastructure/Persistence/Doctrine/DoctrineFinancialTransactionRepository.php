@@ -5,6 +5,7 @@ namespace App\Finance\Infrastructure\Persistence\Doctrine;
 use App\Finance\Domain\Entity\FinancialTransaction;
 use App\Finance\Domain\Enum\TransactionCategory;
 use App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -25,7 +26,11 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
 
     public function findById(Uuid $id): ?FinancialTransaction
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findAllEnabled(): array
@@ -40,15 +45,15 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
 
     public function findEnabledPaymentsByInvoiceId(Uuid $invoiceId): array
     {
-        return $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->andWhere('t.invoiceId = :invoiceId')
             ->andWhere('t.isEnabled = :enabled')
             ->andWhere('t.category = :category')
-            ->setParameter('invoiceId', $invoiceId, 'uuid')
             ->setParameter('enabled', true)
             ->setParameter('category', TransactionCategory::INVOICE_PAYMENT)
-            ->orderBy('t.date', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('t.date', 'DESC');
+        UuidQueryParameter::bind($qb, 'invoiceId', $invoiceId);
+
+        return $qb->getQuery()->getResult();
     }
 }

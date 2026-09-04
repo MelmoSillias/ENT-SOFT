@@ -94,16 +94,30 @@ const ALL_EXTRA_COLS = computed(() => [
   { key: '__technician', label: 'Technicien' },
 ])
 
-const savedSettings = loadSettings()
-const visibleColKeys = ref(
-  savedSettings?.visibleColKeys ?? ALL_EXTRA_COLS.value.map((c) => c.key),
-)
-const statusFilter = ref(savedSettings?.statusFilter ?? [])
+function defaultVisibleColKeys() {
+  return ALL_EXTRA_COLS.value.map((c) => c.key)
+}
+
+function applyLoadedSettings(saved) {
+  visibleColKeys.value = saved?.visibleColKeys ?? defaultVisibleColKeys()
+  statusFilter.value = saved?.statusFilter ?? []
+  frozenUntilKey.value = saved?.frozenUntilKey ?? 'siteCode'
+  searchQuery.value = saved?.searchQuery ?? ''
+}
+
+const initialSettings = loadSettings()
+const visibleColKeys = ref(initialSettings?.visibleColKeys ?? defaultVisibleColKeys())
+const statusFilter = ref(initialSettings?.statusFilter ?? [])
 
 /** Key of the last frozen column (all previous are frozen too). */
-const frozenUntilKey = ref(savedSettings?.frozenUntilKey ?? 'siteCode')
-const searchQuery = ref(savedSettings?.searchQuery ?? '')
+const frozenUntilKey = ref(initialSettings?.frozenUntilKey ?? 'siteCode')
+const searchQuery = ref(initialSettings?.searchQuery ?? '')
 const fluidExpanded = ref(false)
+
+/** Remount DataTable when freeze/visibility changes so PrimeVue recalculates sticky offsets. */
+const tableLayoutKey = computed(
+  () => `${frozenUntilKey.value}|${visibleColKeys.value.join(',')}`,
+)
 
 watch([visibleColKeys, frozenUntilKey, statusFilter, searchQuery], () => {
   saveSettings({
@@ -113,6 +127,13 @@ watch([visibleColKeys, frozenUntilKey, statusFilter, searchQuery], () => {
     searchQuery: searchQuery.value,
   })
 })
+
+watch(
+  () => props.projectId,
+  () => {
+    applyLoadedSettings(loadSettings())
+  },
+)
 
 function isColVisible(key) {
   return visibleColKeys.value.includes(key)
@@ -133,14 +154,36 @@ const freezeableColumns = computed(() => {
   if (isColVisible('__technician') && props.sites.some((s) => s.technicianName)) {
     cols.push({ key: '__technician', label: 'Technicien' })
   }
+  // Keep persisted freeze target selectable even if that column is currently hidden
+  const until = frozenUntilKey.value
+  if (until && !cols.some((c) => c.key === until)) {
+    const fromExtra = ALL_EXTRA_COLS.value.find((c) => c.key === until)
+    const fallbackLabel =
+      until === '__num'
+        ? '#'
+        : until === 'siteCode'
+          ? 'Code site'
+          : until === 'siteTitle'
+            ? 'Nom du site'
+            : until
+    cols.push(fromExtra ?? { key: until, label: fallbackLabel })
+  }
   return cols
 })
 
+/** Full left→right order used to resolve freeze, including currently hidden columns. */
+const fullFreezeOrder = computed(() => {
+  const keys = ['__num', 'siteCode', 'siteTitle']
+  for (const c of infoColumns.value) keys.push(c.key)
+  keys.push('__status', '__comment', '__technician')
+  return keys
+})
+
 function isColumnFrozen(colKey) {
-  const keys = freezeableColumns.value.map((c) => c.key)
-  let untilIdx = keys.indexOf(frozenUntilKey.value)
-  if (untilIdx < 0) untilIdx = keys.indexOf('siteCode')
-  const colIdx = keys.indexOf(colKey)
+  const order = fullFreezeOrder.value
+  let untilIdx = order.indexOf(frozenUntilKey.value)
+  if (untilIdx < 0) untilIdx = order.indexOf('siteCode')
+  const colIdx = order.indexOf(colKey)
   if (colIdx < 0) return false
   return colIdx <= Math.max(untilIdx, 0)
 }
@@ -566,10 +609,14 @@ async function doExport(format) {
 }
 
 onMounted(() => {
+  // Re-apply persisted settings once mounted (visible tab) so freeze is effective immediately
+  applyLoadedSettings(loadSettings())
+
   // Ensure newly added info columns appear in visibility list
+  const saved = loadSettings()
   const known = new Set(visibleColKeys.value)
   for (const col of ALL_EXTRA_COLS.value) {
-    if (!known.has(col.key) && !savedSettings?.visibleColKeys) {
+    if (!known.has(col.key) && !saved?.visibleColKeys) {
       visibleColKeys.value = [...visibleColKeys.value, col.key]
     }
   }
@@ -701,6 +748,7 @@ onMounted(() => {
           <h3 v-if="group.lot" class="pst-lot-title">{{ lotLabel(group.lot) }}</h3>
 
           <DataTable
+            :key="'pst-' + (group.lot?.code ?? 'all') + '-' + tableLayoutKey"
             :value="group.sites"
             scrollable
             scroll-height="flex"
@@ -864,6 +912,7 @@ onMounted(() => {
           >
             <h3 v-if="group.lot" class="pst-lot-title">{{ lotLabel(group.lot) }}</h3>
             <DataTable
+              :key="'pst-fluid-' + (group.lot?.code ?? 'all') + '-' + tableLayoutKey"
               :value="group.sites"
               scrollable
               scroll-height="flex"
@@ -1046,9 +1095,17 @@ onMounted(() => {
 
 <style scoped>
 .pst-root {
+  --pst-header-bg: var(--p-datatable-header-cell-background, var(--p-datatable-header-background));
+  --pst-row-bg: var(--p-datatable-body-cell-background);
+  --pst-row-hover-bg: var(--p-datatable-row-hover-background);
+  --pst-border: var(--pv-surface-border, var(--layout-panel-border));
+  --pst-text: var(--pv-text, var(--layout-text-color));
+  --pst-text-muted: var(--pv-text-muted, var(--layout-text-muted));
+
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  color: var(--pst-text);
 }
 
 .pst-groups {
@@ -1067,7 +1124,7 @@ onMounted(() => {
   margin: 0;
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--layout-text-muted, #64748b);
+  color: var(--pst-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 0.1rem 0;
@@ -1076,7 +1133,10 @@ onMounted(() => {
 .pst-empty {
   padding: 2rem;
   text-align: center;
-  color: var(--layout-text-muted, #64748b);
+  color: var(--pst-text-muted);
+  border: 1px dashed color-mix(in srgb, var(--pst-border) 78%, transparent);
+  border-radius: var(--layout-radius-lg, 0.5rem);
+  background: color-mix(in srgb, var(--layout-panel-bg) 88%, transparent);
 }
 
 .pst-empty--filtered {
@@ -1102,50 +1162,76 @@ onMounted(() => {
   width: 14rem;
 }
 
+.pst-table {
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  /* Do not set overflow:hidden here — it breaks position:sticky on frozen columns */
+}
+
+.pst-table :deep(.p-datatable-table-container),
+.pst-table :deep(.p-datatable-wrapper) {
+  border: 1px solid var(--pst-border);
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  background: var(--pst-row-bg);
+}
+
 .pst-table :deep(.p-datatable-thead > tr > th) {
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  background: var(--surface-100, #f1f5f9);
-  color: var(--text-color, #1e293b);
+  background: var(--pst-header-bg);
+  color: var(--pst-text);
   padding: 0.45rem 0.6rem;
   white-space: nowrap;
-  border-color: var(--surface-300, #cbd5e1);
+  border-color: var(--pst-border);
+}
+
+.pst-table :deep(.p-datatable-tbody > tr) {
+  background: transparent;
+  color: var(--pst-text);
 }
 
 .pst-table :deep(.p-datatable-tbody > tr > td) {
   font-size: 0.79rem;
   padding: 0.35rem 0.6rem;
-  border-color: var(--surface-200, #e2e8f0);
+  border-color: var(--pst-border);
+  color: var(--pst-text);
+  background: transparent;
+}
+
+.pst-table :deep(.p-datatable-tbody > tr:hover) {
+  background: var(--pst-row-hover-bg);
 }
 
 .pst-table :deep(.p-datatable-tbody > tr:hover > td) {
-  background: var(--surface-50, #f8fafc);
+  background: transparent;
 }
 
 /* Opaque frozen columns so scrolled cells don’t show through */
-.pst-table :deep(.p-datatable-frozen-column),
-.pst-table :deep(td.p-datatable-frozen-column),
-.pst-table :deep(th.p-datatable-frozen-column) {
-  background: var(--p-datatable-body-cell-background, var(--surface-0, #ffffff)) !important;
+.pst-table :deep(td.p-datatable-frozen-column) {
+  background: var(--pst-row-bg) !important;
 }
 
 .pst-table :deep(th.p-datatable-frozen-column) {
-  background: var(--surface-100, #f1f5f9) !important;
-}
-
-.pst-table :deep(.p-datatable-tbody > tr:nth-child(even) > td.p-datatable-frozen-column) {
-  background: var(--p-datatable-row-striped-background, var(--surface-50, #f8fafc)) !important;
+  background: var(--pst-header-bg) !important;
 }
 
 .pst-table :deep(.p-datatable-tbody > tr:hover > td.p-datatable-frozen-column) {
-  background: var(--surface-50, #f8fafc) !important;
+  background: var(--pst-row-hover-bg) !important;
+}
+
+/* Right edge of the frozen block — stays visible while scrolling for contrast */
+.pst-table :deep(th.p-datatable-frozen-column:has(+ :not(.p-datatable-frozen-column))),
+.pst-table :deep(td.p-datatable-frozen-column:has(+ :not(.p-datatable-frozen-column))) {
+  border-right: 1px solid var(--pst-border) !important;
+  box-shadow:
+    1px 0 0 0 var(--pst-border),
+    3px 0 4px -2px color-mix(in srgb, var(--pst-text) 12%, transparent);
 }
 
 .pst-num {
   font-size: 0.72rem;
-  color: var(--layout-text-muted, #94a3b8);
+  color: var(--pst-text-muted);
   font-weight: 600;
   display: block;
   text-align: center;
@@ -1155,6 +1241,7 @@ onMounted(() => {
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 0.78rem;
+  color: var(--pst-text);
 }
 
 .pst-actions {
@@ -1169,6 +1256,7 @@ onMounted(() => {
   gap: 0.75rem;
   min-width: 18rem;
   max-width: 22rem;
+  color: var(--pst-text);
 }
 
 .pst-settings__title {
@@ -1177,12 +1265,12 @@ onMounted(() => {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--layout-text-muted, #64748b);
+  color: var(--pst-text-muted);
 }
 
 .pst-settings__hint {
   font-size: 0.75rem;
-  color: var(--layout-text-muted, #64748b);
+  color: var(--pst-text-muted);
   margin-top: -0.35rem;
 }
 
@@ -1197,6 +1285,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
+  color: var(--pst-text);
   cursor: pointer;
 }
 
@@ -1204,6 +1293,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  color: var(--pst-text);
 }
 
 .pst-comment__actions {
@@ -1216,6 +1306,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  color: var(--pst-text);
 }
 
 .pst-dialog__mode {
@@ -1227,6 +1318,12 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.pst-dialog .field > label {
+  color: var(--pst-text);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .pst-dialog__new-site {
@@ -1241,7 +1338,7 @@ onMounted(() => {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--layout-text-muted, #64748b);
+  color: var(--pst-text-muted);
 }
 
 .pst-dialog__error {
@@ -1250,11 +1347,44 @@ onMounted(() => {
 }
 
 .pst-dialog__hint {
-  color: var(--layout-text-muted, #64748b);
+  color: var(--pst-text-muted);
   font-size: 0.75rem;
 }
 
 .required {
   color: var(--p-red-500, #ef4444);
+}
+</style>
+
+<!-- Teleported overlays inherit theme tokens from the document root -->
+<style>
+.pst-fluid-dialog.p-dialog {
+  background: var(--layout-panel-bg);
+  border-color: var(--layout-panel-border);
+  color: var(--layout-text-color);
+}
+
+.pst-fluid-dialog.p-dialog .p-dialog-header {
+  background: color-mix(in srgb, var(--layout-panel-bg) 92%, var(--layout-accent-soft));
+  border-bottom-color: var(--layout-panel-border);
+  color: var(--layout-text-color);
+}
+
+.pst-fluid-dialog.p-dialog .p-dialog-content {
+  background: var(--layout-panel-bg);
+  color: var(--layout-text-color);
+}
+
+.pst-settings-panel.p-popover,
+.pst-comment-panel.p-popover {
+  background: var(--layout-panel-bg);
+  border-color: var(--layout-panel-border);
+  color: var(--layout-text-color);
+}
+
+.pst-settings-panel.p-popover .p-popover-content,
+.pst-comment-panel.p-popover .p-popover-content {
+  background: transparent;
+  color: inherit;
 }
 </style>

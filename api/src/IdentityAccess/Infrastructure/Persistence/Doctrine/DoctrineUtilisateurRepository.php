@@ -4,6 +4,7 @@ namespace App\IdentityAccess\Infrastructure\Persistence\Doctrine;
 
 use App\IdentityAccess\Domain\Entity\Utilisateur;
 use App\IdentityAccess\Domain\Repository\UtilisateurRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -24,7 +25,11 @@ class DoctrineUtilisateurRepository extends ServiceEntityRepository implements U
 
     public function findById(Uuid $id): ?Utilisateur
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('u')
+            ->andWhere('u.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findByLogin(string $login): ?Utilisateur
@@ -49,8 +54,8 @@ class DoctrineUtilisateurRepository extends ServiceEntityRepository implements U
 
         $systemAdmin = $this->findSystemAdmin();
         if ($systemAdmin !== null) {
-            $qb->andWhere('u.id != :systemAdminId')
-                ->setParameter('systemAdminId', $systemAdmin->getId(), 'uuid');
+            $qb->andWhere('u.id != :systemAdminId');
+            UuidQueryParameter::bind($qb, 'systemAdminId', $systemAdmin->getId());
         }
 
         return $qb->getQuery()->getResult();

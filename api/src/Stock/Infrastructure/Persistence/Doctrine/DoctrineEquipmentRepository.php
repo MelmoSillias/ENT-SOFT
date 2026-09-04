@@ -2,6 +2,7 @@
 
 namespace App\Stock\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Stock\Domain\Entity\Equipment;
 use App\Stock\Domain\Repository\EquipmentRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -24,7 +25,11 @@ class DoctrineEquipmentRepository extends ServiceEntityRepository implements Equ
 
     public function findById(Uuid $id): ?Equipment
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('e')
+            ->andWhere('e.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findAllEnabled(?string $search = null): array

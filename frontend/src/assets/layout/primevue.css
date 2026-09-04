@@ -621,6 +621,38 @@
   background: color-mix(in srgb, var(--pv-accent-soft) 45%, var(--pv-surface-bg)) !important;
 }
 
+/* Frozen columns must stay opaque across themes / dark mode */
+.p-datatable-thead > tr > th.p-datatable-frozen-column,
+.p-treetable-thead > tr > th.p-datatable-frozen-column {
+  background: var(
+    --p-datatable-header-cell-background,
+    color-mix(in srgb, var(--pv-surface-bg) 92%, var(--pv-accent-soft))
+  ) !important;
+}
+
+.p-datatable-tbody > tr > td.p-datatable-frozen-column,
+.p-treetable-tbody > tr > td.p-datatable-frozen-column {
+  background: var(
+    --p-datatable-body-cell-background,
+    color-mix(in srgb, var(--layout-panel-bg) 96%, var(--layout-page-bg))
+  ) !important;
+}
+
+.p-datatable-tbody > tr:hover > td.p-datatable-frozen-column,
+.p-treetable-tbody > tr:hover > td.p-datatable-frozen-column {
+  background: color-mix(in srgb, var(--pv-accent-soft) 45%, var(--pv-surface-bg)) !important;
+}
+
+.p-datatable-tbody > tr.p-row-odd > td.p-datatable-frozen-column,
+.p-treetable-tbody > tr.p-row-odd > td.p-datatable-frozen-column {
+  background: color-mix(in srgb, var(--layout-panel-bg) 88%, var(--layout-page-bg)) !important;
+}
+
+.p-datatable-tbody > tr.p-row-odd:hover > td.p-datatable-frozen-column,
+.p-treetable-tbody > tr.p-row-odd:hover > td.p-datatable-frozen-column {
+  background: color-mix(in srgb, var(--pv-accent-soft) 45%, var(--pv-surface-bg)) !important;
+}
+
 .p-datatable-footer,
 .p-treetable-footer {
   background: color-mix(in srgb, var(--pv-surface-bg) 92%, var(--pv-accent-soft)) !important;

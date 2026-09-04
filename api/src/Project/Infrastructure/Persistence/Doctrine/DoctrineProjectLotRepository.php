@@ -25,7 +25,11 @@ class DoctrineProjectLotRepository extends ServiceEntityRepository implements Pr
 
     public function findById(Uuid $id): ?ProjectLot
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('l')
+            ->andWhere('l.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findByProjectId(Uuid $projectId): array

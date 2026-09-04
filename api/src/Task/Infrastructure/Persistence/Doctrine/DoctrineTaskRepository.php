@@ -2,6 +2,7 @@
 
 namespace App\Task\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Task\Domain\Entity\Task;
 use App\Task\Domain\Enum\TaskStatus;
 use App\Task\Domain\Repository\TaskRepositoryInterface;
@@ -25,7 +26,11 @@ class DoctrineTaskRepository extends ServiceEntityRepository implements TaskRepo
 
     public function findById(Uuid $id): ?Task
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findFiltered(
@@ -41,10 +46,12 @@ class DoctrineTaskRepository extends ServiceEntityRepository implements TaskRepo
             ->orderBy('t.dateDue', 'ASC');
 
         if ($siteId !== null) {
-            $qb->andWhere('t.siteId = :siteId')->setParameter('siteId', $siteId, 'uuid');
+            $qb->andWhere('t.siteId = :siteId');
+            UuidQueryParameter::bind($qb, 'siteId', $siteId);
         }
         if ($employeeId !== null) {
-            $qb->andWhere('t.employeeId = :employeeId')->setParameter('employeeId', $employeeId, 'uuid');
+            $qb->andWhere('t.employeeId = :employeeId');
+            UuidQueryParameter::bind($qb, 'employeeId', $employeeId);
         }
         if ($status !== null) {
             $qb->andWhere('t.status = :status')->setParameter('status', $status);

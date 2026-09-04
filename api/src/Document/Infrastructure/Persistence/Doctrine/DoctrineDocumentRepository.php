@@ -5,6 +5,7 @@ namespace App\Document\Infrastructure\Persistence\Doctrine;
 use App\Document\Domain\Entity\Document;
 use App\Document\Domain\Enum\DocumentOwnerType;
 use App\Document\Domain\Repository\DocumentRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -25,20 +26,24 @@ class DoctrineDocumentRepository extends ServiceEntityRepository implements Docu
 
     public function findById(Uuid $id): ?Document
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('d')
+            ->andWhere('d.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findByOwner(DocumentOwnerType $ownerType, Uuid $ownerId): array
     {
-        return $this->createQueryBuilder('d')
+        $qb = $this->createQueryBuilder('d')
             ->andWhere('d.ownerType = :ownerType')
             ->andWhere('d.ownerId = :ownerId')
             ->andWhere('d.isEnabled = :enabled')
             ->setParameter('ownerType', $ownerType)
-            ->setParameter('ownerId', $ownerId, 'uuid')
             ->setParameter('enabled', true)
-            ->orderBy('d.createdAt', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('d.createdAt', 'DESC');
+        UuidQueryParameter::bind($qb, 'ownerId', $ownerId);
+
+        return $qb->getQuery()->getResult();
     }
 }

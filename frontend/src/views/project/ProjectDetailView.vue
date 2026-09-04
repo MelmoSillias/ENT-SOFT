@@ -23,6 +23,7 @@ const router = useRouter()
 const project = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const activeTab = ref('0')
 
 async function load() {
   loading.value = true
@@ -56,7 +57,7 @@ onMounted(load)
         </div>
       </template>
       <template #content>
-        <Tabs value="0">
+        <Tabs v-model:value="activeTab">
           <TabList>
             <Tab value="0">Informations</Tab>
             <Tab value="1">Sites ({{ project.sites?.length ?? 0 }})</Tab>
@@ -74,7 +75,9 @@ onMounted(load)
               </dl>
             </TabPanel>
             <TabPanel value="1">
+              <!-- Mount only when visible so frozen columns get correct layout from persisted settings -->
               <ProjectSitesTable
+                v-if="activeTab === '1'"
                 :sites="project.sites"
                 :sites-informations="project.sitesInformations"
                 :lots="project.lots"

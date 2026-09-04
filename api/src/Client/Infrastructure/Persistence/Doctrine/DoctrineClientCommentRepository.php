@@ -4,6 +4,7 @@ namespace App\Client\Infrastructure\Persistence\Doctrine;
 
 use App\Client\Domain\Entity\ClientComment;
 use App\Client\Domain\Repository\ClientCommentRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -24,11 +25,11 @@ class DoctrineClientCommentRepository extends ServiceEntityRepository implements
 
     public function findByClientId(Uuid $clientId): array
     {
-        return $this->createQueryBuilder('c')
+        $qb = $this->createQueryBuilder('c')
             ->andWhere('c.clientId = :clientId')
-            ->setParameter('clientId', $clientId, 'uuid')
-            ->orderBy('c.createdAt', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('c.createdAt', 'DESC');
+        UuidQueryParameter::bind($qb, 'clientId', $clientId);
+
+        return $qb->getQuery()->getResult();
     }
 }

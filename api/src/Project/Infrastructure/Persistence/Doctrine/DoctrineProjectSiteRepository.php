@@ -25,7 +25,11 @@ class DoctrineProjectSiteRepository extends ServiceEntityRepository implements P
 
     public function findById(Uuid $id): ?ProjectSite
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('ps')
+            ->andWhere('ps.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findByProjectId(Uuid $projectId): array

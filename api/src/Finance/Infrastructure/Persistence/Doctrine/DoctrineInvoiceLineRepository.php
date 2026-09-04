@@ -4,6 +4,7 @@ namespace App\Finance\Infrastructure\Persistence\Doctrine;
 
 use App\Finance\Domain\Entity\InvoiceLine;
 use App\Finance\Domain\Repository\InvoiceLineRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -30,11 +31,11 @@ class DoctrineInvoiceLineRepository extends ServiceEntityRepository implements I
 
     public function findByInvoiceId(Uuid $invoiceId): array
     {
-        return $this->createQueryBuilder('l')
+        $qb = $this->createQueryBuilder('l')
             ->join('l.invoice', 'i')
-            ->andWhere('i.id = :invoiceId')
-            ->setParameter('invoiceId', $invoiceId, 'uuid')
-            ->getQuery()
-            ->getResult();
+            ->andWhere('i.id = :invoiceId');
+        UuidQueryParameter::bind($qb, 'invoiceId', $invoiceId);
+
+        return $qb->getQuery()->getResult();
     }
 }

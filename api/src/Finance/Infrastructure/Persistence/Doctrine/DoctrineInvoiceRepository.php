@@ -5,6 +5,7 @@ namespace App\Finance\Infrastructure\Persistence\Doctrine;
 use App\Finance\Domain\Entity\Invoice;
 use App\Finance\Domain\Enum\InvoiceStatus;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -25,7 +26,11 @@ class DoctrineInvoiceRepository extends ServiceEntityRepository implements Invoi
 
     public function findById(Uuid $id): ?Invoice
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('i')
+            ->andWhere('i.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findAllEnabled(): array
@@ -40,14 +45,14 @@ class DoctrineInvoiceRepository extends ServiceEntityRepository implements Invoi
 
     public function countByClientId(Uuid $clientId): int
     {
-        return (int) $this->createQueryBuilder('i')
+        $qb = $this->createQueryBuilder('i')
             ->select('COUNT(i.id)')
             ->andWhere('i.clientId = :clientId')
             ->andWhere('i.isEnabled = :enabled')
-            ->setParameter('clientId', $clientId, 'uuid')
-            ->setParameter('enabled', true)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('enabled', true);
+        UuidQueryParameter::bind($qb, 'clientId', $clientId);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     public function countByStatus(InvoiceStatus $status): int

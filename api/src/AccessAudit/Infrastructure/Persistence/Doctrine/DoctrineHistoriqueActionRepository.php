@@ -4,6 +4,7 @@ namespace App\AccessAudit\Infrastructure\Persistence\Doctrine;
 
 use App\AccessAudit\Domain\Entity\HistoriqueAction;
 use App\AccessAudit\Domain\Repository\HistoriqueActionRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -68,13 +69,13 @@ class DoctrineHistoriqueActionRepository extends ServiceEntityRepository impleme
         $qb = $this->createQueryBuilder('h');
 
         if (null !== $utilisateurId) {
-            $qb->andWhere('h.utilisateurId = :utilisateurId')
-                ->setParameter('utilisateurId', $utilisateurId, 'uuid');
+            $qb->andWhere('h.utilisateurId = :utilisateurId');
+            UuidQueryParameter::bind($qb, 'utilisateurId', $utilisateurId);
         }
 
         if (null !== $excludeUtilisateurId) {
-            $qb->andWhere('h.utilisateurId != :excludeUtilisateurId')
-                ->setParameter('excludeUtilisateurId', $excludeUtilisateurId, 'uuid');
+            $qb->andWhere('h.utilisateurId != :excludeUtilisateurId');
+            UuidQueryParameter::bind($qb, 'excludeUtilisateurId', $excludeUtilisateurId);
         }
 
         if (null !== $action && '' !== $action) {

@@ -4,6 +4,7 @@ namespace App\Referentiel\Infrastructure\Persistence\Doctrine;
 
 use App\Referentiel\Domain\Entity\HistoriqueTaux;
 use App\Referentiel\Domain\Repository\HistoriqueTauxRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -28,12 +29,12 @@ class DoctrineHistoriqueTauxRepository extends ServiceEntityRepository implement
 
     public function findByLiaisonId(Uuid $liaisonId): array
     {
-        return $this->createQueryBuilder('h')
+        $qb = $this->createQueryBuilder('h')
             ->andWhere('h.liaisonId = :liaisonId')
-            ->setParameter('liaisonId', $liaisonId, 'uuid')
-            ->orderBy('h.dateModification', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('h.dateModification', 'DESC');
+        UuidQueryParameter::bind($qb, 'liaisonId', $liaisonId);
+
+        return $qb->getQuery()->getResult();
     }
 
     public function save(HistoriqueTaux $historiqueTaux, bool $flush = true): void

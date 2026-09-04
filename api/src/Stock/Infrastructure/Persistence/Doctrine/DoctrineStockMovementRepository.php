@@ -2,6 +2,7 @@
 
 namespace App\Stock\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Stock\Domain\Entity\StockMovement;
 use App\Stock\Domain\Repository\StockMovementRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -24,7 +25,11 @@ class DoctrineStockMovementRepository extends ServiceEntityRepository implements
 
     public function findById(Uuid $id): ?StockMovement
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('m')
+            ->andWhere('m.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findAllEnabled(): array

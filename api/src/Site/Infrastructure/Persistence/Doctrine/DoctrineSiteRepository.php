@@ -25,7 +25,11 @@ class DoctrineSiteRepository extends ServiceEntityRepository implements SiteRepo
 
     public function findById(Uuid $id): ?Site
     {
-        return $this->find($id);
+        $qb = $this->createQueryBuilder('s')
+            ->andWhere('s.id = :id');
+        UuidQueryParameter::bind($qb, 'id', $id);
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     public function findByCode(string $code): ?Site

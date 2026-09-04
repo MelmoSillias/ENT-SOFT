@@ -71,12 +71,15 @@
 
   /* DataTable */
   --p-datatable-header-background: color-mix(in srgb, var(--layout-panel-bg) 92%, var(--layout-accent-soft));
+  --p-datatable-header-cell-background: color-mix(in srgb, var(--layout-panel-bg) 92%, var(--layout-accent-soft));
   --p-datatable-header-color: var(--layout-text-color);
   --p-datatable-header-border-color: var(--layout-panel-border);
   --p-datatable-row-background: transparent;
   --p-datatable-row-hover-background: color-mix(in srgb, var(--layout-accent-soft) 45%, var(--layout-panel-bg));
+  --p-datatable-row-striped-background: color-mix(in srgb, var(--layout-panel-bg) 50%, transparent);
   --p-datatable-row-color: var(--layout-text-color);
   --p-datatable-border-color: var(--layout-panel-border);
+  --p-datatable-body-cell-background: color-mix(in srgb, var(--layout-panel-bg) 96%, var(--layout-page-bg));
   --p-datatable-body-cell-border-color: var(--layout-panel-border);
 
   /* Breadcrumb */
