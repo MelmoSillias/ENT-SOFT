@@ -10,9 +10,13 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import ProjectFormFields from '@/domains/project/components/ProjectFormFields.vue'
 import { listProjects, createProject, updateProject, deleteProject } from '@/domains/project/services/projectService'
 import { listClients } from '@/domains/client/services/clientService'
@@ -44,6 +48,31 @@ const editingId = ref(null)
 const actionItem = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
+const rowContextMenu = ref()
+
+const PROJECT_COLUMNS = [
+  { key: 'code', label: 'Code', defaultVisible: true },
+  { key: 'title', label: 'Titre', defaultVisible: true },
+  { key: 'status', label: 'Statut', defaultVisible: true },
+  { key: 'nbSites', label: 'Nb sites', defaultVisible: true },
+  { key: 'budget', label: 'Budget', defaultVisible: true },
+  { key: 'dateDebut', label: 'Début', defaultVisible: true },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_projects', PROJECT_COLUMNS, {
+  defaultSortField: 'title',
+})
 
 const canCreate = computed(() => hasPermission('project.projects.create'))
 
@@ -136,10 +165,13 @@ onMounted(load)
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  if (!q) return items.value
-  return items.value.filter((item) =>
-    [item.code, item.title, item.object].filter(Boolean).join(' ').toLowerCase().includes(q),
-  )
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [item.code, item.title, item.object].filter(Boolean).join(' ').toLowerCase().includes(q),
+    )
+  }
+  return sortByField(list, sortField.value, sortOrder.value)
 })
 
 const countLabel = computed(() => `${filteredItems.value.length}${searchTerm.value.trim() ? ` / ${items.value.length}` : ''}`)
@@ -171,12 +203,16 @@ function openEdit(item) {
   dialog.value = true
 }
 
+function openDetail(item) {
+  router.push({ name: 'project-detail', params: { id: item.id } })
+}
+
 function buildMenuItems(item) {
   const menu = [
-    { label: 'Voir le détail', icon: 'pi pi-eye', command: () => router.push({ name: 'project-detail', params: { id: item.id } }) },
+    { label: 'Voir le détail', icon: 'pi pi-eye', command: () => openDetail(item) },
   ]
   if (hasPermission('project.projects.update')) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
-  if (hasPermission('project.projects.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', command: () => askDelete(item) })
+  if (hasPermission('project.projects.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', severity: 'danger', command: () => askDelete(item) })
   return menu
 }
 
@@ -184,6 +220,10 @@ function toggleMenu(event, item) {
   actionItem.value = item
   menuModel.value = buildMenuItems(item)
   actionMenu.value?.toggle(event)
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
 
 function askDelete(item) {
@@ -251,7 +291,21 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           search-placeholder="Rechercher…"
           @create="openCreate"
           @reload="reload"
-        />
+        >
+          <template #actions>
+            <AppTableSettingsPopover
+              v-model:visible-col-keys="visibleColKeys"
+              v-model:rows="tableRows"
+              v-model:show-index="showIndex"
+              v-model:sort-field="sortField"
+              v-model:sort-order="sortOrder"
+              :columns="tableColumns"
+              :row-options="ROW_OPTIONS"
+              :sort-options="sortOptions"
+              @toggle-col="toggleCol"
+            />
+          </template>
+        </AppTablePanelHeader>
       </template>
       <template #content>
         <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
@@ -264,21 +318,34 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             :status-of="(item) => ({ value: projectStatusLabel(item.status), severity: projectStatusSeverity(item.status) })"
             :meta-of="(item) => formatMontant(item.budget, DEVISE_APP)"
             :actions-of="buildMenuItems"
-            @select="(item) => router.push({ name: 'project-detail', params: { id: item.id } })"
+            :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
+            @select="openDetail"
           />
-          <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
-            <Column field="code" header="Code" />
-            <Column field="title" header="Titre" />
-            <Column header="Statut">
+          <DataTable
+            v-else
+            :value="filteredItems"
+            paginator
+            :rows="tableRows"
+            striped-rows
+            :sort-field="sortField || undefined"
+            :sort-order="sortOrder"
+            @row-contextmenu="onRowContextMenu"
+          >
+            <Column v-if="showIndex" header="#" style="width: 3.5rem">
+              <template #body="{ index }">{{ index + 1 }}</template>
+            </Column>
+            <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
+            <Column v-if="isColVisible('title')" field="title" header="Titre" sortable />
+            <Column v-if="isColVisible('status')" field="status" header="Statut" sortable>
               <template #body="{ data }">
                 <Tag :value="projectStatusLabel(data.status)" :severity="projectStatusSeverity(data.status)" />
               </template>
             </Column>
-            <Column header="Nb sites" field="nbSites" style="width: 6rem" />
-            <Column header="Budget">
+            <Column v-if="isColVisible('nbSites')" header="Nb sites" field="nbSites" style="width: 6rem" sortable />
+            <Column v-if="isColVisible('budget')" field="budget" header="Budget" sortable>
               <template #body="{ data }">{{ formatMontant(data.budget, DEVISE_APP) }}</template>
             </Column>
-            <Column header="Début">
+            <Column v-if="isColVisible('dateDebut')" field="dateDebut" header="Début" sortable>
               <template #body="{ data }">{{ formatDateFr(data.dateDebut) }}</template>
             </Column>
             <Column header="Actions" style="width: 5rem">
@@ -288,6 +355,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             </Column>
           </DataTable>
           <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
+          <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
         </AppTableState>
       </template>
     </Card>

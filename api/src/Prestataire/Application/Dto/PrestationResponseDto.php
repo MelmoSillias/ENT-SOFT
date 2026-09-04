@@ -20,6 +20,7 @@ final readonly class PrestationResponseDto
         public bool $isEnabled,
         public string $createdAt,
         public string $updatedAt,
+        public ?string $prestataireName = null,
     ) {
     }
 
@@ -27,6 +28,7 @@ final readonly class PrestationResponseDto
         Prestation $prestation,
         float $paidAmount = 0.0,
         bool $hasPayments = false,
+        ?string $prestataireName = null,
     ): self {
         $amount = $prestation->getAmount();
         $remaining = max(0.0, $amount - $paidAmount);
@@ -45,6 +47,7 @@ final readonly class PrestationResponseDto
             isEnabled: $prestation->isEnabled(),
             createdAt: $prestation->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $prestation->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            prestataireName: $prestataireName,
         );
     }
 
@@ -54,6 +57,7 @@ final readonly class PrestationResponseDto
         return [
             'id' => $this->id,
             'prestataireId' => $this->prestataireId,
+            'prestataireName' => $this->prestataireName,
             'description' => $this->description,
             'siteId' => $this->siteId,
             'amount' => $this->amount,

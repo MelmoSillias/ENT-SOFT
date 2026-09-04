@@ -25,6 +25,11 @@ export async function deletePrestataire(id) {
   return data
 }
 
+export async function listAllPrestations() {
+  const { data } = await api.get('/prestataires/prestations')
+  return Array.isArray(data) ? data : (data.items ?? [])
+}
+
 export async function listPrestations(prestataireId) {
   const { data } = await api.get(`/prestataires/${prestataireId}/prestations`)
   return Array.isArray(data) ? data : (data.items ?? [])

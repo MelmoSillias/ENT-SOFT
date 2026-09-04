@@ -16,21 +16,59 @@ import Checkbox from 'primevue/checkbox'
 import { useConfirm } from 'primevue/useconfirm'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
+import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { createRole, deleteRole, listRoles, updateRole } from '@/domains/access/services/roleService'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+
+defineProps({
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+})
 
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
 const canManage = computed(() => hasPermission('access.roles.manage'))
 
+const ROLE_COLUMNS = [
+  { key: 'libelle', label: 'Libellé', defaultVisible: true },
+  { key: 'code', label: 'Code', defaultVisible: true },
+  { key: 'isSystem', label: 'Type', defaultVisible: true },
+  { key: 'isEnabled', label: 'Statut', defaultVisible: true },
+  { key: 'permissions', label: 'Permissions', defaultVisible: true, sortable: false },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_roles', ROLE_COLUMNS, {
+  defaultSortField: 'libelle',
+})
+
 const items = ref([])
+const searchTerm = ref('')
 const permissionsCatalog = ref([])
 const loading = ref(true)
 const dialog = ref(false)
@@ -39,6 +77,7 @@ const editingId = ref(null)
 const selectedRole = ref(null)
 const selectedCodes = ref([])
 const expandedZones = ref([])
+const rowContextMenu = ref()
 
 const MODULE_ZONES = {
   dashboard: { label: 'Tableau de bord', icon: 'pi pi-home', order: 1 },
@@ -93,6 +132,17 @@ const groupedPermissions = computed(() => {
     groups.get(module).permissions.push(perm)
   }
   return [...groups.values()].sort((a, b) => a.order - b.order)
+})
+
+const filteredItems = computed(() => {
+  const q = searchTerm.value.trim().toLowerCase()
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [item.libelle, item.code].filter(Boolean).join(' ').toLowerCase().includes(q),
+    )
+  }
+  return sortByField(list, sortField.value, sortOrder.value)
 })
 
 onMounted(async () => {
@@ -164,64 +214,186 @@ function askDelete(role) {
     },
   })
 }
+
+function roleActions(role) {
+  if (!canManage.value) return []
+  return [
+    {
+      label: 'Modifier',
+      icon: 'pi pi-pencil',
+      disabled: !role.isEnabled,
+      command: () => openEdit(role),
+    },
+    {
+      label: 'Permissions',
+      icon: 'pi pi-shield',
+      disabled: !role.isEnabled,
+      command: () => openPermissions(role),
+    },
+    {
+      label: 'Masquer',
+      icon: 'pi pi-eye-slash',
+      severity: 'danger',
+      disabled: role.isSystem || !role.isEnabled,
+      command: () => askDelete(role),
+    },
+  ]
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
+}
 </script>
 
 <template>
   <div class="roles-permissions-panel">
-    <Card class="dashboard-panel">
+    <Card v-if="!embedded" class="dashboard-panel">
       <template #title>
         <AppTablePanelHeader
           title="Rôles & permissions"
-          :count-label="`${items.length}`"
+          :count-label="`${filteredItems.length}`"
           create-label="Nouveau rôle"
           :show-create="canManage"
+          :hide-create-on-mobile="isAppMobile"
+          :sticky="isAppMobile"
+          show-search
+          v-model:search-term="searchTerm"
+          search-placeholder="Rechercher libellé, code…"
           @create="openCreate"
           @reload="load"
-        />
+        >
+          <template #actions>
+            <AppTableSettingsPopover
+              v-model:visible-col-keys="visibleColKeys"
+              v-model:rows="tableRows"
+              v-model:show-index="showIndex"
+              v-model:sort-field="sortField"
+              v-model:sort-order="sortOrder"
+              :columns="tableColumns"
+              :row-options="ROW_OPTIONS"
+              :sort-options="sortOptions"
+              @toggle-col="toggleCol"
+            />
+          </template>
+        </AppTablePanelHeader>
       </template>
       <template #content>
         <AppTableState
           :loading="loading"
-          :is-empty="!loading && items.length === 0"
+          :is-empty="!loading && filteredItems.length === 0"
           empty-title="Aucun rôle"
           empty-text="Créez un rôle pour commencer."
           @retry="load"
         >
-          <DataTable :value="items" paginator :rows="10" striped-rows>
-            <Column field="libelle" header="Libellé" />
-            <Column field="code" header="Code" />
-            <Column header="Type">
+          <DataTable
+            :value="filteredItems"
+            paginator
+            :rows="tableRows"
+            striped-rows
+            :sort-field="sortField || undefined"
+            :sort-order="sortOrder"
+            @row-contextmenu="onRowContextMenu"
+          >
+            <Column v-if="showIndex" header="#" style="width: 3.5rem">
+              <template #body="{ index }">{{ index + 1 }}</template>
+            </Column>
+            <Column v-if="isColVisible('libelle')" field="libelle" header="Libellé" sortable />
+            <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
+            <Column v-if="isColVisible('isSystem')" header="Type" sortable field="isSystem">
               <template #body="{ data }">
                 <Tag :value="data.isSystem ? 'Système' : 'Métier'" :severity="data.isSystem ? 'info' : 'secondary'" />
               </template>
             </Column>
-            <Column header="Statut">
+            <Column v-if="isColVisible('isEnabled')" header="Statut" sortable field="isEnabled">
               <template #body="{ data }">
                 <Tag :value="data.isEnabled ? 'Actif' : 'Masqué'" :severity="data.isEnabled ? 'success' : 'warn'" />
               </template>
             </Column>
-            <Column header="Permissions">
+            <Column v-if="isColVisible('permissions')" header="Permissions">
               <template #body="{ data }">{{ (data.permissions ?? []).length }}</template>
             </Column>
             <Column v-if="canManage" header="Actions" style="width: 10rem">
               <template #body="{ data }">
-                <Button icon="pi pi-pencil" text rounded :disabled="!data.isEnabled" v-tooltip.top="'Modifier'" @click="openEdit(data)" />
-                <Button icon="pi pi-shield" text rounded :disabled="!data.isEnabled" v-tooltip.top="'Permissions'" @click="openPermissions(data)" />
-                <Button
-                  icon="pi pi-eye-slash"
-                  text
-                  rounded
-                  severity="danger"
-                  :disabled="data.isSystem || !data.isEnabled"
-                  v-tooltip.top="'Masquer'"
-                  @click="askDelete(data)"
-                />
+                <AppTableActionsMenu :actions="roleActions(data)" />
               </template>
             </Column>
           </DataTable>
         </AppTableState>
       </template>
     </Card>
+
+    <template v-else>
+      <AppTablePanelHeader
+        title="Rôles & permissions"
+        :count-label="`${filteredItems.length}`"
+        create-label="Nouveau rôle"
+        :show-create="canManage"
+        :hide-create-on-mobile="isAppMobile"
+        :sticky="isAppMobile"
+        show-search
+        v-model:search-term="searchTerm"
+        search-placeholder="Rechercher libellé, code…"
+        @create="openCreate"
+        @reload="load"
+      >
+        <template #actions>
+          <AppTableSettingsPopover
+            v-model:visible-col-keys="visibleColKeys"
+            v-model:rows="tableRows"
+            v-model:show-index="showIndex"
+            v-model:sort-field="sortField"
+            v-model:sort-order="sortOrder"
+            :columns="tableColumns"
+            :row-options="ROW_OPTIONS"
+            :sort-options="sortOptions"
+            @toggle-col="toggleCol"
+          />
+        </template>
+      </AppTablePanelHeader>
+      <AppTableState
+        :loading="loading"
+        :is-empty="!loading && filteredItems.length === 0"
+        empty-title="Aucun rôle"
+        empty-text="Créez un rôle pour commencer."
+        @retry="load"
+      >
+        <DataTable
+          :value="filteredItems"
+          paginator
+          :rows="tableRows"
+          striped-rows
+          :sort-field="sortField || undefined"
+          :sort-order="sortOrder"
+          @row-contextmenu="onRowContextMenu"
+        >
+          <Column v-if="showIndex" header="#" style="width: 3.5rem">
+            <template #body="{ index }">{{ index + 1 }}</template>
+          </Column>
+          <Column v-if="isColVisible('libelle')" field="libelle" header="Libellé" sortable />
+          <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
+          <Column v-if="isColVisible('isSystem')" header="Type" sortable field="isSystem">
+            <template #body="{ data }">
+              <Tag :value="data.isSystem ? 'Système' : 'Métier'" :severity="data.isSystem ? 'info' : 'secondary'" />
+            </template>
+          </Column>
+          <Column v-if="isColVisible('isEnabled')" header="Statut" sortable field="isEnabled">
+            <template #body="{ data }">
+              <Tag :value="data.isEnabled ? 'Actif' : 'Masqué'" :severity="data.isEnabled ? 'success' : 'warn'" />
+            </template>
+          </Column>
+          <Column v-if="isColVisible('permissions')" header="Permissions">
+            <template #body="{ data }">{{ (data.permissions ?? []).length }}</template>
+          </Column>
+          <Column v-if="canManage" header="Actions" style="width: 10rem">
+            <template #body="{ data }">
+              <AppTableActionsMenu :actions="roleActions(data)" />
+            </template>
+          </Column>
+        </DataTable>
+      </AppTableState>
+    </template>
+
+    <AppRowContextMenu ref="rowContextMenu" :actions-of="roleActions" />
 
     <Dialog v-model:visible="dialog" :header="editingId ? 'Modifier le rôle' : 'Nouveau rôle'" modal style="width: min(420px, 95vw)">
       <div v-if="!editingId" class="field">

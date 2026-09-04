@@ -8,9 +8,13 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import SiteFormFields from '@/domains/site/components/SiteFormFields.vue'
 import { listSites, createSite, updateSite, deleteSite } from '@/domains/site/services/siteService'
 import { listClients } from '@/domains/client/services/clientService'
@@ -26,6 +30,27 @@ const confirm = useConfirm()
 const { hasPermission } = usePermissions()
 const { isAppMobile } = useAppMobileLayout()
 
+const SITE_COLUMNS = [
+  { key: 'code', label: 'Code', defaultVisible: true },
+  { key: 'title', label: 'Titre', defaultVisible: true },
+  { key: 'client', label: 'Client', defaultVisible: true, sortable: false },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_sites', SITE_COLUMNS, {
+  defaultSortField: 'title',
+})
+
 const items = ref([])
 const clientOptions = ref([])
 const clientMap = ref({})
@@ -38,6 +63,7 @@ const editingId = ref(null)
 const actionItem = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
+const rowContextMenu = ref()
 
 const canCreate = computed(() => hasPermission('site.sites.create'))
 
@@ -89,10 +115,13 @@ onMounted(load)
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  if (!q) return items.value
-  return items.value.filter((item) =>
-    [item.code, item.title, item.description, clientMap.value[item.clientId]].filter(Boolean).join(' ').toLowerCase().includes(q),
-  )
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [item.code, item.title, item.description, clientMap.value[item.clientId]].filter(Boolean).join(' ').toLowerCase().includes(q),
+    )
+  }
+  return sortByField(list, sortField.value, sortOrder.value)
 })
 
 const countLabel = computed(() => `${filteredItems.value.length}`)
@@ -123,6 +152,10 @@ function toggleMenu(event, item) {
   actionItem.value = item
   menuModel.value = buildMenuItems(item)
   actionMenu.value?.toggle(event)
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
 
 function askDelete(item) {
@@ -185,7 +218,21 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           search-placeholder="Rechercher…"
           @create="openCreate"
           @reload="reload"
-        />
+        >
+          <template #actions>
+            <AppTableSettingsPopover
+              v-model:visible-col-keys="visibleColKeys"
+              v-model:rows="tableRows"
+              v-model:show-index="showIndex"
+              v-model:sort-field="sortField"
+              v-model:sort-order="sortOrder"
+              :columns="tableColumns"
+              :row-options="ROW_OPTIONS"
+              :sort-options="sortOptions"
+              @toggle-col="toggleCol"
+            />
+          </template>
+        </AppTablePanelHeader>
       </template>
       <template #content>
         <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
@@ -196,12 +243,25 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             :code-of="(item) => item.code"
             :subtitle-of="(item) => clientMap[item.clientId] || item.description || null"
             :actions-of="buildMenuItems"
+            :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
             @select="openEdit"
           />
-          <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
-            <Column field="code" header="Code" />
-            <Column field="title" header="Titre" />
-            <Column header="Client">
+          <DataTable
+            v-else
+            :value="filteredItems"
+            paginator
+            :rows="tableRows"
+            striped-rows
+            :sort-field="sortField || undefined"
+            :sort-order="sortOrder"
+            @row-contextmenu="onRowContextMenu"
+          >
+            <Column v-if="showIndex" header="#" style="width: 3.5rem">
+              <template #body="{ index }">{{ index + 1 }}</template>
+            </Column>
+            <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
+            <Column v-if="isColVisible('title')" field="title" header="Titre" sortable />
+            <Column v-if="isColVisible('client')" header="Client">
               <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
             </Column>
             <Column header="Actions" style="width: 5rem">
@@ -211,6 +271,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             </Column>
           </DataTable>
           <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
+          <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
         </AppTableState>
       </template>
     </Card>

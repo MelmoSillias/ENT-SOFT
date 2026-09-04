@@ -8,9 +8,13 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import StockMovementFormFields from '@/domains/stock/components/StockMovementFormFields.vue'
 import { listStockMovements, createStockMovement, updateStockMovement, deleteStockMovement } from '@/domains/stock/services/stockMovementService'
 import { listEquipment } from '@/domains/stock/services/equipmentService'
@@ -46,6 +50,30 @@ const dialog = ref(false)
 const editingId = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
+const rowContextMenu = ref()
+
+const MOVEMENT_COLUMNS = [
+  { key: 'date', label: 'Date', defaultVisible: true },
+  { key: 'direction', label: 'Type', defaultVisible: true },
+  { key: 'quantity', label: 'Quantité', defaultVisible: true },
+  { key: 'equipment', label: 'Équipements', defaultVisible: true },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_stock_movements', MOVEMENT_COLUMNS, {
+  defaultSortField: 'date',
+  defaultSortOrder: -1,
+})
 
 const canCreate = computed(() => hasPermission('stock.movements.create'))
 
@@ -115,12 +143,41 @@ async function reload() {
 
 onMounted(load)
 
+function lineLabel(item) {
+  return (item.lines ?? [])
+    .map((l) => {
+      const eq = equipmentMap.value[l.equipmentId]
+      if (!eq) return '—'
+      return `${eq.code} — ${eq.title}`
+    })
+    .join(', ')
+}
+
+function quantityLabel(item) {
+  const units = [...new Set(
+    (item.lines ?? [])
+      .map((l) => equipmentMap.value[l.equipmentId]?.unit)
+      .filter(Boolean)
+      .map((u) => equipmentUnitLabel(u)),
+  )]
+  const unitSuffix = units.length === 1 ? ` ${units[0]}` : ''
+  return `${item.quantity}${unitSuffix}`
+}
+
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  if (!q) return items.value
-  return items.value.filter((item) =>
-    [stockDirectionLabel(item.direction), lineLabel(item)].join(' ').toLowerCase().includes(q),
-  )
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [stockDirectionLabel(item.direction), lineLabel(item)].join(' ').toLowerCase().includes(q),
+    )
+  }
+  const enriched = list.map((item) => ({
+    ...item,
+    _equipment: lineLabel(item),
+  }))
+  const field = sortField.value === 'equipment' ? '_equipment' : sortField.value
+  return sortByField(enriched, field, sortOrder.value)
 })
 
 function openCreate(opts = {}) {
@@ -157,13 +214,17 @@ defineExpose({ openCreate, reload: load })
 function buildMenuItems(item) {
   const menu = []
   if (hasPermission('stock.movements.update')) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
-  if (hasPermission('stock.movements.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', command: () => askDelete(item) })
+  if (hasPermission('stock.movements.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', severity: 'danger', command: () => askDelete(item) })
   return menu
 }
 
 function toggleMenu(event, item) {
   menuModel.value = buildMenuItems(item)
   actionMenu.value?.toggle(event)
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
 
 function askDelete(item) {
@@ -212,27 +273,6 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     toast.add({ severity: 'error', summary: 'Mouvement', detail: e.response?.data?.error || 'Erreur.' })
   }
 })
-
-function lineLabel(item) {
-  return (item.lines ?? [])
-    .map((l) => {
-      const eq = equipmentMap.value[l.equipmentId]
-      if (!eq) return '—'
-      return `${eq.code} — ${eq.title}`
-    })
-    .join(', ')
-}
-
-function quantityLabel(item) {
-  const units = [...new Set(
-    (item.lines ?? [])
-      .map((l) => equipmentMap.value[l.equipmentId]?.unit)
-      .filter(Boolean)
-      .map((u) => equipmentUnitLabel(u)),
-  )]
-  const unitSuffix = units.length === 1 ? ` ${units[0]}` : ''
-  return `${item.quantity}${unitSuffix}`
-}
 </script>
 
 <template>
@@ -250,7 +290,21 @@ function quantityLabel(item) {
       search-placeholder="Rechercher…"
       @create="openCreate()"
       @reload="reload"
-    />
+    >
+      <template #actions>
+        <AppTableSettingsPopover
+          v-model:visible-col-keys="visibleColKeys"
+          v-model:rows="tableRows"
+          v-model:show-index="showIndex"
+          v-model:sort-field="sortField"
+          v-model:sort-order="sortOrder"
+          :columns="tableColumns"
+          :row-options="ROW_OPTIONS"
+          :sort-options="sortOptions"
+          @toggle-col="toggleCol"
+        />
+      </template>
+    </AppTablePanelHeader>
     <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
       <AppEntityDataView
         v-if="isAppMobile"
@@ -260,21 +314,34 @@ function quantityLabel(item) {
         :meta-of="(item) => formatDateFr(item.date)"
         :status-of="(item) => ({ value: stockDirectionLabel(item.direction), severity: stockDirectionSeverity(item.direction) })"
         :actions-of="buildMenuItems"
+        :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
         @select="openEdit"
       />
-      <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
-        <Column header="Date">
+      <DataTable
+        v-else
+        :value="filteredItems"
+        paginator
+        :rows="tableRows"
+        striped-rows
+        :sort-field="sortField === 'equipment' ? undefined : (sortField || undefined)"
+        :sort-order="sortOrder"
+        @row-contextmenu="onRowContextMenu"
+      >
+        <Column v-if="showIndex" header="#" style="width: 3.5rem">
+          <template #body="{ index }">{{ index + 1 }}</template>
+        </Column>
+        <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
           <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
         </Column>
-        <Column header="Type">
+        <Column v-if="isColVisible('direction')" field="direction" header="Type" sortable>
           <template #body="{ data }">
             <Tag :value="stockDirectionLabel(data.direction)" :severity="stockDirectionSeverity(data.direction)" />
           </template>
         </Column>
-        <Column header="Quantité">
+        <Column v-if="isColVisible('quantity')" field="quantity" header="Quantité" sortable>
           <template #body="{ data }">{{ quantityLabel(data) }}</template>
         </Column>
-        <Column header="Équipements">
+        <Column v-if="isColVisible('equipment')" header="Équipements">
           <template #body="{ data }">{{ lineLabel(data) || '—' }}</template>
         </Column>
         <Column header="Actions" style="width: 5rem">
@@ -284,6 +351,7 @@ function quantityLabel(item) {
         </Column>
       </DataTable>
       <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
+      <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
     </AppTableState>
 
     <AppMobileFab

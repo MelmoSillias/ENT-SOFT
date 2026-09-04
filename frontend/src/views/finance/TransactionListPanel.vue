@@ -8,7 +8,11 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import TransactionFormFields from '@/domains/finance/components/TransactionFormFields.vue'
 import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
@@ -66,6 +70,40 @@ const actionMenu = ref()
 const menuModel = ref([])
 const expandedRows = ref([])
 const pendingAttachments = ref([])
+const rowContextMenu = ref()
+
+const TRANSACTION_COLUMNS = computed(() => {
+  const cols = [
+    { key: 'date', label: 'Date', defaultVisible: true },
+  ]
+  if (!props.expenseOnly) {
+    cols.push({ key: 'type', label: 'Type', defaultVisible: true })
+  }
+  cols.push(
+    { key: 'category', label: 'Catégorie', defaultVisible: true },
+    { key: 'amount', label: 'Montant', defaultVisible: true },
+    { key: 'fromParty', label: 'Émetteur', defaultVisible: true },
+    { key: 'toParty', label: 'Destinataire', defaultVisible: true },
+    { key: 'status', label: 'Statut', defaultVisible: true },
+  )
+  return cols
+})
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_transactions', TRANSACTION_COLUMNS.value, {
+  defaultSortField: 'date',
+  defaultSortOrder: -1,
+})
 
 const canCreate = computed(() => hasPermission('finance.transactions.create'))
 
@@ -132,10 +170,20 @@ onMounted(load)
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  if (!q) return items.value
-  return items.value.filter((item) =>
-    [item.fromParty, item.toParty, item.description, item.category].filter(Boolean).join(' ').toLowerCase().includes(q),
-  )
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [item.fromParty, item.toParty, item.description, item.category].filter(Boolean).join(' ').toLowerCase().includes(q),
+    )
+  }
+  const enriched = list.map((item) => ({
+    ...item,
+    _category: transactionCategoryLabel(item.category),
+    _type: transactionTypeLabel(item.type),
+  }))
+  const fieldMap = { category: '_category', type: '_type' }
+  const field = fieldMap[sortField.value] || sortField.value
+  return sortByField(enriched, field, sortOrder.value)
 })
 
 const dialogTitle = computed(() => (editingId.value ? 'Modifier' : props.createLabel))
@@ -170,13 +218,17 @@ function openEdit(item) {
 function buildMenuItems(item) {
   const menu = []
   if (hasPermission('finance.transactions.update')) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
-  if (hasPermission('finance.transactions.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', command: () => askDelete(item) })
+  if (hasPermission('finance.transactions.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', severity: 'danger', command: () => askDelete(item) })
   return menu
 }
 
 function toggleMenu(event, item) {
   menuModel.value = buildMenuItems(item)
   actionMenu.value?.toggle(event)
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
 
 function askDelete(item) {
@@ -276,13 +328,28 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     search-placeholder="Rechercher…"
     @create="openCreate"
     @reload="reload"
-  />
+  >
+    <template #actions>
+      <AppTableSettingsPopover
+        v-model:visible-col-keys="visibleColKeys"
+        v-model:rows="tableRows"
+        v-model:show-index="showIndex"
+        v-model:sort-field="sortField"
+        v-model:sort-order="sortOrder"
+        :columns="tableColumns"
+        :row-options="ROW_OPTIONS"
+        :sort-options="sortOptions"
+        @toggle-col="toggleCol"
+      />
+    </template>
+  </AppTablePanelHeader>
   <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
     <div v-if="isAppMobile" class="app-entity-dataview">
       <article
         v-for="item in filteredItems"
         :key="item.id"
         class="app-entity-card"
+        v-bind="rowContextMenu?.rowBindings(item) ?? {}"
         @click="expandedMobileId = expandedMobileId === item.id ? null : item.id"
       >
         <div class="app-entity-card__row">
@@ -314,23 +381,37 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         </div>
       </article>
     </div>
-    <DataTable v-else v-model:expandedRows="expandedRows" :value="filteredItems" paginator :rows="10" striped-rows data-key="id">
+    <DataTable
+      v-else
+      v-model:expandedRows="expandedRows"
+      :value="filteredItems"
+      paginator
+      :rows="tableRows"
+      striped-rows
+      data-key="id"
+      :sort-field="sortField === 'category' || sortField === 'type' ? undefined : (sortField || undefined)"
+      :sort-order="sortOrder"
+      @row-contextmenu="onRowContextMenu"
+    >
       <Column expander style="width: 3rem" />
-      <Column header="Date">
+      <Column v-if="showIndex" header="#" style="width: 3.5rem">
+        <template #body="{ index }">{{ index + 1 }}</template>
+      </Column>
+      <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
         <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
       </Column>
-      <Column v-if="!expenseOnly" header="Type">
+      <Column v-if="!expenseOnly && isColVisible('type')" field="type" header="Type" sortable>
         <template #body="{ data }">{{ transactionTypeLabel(data.type) }}</template>
       </Column>
-      <Column header="Catégorie">
+      <Column v-if="isColVisible('category')" field="category" header="Catégorie" sortable>
         <template #body="{ data }">{{ transactionCategoryLabel(data.category) }}</template>
       </Column>
-      <Column header="Montant">
+      <Column v-if="isColVisible('amount')" field="amount" header="Montant" sortable>
         <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
       </Column>
-      <Column field="fromParty" header="Émetteur" />
-      <Column field="toParty" header="Destinataire" />
-      <Column header="Statut">
+      <Column v-if="isColVisible('fromParty')" field="fromParty" header="Émetteur" sortable />
+      <Column v-if="isColVisible('toParty')" field="toParty" header="Destinataire" sortable />
+      <Column v-if="isColVisible('status')" field="status" header="Statut" sortable>
         <template #body="{ data }">
           <Tag :value="transactionStatusLabel(data.status)" :severity="transactionStatusSeverity(data.status)" />
         </template>
@@ -348,6 +429,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       </template>
     </DataTable>
     <Menu ref="actionMenu" :model="menuModel" popup />
+    <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
   </AppTableState>
 
   <AppMobileFab

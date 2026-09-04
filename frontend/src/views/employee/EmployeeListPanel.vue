@@ -10,9 +10,13 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import EmployeeFormFields from '@/domains/employee/components/EmployeeFormFields.vue'
 import { listEmployees, createEmployee, updateEmployee, deleteEmployee } from '@/domains/employee/services/employeeService'
 import { listRoles } from '@/domains/access/services/roleService'
@@ -36,6 +40,29 @@ const confirm = useConfirm()
 const { hasPermission } = usePermissions()
 const { isAppMobile } = useAppMobileLayout()
 
+const EMPLOYEE_COLUMNS = [
+  { key: 'name', label: 'Nom', defaultVisible: true },
+  { key: 'email', label: 'Email', defaultVisible: true },
+  { key: 'phone', label: 'Téléphone', defaultVisible: true },
+  { key: 'roleCode', label: 'Fonction', defaultVisible: true },
+  { key: 'isEnabled', label: 'Statut', defaultVisible: true },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_employees', EMPLOYEE_COLUMNS, {
+  defaultSortField: 'name',
+})
+
 const items = ref([])
 const roleOptions = ref([])
 const searchTerm = ref('')
@@ -46,6 +73,7 @@ const dialog = ref(false)
 const editingId = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
+const rowContextMenu = ref()
 
 const canCreate = computed(() => hasPermission('employee.employees.create'))
 
@@ -98,14 +126,18 @@ onMounted(load)
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  if (!q) return items.value
-  return items.value.filter((item) =>
-    [item.name, item.prenom, item.nom, item.email, item.phone, item.roleCode]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-      .includes(q),
-  )
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [item.name, item.prenom, item.nom, item.email, item.phone, item.roleCode]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(q),
+    )
+  }
+  const field = sortField.value === 'name' ? 'nom' : sortField.value
+  return sortByField(list, field, sortOrder.value)
 })
 
 const countLabel = computed(() => `${filteredItems.value.length}`)
@@ -144,6 +176,10 @@ function buildMenuItems(item) {
 function toggleMenu(event, item) {
   menuModel.value = buildMenuItems(item)
   actionMenu.value?.toggle(event)
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
 
 function askDelete(item) {
@@ -205,7 +241,21 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         search-placeholder="Rechercher…"
         @create="openCreate"
         @reload="reload"
-      />
+      >
+        <template #actions>
+          <AppTableSettingsPopover
+            v-model:visible-col-keys="visibleColKeys"
+            v-model:rows="tableRows"
+            v-model:show-index="showIndex"
+            v-model:sort-field="sortField"
+            v-model:sort-order="sortOrder"
+            :columns="tableColumns"
+            :row-options="ROW_OPTIONS"
+            :sort-options="sortOptions"
+            @toggle-col="toggleCol"
+          />
+        </template>
+      </AppTablePanelHeader>
     </template>
     <template #content>
       <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
@@ -217,18 +267,31 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :meta-of="(item) => roleLabel(item.roleCode || item.function)"
           :status-of="(item) => ({ value: item.isEnabled ? 'Actif' : 'Inactif', severity: item.isEnabled ? 'success' : 'secondary' })"
           :actions-of="buildMenuItems"
+          :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
           @select="(item) => router.push({ name: 'employee-detail', params: { id: item.id } })"
         />
-        <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
-          <Column header="Nom">
+        <DataTable
+          v-else
+          :value="filteredItems"
+          paginator
+          :rows="tableRows"
+          striped-rows
+          :sort-field="sortField === 'name' ? 'nom' : (sortField || undefined)"
+          :sort-order="sortOrder"
+          @row-contextmenu="onRowContextMenu"
+        >
+          <Column v-if="showIndex" header="#" style="width: 3.5rem">
+            <template #body="{ index }">{{ index + 1 }}</template>
+          </Column>
+          <Column v-if="isColVisible('name')" header="Nom" sortable field="nom">
             <template #body="{ data }">{{ data.name || `${data.prenom} ${data.nom}` }}</template>
           </Column>
-          <Column field="email" header="Email" />
-          <Column field="phone" header="Téléphone" />
-          <Column header="Fonction">
+          <Column v-if="isColVisible('email')" field="email" header="Email" sortable />
+          <Column v-if="isColVisible('phone')" field="phone" header="Téléphone" sortable />
+          <Column v-if="isColVisible('roleCode')" header="Fonction" sortable field="roleCode">
             <template #body="{ data }">{{ roleLabel(data.roleCode || data.function) }}</template>
           </Column>
-          <Column header="Statut">
+          <Column v-if="isColVisible('isEnabled')" header="Statut" sortable field="isEnabled">
             <template #body="{ data }">
               <Tag :value="data.isEnabled ? 'Actif' : 'Inactif'" :severity="data.isEnabled ? 'success' : 'secondary'" />
             </template>
@@ -240,6 +303,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           </Column>
         </DataTable>
         <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
+        <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
       </AppTableState>
     </template>
   </Card>

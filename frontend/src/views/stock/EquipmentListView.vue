@@ -14,6 +14,8 @@ import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
@@ -24,6 +26,8 @@ import { listClients } from '@/domains/client/services/clientService'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
 import { equipmentUnitLabel } from '@/domains/shared/utils/entLabels'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
@@ -50,6 +54,30 @@ const actionItem = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
 const movementsPanel = ref(null)
+const rowContextMenu = ref()
+
+const EQUIPMENT_COLUMNS = [
+  { key: 'code', label: 'Code', defaultVisible: true },
+  { key: 'title', label: 'Titre', defaultVisible: true },
+  { key: 'quantity', label: 'Quantité', defaultVisible: true },
+  { key: 'unit', label: 'Unité', defaultVisible: true },
+  { key: 'client', label: 'Client', defaultVisible: true },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_equipment', EQUIPMENT_COLUMNS, {
+  defaultSortField: 'title',
+})
 
 const stockTabItems = [
   { value: 'list', label: 'Liste', shortLabel: 'Liste' },
@@ -107,16 +135,26 @@ onMounted(load)
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  if (!q) return items.value
-  return items.value.filter((item) =>
-    [
-      item.code,
-      item.title,
-      item.description,
-      equipmentUnitLabel(item.unit),
-      clientMap.value[item.clientId],
-    ].filter(Boolean).join(' ').toLowerCase().includes(q),
-  )
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [
+        item.code,
+        item.title,
+        item.description,
+        equipmentUnitLabel(item.unit),
+        clientMap.value[item.clientId],
+      ].filter(Boolean).join(' ').toLowerCase().includes(q),
+    )
+  }
+  const enriched = list.map((item) => ({
+    ...item,
+    _client: clientMap.value[item.clientId] || '',
+    _unitLabel: equipmentUnitLabel(item.unit),
+  }))
+  const fieldMap = { client: '_client', unit: '_unitLabel' }
+  const field = fieldMap[sortField.value] || sortField.value
+  return sortByField(enriched, field, sortOrder.value)
 })
 
 const countLabel = computed(() => `${filteredItems.value.length}`)
@@ -152,16 +190,20 @@ async function openMovement(item, direction) {
   })
 }
 
+function openDetail(item) {
+  router.push({ name: 'equipment-detail', params: { id: item.id } })
+}
+
 function buildMenuItems(item) {
   const menu = [
-    { label: 'Voir le détail', icon: 'pi pi-eye', command: () => router.push({ name: 'equipment-detail', params: { id: item.id } }) },
+    { label: 'Voir le détail', icon: 'pi pi-eye', command: () => openDetail(item) },
   ]
   if (canCreateMovement.value) {
     menu.push({ label: 'Entrée de stock', icon: 'pi pi-sign-in', command: () => openMovement(item, 'in') })
     menu.push({ label: 'Sortie de stock', icon: 'pi pi-sign-out', command: () => openMovement(item, 'out') })
   }
   if (hasPermission('stock.equipment.update')) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
-  if (hasPermission('stock.equipment.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', command: () => askDelete(item) })
+  if (hasPermission('stock.equipment.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', severity: 'danger', command: () => askDelete(item) })
   return menu
 }
 
@@ -169,6 +211,10 @@ function toggleMenu(event, item) {
   actionItem.value = item
   menuModel.value = buildMenuItems(item)
   actionMenu.value?.toggle(event)
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
 
 function askDelete(item) {
@@ -250,7 +296,21 @@ function quantityDisplay(item) {
             search-placeholder="Rechercher…"
             @create="openCreate"
             @reload="reload"
-          />
+          >
+            <template #actions>
+              <AppTableSettingsPopover
+                v-model:visible-col-keys="visibleColKeys"
+                v-model:rows="tableRows"
+                v-model:show-index="showIndex"
+                v-model:sort-field="sortField"
+                v-model:sort-order="sortOrder"
+                :columns="tableColumns"
+                :row-options="ROW_OPTIONS"
+                :sort-options="sortOptions"
+                @toggle-col="toggleCol"
+              />
+            </template>
+          </AppTablePanelHeader>
           <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
             <AppEntityDataView
               v-if="isAppMobile"
@@ -260,18 +320,31 @@ function quantityDisplay(item) {
               :subtitle-of="(item) => quantityDisplay(item)"
               :meta-of="(item) => clientMap[item.clientId] || item.description || null"
               :actions-of="buildMenuItems"
-              @select="(item) => router.push({ name: 'equipment-detail', params: { id: item.id } })"
+              :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
+              @select="openDetail"
             />
-            <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
-              <Column field="code" header="Code" />
-              <Column field="title" header="Titre" />
-              <Column header="Quantité">
+            <DataTable
+              v-else
+              :value="filteredItems"
+              paginator
+              :rows="tableRows"
+              striped-rows
+              :sort-field="sortField === 'client' || sortField === 'unit' ? undefined : (sortField || undefined)"
+              :sort-order="sortOrder"
+              @row-contextmenu="onRowContextMenu"
+            >
+              <Column v-if="showIndex" header="#" style="width: 3.5rem">
+                <template #body="{ index }">{{ index + 1 }}</template>
+              </Column>
+              <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
+              <Column v-if="isColVisible('title')" field="title" header="Titre" sortable />
+              <Column v-if="isColVisible('quantity')" field="quantity" header="Quantité" sortable>
                 <template #body="{ data }">{{ data.quantity ?? 0 }}</template>
               </Column>
-              <Column header="Unité">
+              <Column v-if="isColVisible('unit')" header="Unité">
                 <template #body="{ data }">{{ equipmentUnitLabel(data.unit) }}</template>
               </Column>
-              <Column header="Client">
+              <Column v-if="isColVisible('client')" header="Client">
                 <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
               </Column>
               <Column header="Actions" style="width: 5rem">
@@ -281,6 +354,7 @@ function quantityDisplay(item) {
               </Column>
             </DataTable>
             <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
+            <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
           </AppTableState>
         </div>
 

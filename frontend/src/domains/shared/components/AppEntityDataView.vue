@@ -37,6 +37,11 @@ defineProps({
     type: Function,
     default: null
   },
+  /** (item) => event bindings object (context menu / long-press) */
+  rowBindingsOf: {
+    type: Function,
+    default: null
+  },
   dataKey: {
     type: String,
     default: 'id'
@@ -54,6 +59,7 @@ defineEmits(['select'])
       class="app-entity-card"
       role="listitem"
       tabindex="0"
+      v-on="rowBindingsOf?.(item) ?? {}"
       @click="$emit('select', item)"
       @keydown.enter.prevent="$emit('select', item)"
     >

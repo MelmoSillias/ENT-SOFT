@@ -9,26 +9,56 @@ import DatePicker from 'primevue/datepicker'
 import Tag from 'primevue/tag'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
-import AppFiltersCard from '@/domains/shared/components/AppFiltersCard.vue'
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
+import { useAppToast } from '@/domains/shared/composables/useAppToast'
 
+const toast = useAppToast()
 const { isAppMobile } = useAppMobileLayout()
 const items = ref([])
 const users = ref([])
 const loading = ref(true)
 const error = ref(null)
 const reloading = ref(false)
+const searchTerm = ref('')
+const rowContextMenu = ref()
 
 const first = ref(0)
-const rows = ref(20)
 const totalRecords = ref(0)
 
 const filterAction = ref(null)
 const filterUserId = ref(null)
 const filterPeriod = ref(null)
 const knownActions = ref(new Set())
+
+const AUDIT_COLUMNS = [
+  { key: 'date_action', label: 'Date', defaultVisible: true },
+  { key: 'action', label: 'Action', defaultVisible: true },
+  { key: 'utilisateur', label: 'Utilisateur', defaultVisible: true },
+  { key: 'description', label: 'Description', defaultVisible: true },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_audit_logs', AUDIT_COLUMNS, {
+  defaultRows: 20,
+  defaultSortField: 'date_action',
+  defaultSortOrder: -1,
+})
 
 async function loadUsers() {
   try {
@@ -41,8 +71,8 @@ async function loadUsers() {
 
 function buildParams() {
   const params = {
-    page: Math.floor(first.value / rows.value) + 1,
-    limit: rows.value,
+    page: Math.floor(first.value / tableRows.value) + 1,
+    limit: tableRows.value,
   }
   if (filterAction.value) params.action = filterAction.value
   if (filterUserId.value) params.utilisateur_id = filterUserId.value
@@ -88,9 +118,18 @@ watch([filterAction, filterUserId, filterPeriod], () => {
   load()
 })
 
+watch(tableRows, (val, oldVal) => {
+  if (val === oldVal) return
+  first.value = 0
+  load()
+})
+
 function onPage(event) {
   first.value = event.first
-  rows.value = event.rows
+  if (event.rows !== tableRows.value) {
+    tableRows.value = event.rows
+    return
+  }
   load()
 }
 
@@ -171,77 +210,67 @@ const activeFilterCount = computed(() => {
   return count
 })
 
-const countLabel = computed(() => {
-  if (activeFilterCount.value > 0) {
-    return `${totalRecords.value}`
+const displayItems = computed(() => {
+  const q = searchTerm.value.trim().toLowerCase()
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [
+        formatActionLabel(item.action),
+        item.description,
+        userLabel(item.utilisateur_id),
+        userDisplayName(item.utilisateur_id),
+        formatDateTime(item.date_action),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(q),
+    )
   }
-  return `${totalRecords.value}`
+  const enriched = list.map((item) => ({
+    ...item,
+    _utilisateur: userLabel(item.utilisateur_id),
+    _actionLabel: formatActionLabel(item.action),
+  }))
+  const fieldMap = { utilisateur: '_utilisateur', action: '_actionLabel' }
+  const field = fieldMap[sortField.value] || sortField.value
+  return sortByField(enriched, field, sortOrder.value)
 })
+
+const countLabel = computed(() => `${totalRecords.value}`)
 
 function resetFilters() {
   filterAction.value = null
   filterUserId.value = null
   filterPeriod.value = null
 }
+
+function buildMenuItems(item) {
+  return [
+    {
+      label: 'Copier la description',
+      icon: 'pi pi-copy',
+      command: async () => {
+        const text = item.description || ''
+        try {
+          await navigator.clipboard.writeText(text)
+          toast.add({ severity: 'success', summary: 'Audit', detail: 'Description copiée.' })
+        } catch {
+          toast.add({ severity: 'warn', summary: 'Audit', detail: 'Copie impossible.' })
+        }
+      },
+    },
+  ]
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
+}
 </script>
 
 <template>
   <section class="dashboard-page audit-log">
-    <AppFiltersCard :active-count="activeFilterCount" class="audit-log__filters">
-      <div class="filter-field filter-field--period">
-        <label class="filter-label" for="audit-filter-period">Période</label>
-        <DatePicker
-          id="audit-filter-period"
-          v-model="filterPeriod"
-          selection-mode="range"
-          date-format="dd/mm/yy"
-          show-icon
-          icon-display="button"
-          show-clear
-          placeholder="Toutes les dates"
-          fluid
-        />
-      </div>
-      <div class="filter-field">
-        <label class="filter-label" for="audit-filter-action">Action</label>
-        <AppFilterSelect
-          id="audit-filter-action"
-          v-model="filterAction"
-          :options="actionOptions"
-          option-label="label"
-          option-value="value"
-          placeholder="Toutes les actions"
-          show-clear
-          fluid
-        />
-      </div>
-      <div class="filter-field">
-        <label class="filter-label" for="audit-filter-user">Utilisateur</label>
-        <AppFilterSelect
-          id="audit-filter-user"
-          v-model="filterUserId"
-          :options="userOptions"
-          option-label="label"
-          option-value="value"
-          placeholder="Tous les utilisateurs"
-          show-clear
-          fluid
-        />
-      </div>
-      <div class="filter-field filter-field--actions">
-        <Button
-          icon="pi pi-filter-slash"
-          severity="secondary"
-          text
-          rounded
-          aria-label="Réinitialiser les filtres"
-          v-tooltip.top="'Réinitialiser'"
-          :disabled="activeFilterCount === 0"
-          @click="resetFilters"
-        />
-      </div>
-    </AppFiltersCard>
-
     <Card class="dashboard-panel">
       <template #title>
         <AppTablePanelHeader
@@ -250,17 +279,82 @@ function resetFilters() {
           :show-create="false"
           :sticky="isAppMobile"
           :reloading="reloading"
+          show-search
+          v-model:search-term="searchTerm"
+          search-placeholder="Rechercher dans la page…"
           @reload="reload"
-        />
+        >
+          <template #actions>
+            <AppTableSettingsPopover
+              v-model:visible-col-keys="visibleColKeys"
+              v-model:rows="tableRows"
+              v-model:show-index="showIndex"
+              v-model:sort-field="sortField"
+              v-model:sort-order="sortOrder"
+              :columns="tableColumns"
+              :row-options="ROW_OPTIONS"
+              :sort-options="sortOptions"
+              @toggle-col="toggleCol"
+            >
+              <template #filters>
+                <p class="app-table-settings__title">Filtres</p>
+                <DatePicker
+                  v-model="filterPeriod"
+                  selection-mode="range"
+                  date-format="dd/mm/yy"
+                  show-icon
+                  icon-display="button"
+                  show-clear
+                  placeholder="Période"
+                  fluid
+                  size="small"
+                  class="app-table-settings__mb"
+                />
+                <AppFilterSelect
+                  v-model="filterAction"
+                  :options="actionOptions"
+                  option-label="label"
+                  option-value="value"
+                  placeholder="Action"
+                  show-clear
+                  fluid
+                  size="small"
+                  class="app-table-settings__mb"
+                />
+                <AppFilterSelect
+                  v-model="filterUserId"
+                  :options="userOptions"
+                  option-label="label"
+                  option-value="value"
+                  placeholder="Utilisateur"
+                  show-clear
+                  fluid
+                  size="small"
+                  class="app-table-settings__mb"
+                />
+                <Button
+                  v-if="activeFilterCount > 0"
+                  label="Réinitialiser"
+                  icon="pi pi-filter-slash"
+                  severity="secondary"
+                  outlined
+                  size="small"
+                  fluid
+                  @click="resetFilters"
+                />
+              </template>
+            </AppTableSettingsPopover>
+          </template>
+        </AppTablePanelHeader>
       </template>
       <template #content>
         <AppTableState
           :loading="loading"
           :error="error"
-          :is-empty="!loading && !error && items.length === 0"
+          :is-empty="!loading && !error && displayItems.length === 0"
           empty-icon="pi pi-history"
           empty-title="Aucune entrée"
-          :empty-text="activeFilterCount > 0 ? 'Aucune action ne correspond aux filtres sélectionnés.' : 'Aucune action n\'a encore été enregistrée.'"
+          :empty-text="activeFilterCount > 0 || searchTerm.trim() ? 'Aucune action ne correspond aux filtres sélectionnés.' : 'Aucune action n\'a encore été enregistrée.'"
           @retry="load"
         >
           <template #empty-action>
@@ -277,33 +371,41 @@ function resetFilters() {
 
           <AppEntityDataView
             v-if="isAppMobile"
-            :items="items"
+            :items="displayItems"
             :title-of="(item) => formatActionLabel(item.action)"
             :subtitle-of="(item) => item.description || null"
             :meta-of="(item) => `${formatDateTime(item.date_action)} · ${userLabel(item.utilisateur_id)}`"
             :status-of="(item) => ({ value: formatActionLabel(item.action), severity: actionSeverity(item.action) })"
+            :actions-of="buildMenuItems"
+            :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
             data-key="id"
           />
           <DataTable
             v-else
-            :value="items"
+            :value="displayItems"
             lazy
             paginator
-            :rows="rows"
+            :rows="tableRows"
             :first="first"
             :total-records="totalRecords"
-            :rows-per-page-options="[10, 20, 50]"
+            :rows-per-page-options="ROW_OPTIONS"
             striped-rows
+            :sort-field="sortField === 'utilisateur' || sortField === 'action' ? undefined : (sortField || undefined)"
+            :sort-order="sortOrder"
             @page="onPage"
+            @row-contextmenu="onRowContextMenu"
           >
-            <Column header="Date" style="width: 10.5rem">
+            <Column v-if="showIndex" header="#" style="width: 3.5rem">
+              <template #body="{ index }">{{ first + index + 1 }}</template>
+            </Column>
+            <Column v-if="isColVisible('date_action')" field="date_action" header="Date" style="width: 10.5rem" sortable>
               <template #body="{ data }">
                 <div class="audit-log__date-cell">
                   <span class="audit-log__date">{{ formatDateTime(data.date_action) }}</span>
                 </div>
               </template>
             </Column>
-            <Column header="Action" style="width: 12rem">
+            <Column v-if="isColVisible('action')" field="action" header="Action" style="width: 12rem" sortable>
               <template #body="{ data }">
                 <Tag
                   class="audit-log__action-tag"
@@ -313,7 +415,7 @@ function resetFilters() {
                 />
               </template>
             </Column>
-            <Column header="Utilisateur" style="width: 10rem">
+            <Column v-if="isColVisible('utilisateur')" header="Utilisateur" style="width: 10rem">
               <template #body="{ data }">
                 <div class="audit-log__user-cell">
                   <span class="audit-log__user-login">{{ userLabel(data.utilisateur_id) }}</span>
@@ -321,7 +423,7 @@ function resetFilters() {
                 </div>
               </template>
             </Column>
-            <Column header="Description">
+            <Column v-if="isColVisible('description')" field="description" header="Description" sortable>
               <template #body="{ data }">
                 <p class="audit-log__description" :title="data.description">
                   {{ data.description || '—' }}
@@ -329,6 +431,7 @@ function resetFilters() {
               </template>
             </Column>
           </DataTable>
+          <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
         </AppTableState>
       </template>
     </Card>
@@ -339,35 +442,6 @@ function resetFilters() {
 .audit-log {
   display: grid;
   gap: 0.75rem;
-}
-
-.audit-log__filters {
-  margin-bottom: 0;
-}
-
-.audit-log__filters :deep(.app-filters-card__grid) {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: flex-end;
-  gap: 0.65rem;
-  overflow-x: auto;
-  padding-bottom: 0.15rem;
-  scrollbar-width: thin;
-}
-
-.audit-log__filters :deep(.filter-field) {
-  flex: 1 1 0;
-  min-width: 8rem;
-}
-
-.audit-log__filters :deep(.filter-field--period) {
-  flex: 1.2 1 0;
-  min-width: 11rem;
-}
-
-.audit-log__filters :deep(.filter-field--actions) {
-  flex: 0 0 auto;
-  min-width: auto;
 }
 
 .audit-log__date-cell {
@@ -420,17 +494,5 @@ function resetFilters() {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-@media (max-width: 767px) {
-  .audit-log__filters :deep(.app-filters-card__grid) {
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-
-  .audit-log__filters :deep(.filter-field) {
-    flex: 1 1 100%;
-    min-width: 0;
-  }
 }
 </style>

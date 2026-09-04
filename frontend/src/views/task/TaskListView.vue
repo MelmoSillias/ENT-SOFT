@@ -11,11 +11,14 @@ import SelectButton from 'primevue/selectbutton'
 import DatePicker from 'primevue/datepicker'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
-import AppFiltersCard from '@/domains/shared/components/AppFiltersCard.vue'
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import TaskFormFields from '@/domains/task/components/TaskFormFields.vue'
 import { listTasks, createTask, updateTask, deleteTask } from '@/domains/task/services/taskService'
 import { listSites } from '@/domains/site/services/siteService'
@@ -53,6 +56,7 @@ const editingId = ref(null)
 const actionItem = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
+const rowContextMenu = ref()
 
 const viewOptions = [
   { label: 'Tableau', value: 'table', icon: 'pi pi-list' },
@@ -60,6 +64,29 @@ const viewOptions = [
 ]
 
 const statusFilterOptions = [{ label: 'Tous', value: null }, ...TASK_STATUS_OPTIONS]
+
+const TASK_COLUMNS = [
+  { key: 'title', label: 'Titre', defaultVisible: true },
+  { key: 'site', label: 'Site', defaultVisible: true },
+  { key: 'employee', label: 'Employé', defaultVisible: true },
+  { key: 'dateDue', label: 'Échéance', defaultVisible: true },
+  { key: 'status', label: 'Statut', defaultVisible: true },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_tasks', TASK_COLUMNS, {
+  defaultSortField: 'dateDue',
+})
 
 const canCreate = computed(() => hasPermission('task.tasks.create'))
 
@@ -119,10 +146,20 @@ watch([filterSiteId, filterEmployeeId, filterStatus], () => { if (!loading.value
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  if (!q) return items.value
-  return items.value.filter((item) =>
-    [item.title, item.description, siteMap.value[item.siteId], employeeMap.value[item.employeeId]].filter(Boolean).join(' ').toLowerCase().includes(q),
-  )
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [item.title, item.description, siteMap.value[item.siteId], employeeMap.value[item.employeeId]].filter(Boolean).join(' ').toLowerCase().includes(q),
+    )
+  }
+  const enriched = list.map((item) => ({
+    ...item,
+    _site: siteMap.value[item.siteId] || '',
+    _employee: employeeMap.value[item.employeeId] || '',
+  }))
+  const fieldMap = { site: '_site', employee: '_employee' }
+  const field = fieldMap[sortField.value] || sortField.value
+  return sortByField(enriched, field, sortOrder.value)
 })
 
 const calendarGroups = computed(() => {
@@ -167,7 +204,7 @@ function openEdit(item) {
 function buildMenuItems(item) {
   const menu = []
   if (hasPermission('task.tasks.update')) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
-  if (hasPermission('task.tasks.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', command: () => askDelete(item) })
+  if (hasPermission('task.tasks.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', severity: 'danger', command: () => askDelete(item) })
   return menu
 }
 
@@ -175,6 +212,10 @@ function toggleMenu(event, item) {
   actionItem.value = item
   menuModel.value = buildMenuItems(item)
   actionMenu.value?.toggle(event)
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
 
 function askDelete(item) {
@@ -240,16 +281,57 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         >
           <template #actions>
             <SelectButton v-model="viewMode" :options="viewOptions" option-label="label" option-value="value" :allow-empty="false" />
+            <AppTableSettingsPopover
+              v-model:visible-col-keys="visibleColKeys"
+              v-model:rows="tableRows"
+              v-model:show-index="showIndex"
+              v-model:sort-field="sortField"
+              v-model:sort-order="sortOrder"
+              :columns="tableColumns"
+              :row-options="ROW_OPTIONS"
+              :sort-options="sortOptions"
+              @toggle-col="toggleCol"
+            >
+              <template #filters>
+                <p class="app-table-settings__title">Filtres</p>
+                <AppFilterSelect
+                  v-model="filterSiteId"
+                  :options="[{ label: 'Tous les sites', value: null }, ...siteOptions]"
+                  option-label="label"
+                  option-value="value"
+                  placeholder="Site"
+                  show-clear
+                  fluid
+                  size="small"
+                  class="app-table-settings__mb"
+                />
+                <AppFilterSelect
+                  v-model="filterEmployeeId"
+                  :options="[{ label: 'Tous les employés', value: null }, ...employeeOptions]"
+                  option-label="label"
+                  option-value="value"
+                  placeholder="Employé"
+                  show-clear
+                  fluid
+                  size="small"
+                  class="app-table-settings__mb"
+                />
+                <AppFilterSelect
+                  v-model="filterStatus"
+                  :options="statusFilterOptions"
+                  option-label="label"
+                  option-value="value"
+                  placeholder="Statut"
+                  show-clear
+                  fluid
+                  size="small"
+                />
+              </template>
+            </AppTableSettingsPopover>
           </template>
         </AppTablePanelHeader>
       </template>
       <template #content>
-        <AppFiltersCard>
-          <AppFilterSelect v-model="filterSiteId" label="Site" :options="[{ label: 'Tous', value: null }, ...siteOptions]" />
-          <AppFilterSelect v-model="filterEmployeeId" label="Employé" :options="[{ label: 'Tous', value: null }, ...employeeOptions]" />
-          <AppFilterSelect v-model="filterStatus" label="Statut" :options="statusFilterOptions" />
-        </AppFiltersCard>
-
         <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
           <template v-if="viewMode === 'table'">
             <AppEntityDataView
@@ -260,20 +342,33 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               :meta-of="(item) => [employeeMap[item.employeeId], formatDateFr(item.dateDue)].filter(Boolean).join(' · ') || null"
               :status-of="(item) => ({ value: taskStatusLabel(item.status), severity: taskStatusSeverity(item.status) })"
               :actions-of="buildMenuItems"
+              :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
               @select="openEdit"
             />
-            <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
-              <Column field="title" header="Titre" />
-              <Column header="Site">
+            <DataTable
+              v-else
+              :value="filteredItems"
+              paginator
+              :rows="tableRows"
+              striped-rows
+              :sort-field="sortField === 'site' || sortField === 'employee' ? undefined : (sortField || undefined)"
+              :sort-order="sortOrder"
+              @row-contextmenu="onRowContextMenu"
+            >
+              <Column v-if="showIndex" header="#" style="width: 3.5rem">
+                <template #body="{ index }">{{ index + 1 }}</template>
+              </Column>
+              <Column v-if="isColVisible('title')" field="title" header="Titre" sortable />
+              <Column v-if="isColVisible('site')" header="Site">
                 <template #body="{ data }">{{ siteMap[data.siteId] || '—' }}</template>
               </Column>
-              <Column header="Employé">
+              <Column v-if="isColVisible('employee')" header="Employé">
                 <template #body="{ data }">{{ employeeMap[data.employeeId] || '—' }}</template>
               </Column>
-              <Column header="Échéance">
+              <Column v-if="isColVisible('dateDue')" field="dateDue" header="Échéance" sortable>
                 <template #body="{ data }">{{ formatDateFr(data.dateDue) }}</template>
               </Column>
-              <Column header="Statut">
+              <Column v-if="isColVisible('status')" field="status" header="Statut" sortable>
                 <template #body="{ data }">
                   <Tag :value="taskStatusLabel(data.status)" :severity="taskStatusSeverity(data.status)" />
                 </template>
@@ -285,6 +380,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               </Column>
             </DataTable>
             <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
+            <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
           </template>
 
           <div v-else class="task-calendar">

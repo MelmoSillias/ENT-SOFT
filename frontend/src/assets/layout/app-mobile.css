@@ -51,7 +51,8 @@
   box-shadow: none;
   border-left: 0;
   border-right: 0;
-  overflow: hidden;
+  /* visible: sticky segment tabs + bleed must not be clipped */
+  overflow: visible;
 }
 
 .app-shell--app-mobile .dashboard-home .dashboard-panel,
@@ -260,6 +261,8 @@
 .app-mobile-segment-tabs {
   display: flex;
   gap: 0.35rem;
+  max-width: 100%;
+  box-sizing: border-box;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -277,9 +280,20 @@
   z-index: 19;
   background: color-mix(in srgb, var(--layout-panel-bg) 94%, transparent);
   backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--layout-panel-border);
+}
+
+/* Bleed only when tabs sit outside a panel (page-level sibling) */
+.app-shell--app-mobile .dashboard-page > .app-mobile-segment-tabs.is-sticky {
   margin-inline: calc(-1 * var(--app-gutter));
   padding-inline: var(--app-gutter);
-  border-bottom: 1px solid var(--layout-panel-border);
+}
+
+/* Inside a panel: stay inset, no negative margin overflow */
+.app-shell--app-mobile .dashboard-panel .app-mobile-segment-tabs.is-sticky,
+.app-shell--app-mobile .p-card.dashboard-panel .app-mobile-segment-tabs.is-sticky {
+  margin-inline: 0;
+  padding-inline: 0;
 }
 
 .app-mobile-segment-tabs__btn {

@@ -11,7 +11,11 @@ import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import InvoiceFormFields from '@/domains/finance/components/InvoiceFormFields.vue'
 import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
@@ -60,6 +64,32 @@ const menuModel = ref([])
 const exportTarget = ref(null)
 const printTarget = ref(null)
 const expandedRows = ref([])
+const rowContextMenu = ref()
+
+const INVOICE_COLUMNS = [
+  { key: 'number', label: 'N°', defaultVisible: true },
+  { key: 'date', label: 'Date', defaultVisible: true },
+  { key: 'client', label: 'Client', defaultVisible: true },
+  { key: 'amount', label: 'Montant', defaultVisible: true },
+  { key: 'paidAmount', label: 'Payé', defaultVisible: true },
+  { key: 'status', label: 'Statut', defaultVisible: true },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_invoices', INVOICE_COLUMNS, {
+  defaultSortField: 'date',
+  defaultSortOrder: -1,
+})
 
 const canCreate = computed(() => hasPermission('finance.invoices.create'))
 
@@ -119,10 +149,18 @@ onMounted(load)
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  if (!q) return items.value
-  return items.value.filter((item) =>
-    [item.number, clientMap.value[item.clientId]].filter(Boolean).join(' ').toLowerCase().includes(q),
-  )
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [item.number, clientMap.value[item.clientId]].filter(Boolean).join(' ').toLowerCase().includes(q),
+    )
+  }
+  const enriched = list.map((item) => ({
+    ...item,
+    _client: clientMap.value[item.clientId] || '',
+  }))
+  const field = sortField.value === 'client' ? '_client' : sortField.value
+  return sortByField(enriched, field, sortOrder.value)
 })
 
 const countLabel = computed(() => `${filteredItems.value.length}`)
@@ -196,7 +234,7 @@ function buildMenuItems(item) {
     })
   }
   if (hasPermission('finance.invoices.delete') && !item.hasPayments && item.status === 'draft') {
-    menu.push({ label: 'Supprimer', icon: 'pi pi-trash', command: () => askDelete(item) })
+    menu.push({ label: 'Supprimer', icon: 'pi pi-trash', severity: 'danger', command: () => askDelete(item) })
   }
   menu.push({
     label: 'Exporter',
@@ -220,6 +258,10 @@ function buildMenuItems(item) {
 function toggleMenu(event, item) {
   menuModel.value = buildMenuItems(item)
   actionMenu.value?.toggle(event)
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
 
 function askDelete(item) {
@@ -339,13 +381,28 @@ const printFormatItems = computed(() => [
       search-placeholder="Rechercher…"
       @create="openCreate"
       @reload="reload"
-    />
+    >
+      <template #actions>
+        <AppTableSettingsPopover
+          v-model:visible-col-keys="visibleColKeys"
+          v-model:rows="tableRows"
+          v-model:show-index="showIndex"
+          v-model:sort-field="sortField"
+          v-model:sort-order="sortOrder"
+          :columns="tableColumns"
+          :row-options="ROW_OPTIONS"
+          :sort-options="sortOptions"
+          @toggle-col="toggleCol"
+        />
+      </template>
+    </AppTablePanelHeader>
     <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
       <div v-if="isAppMobile" class="app-entity-dataview">
         <article
           v-for="item in filteredItems"
           :key="item.id"
           class="app-entity-card"
+          v-bind="rowContextMenu?.rowBindings(item) ?? {}"
           @click="expandedMobileId = expandedMobileId === item.id ? null : item.id"
         >
           <div class="app-entity-card__row">
@@ -393,76 +450,91 @@ const printFormatItems = computed(() => [
           </div>
         </article>
       </div>
-      <DataTable v-else v-model:expandedRows="expandedRows" :value="filteredItems" paginator :rows="10" striped-rows data-key="id">
-            <Column expander style="width: 3rem" />
-            <Column field="number" header="N°" />
-            <Column header="Date">
-              <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
-            </Column>
-            <Column header="Client">
-              <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
-            </Column>
-            <Column header="Montant">
-              <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
-            </Column>
-            <Column header="Payé">
-              <template #body="{ data }">{{ formatMontant(data.paidAmount, DEVISE_APP) }}</template>
-            </Column>
-            <Column header="Statut">
-              <template #body="{ data }">
-                <Tag :value="invoiceStatusLabel(data.status)" :severity="invoiceStatusSeverity(data.status)" />
-              </template>
-            </Column>
-            <Column header="Actions" style="width: 5rem">
-              <template #body="{ data }">
-                <Button v-if="buildMenuItems(data).length" icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
-              </template>
-            </Column>
-            <template #expansion="{ data }">
-              <div class="invoice-expansion">
-                <div class="invoice-expansion__section">
-                  <p class="invoice-expansion__title">Lignes</p>
-                  <p v-if="!(data.lines ?? []).length" class="invoice-expansion__empty">Aucune ligne.</p>
-                  <table v-else class="invoice-lines-table">
-                    <thead>
-                      <tr>
-                        <th>Libellé</th>
-                        <th>Unité</th>
-                        <th>Qté</th>
-                        <th>P.U.</th>
-                        <th>Montant</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="(line, idx) in data.lines" :key="line.id || idx">
-                        <td>{{ line.description }}</td>
-                        <td>{{ line.unit || 'Lot' }}</td>
-                        <td>{{ line.quantity }}</td>
-                        <td>{{ formatMontant(line.unitPrice, DEVISE_APP) }}</td>
-                        <td>{{ formatMontant(line.amount ?? Number(line.quantity || 0) * Number(line.unitPrice || 0), DEVISE_APP) }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+      <DataTable
+        v-else
+        v-model:expandedRows="expandedRows"
+        :value="filteredItems"
+        paginator
+        :rows="tableRows"
+        striped-rows
+        data-key="id"
+        :sort-field="sortField === 'client' ? undefined : (sortField || undefined)"
+        :sort-order="sortOrder"
+        @row-contextmenu="onRowContextMenu"
+      >
+        <Column expander style="width: 3rem" />
+        <Column v-if="showIndex" header="#" style="width: 3.5rem">
+          <template #body="{ index }">{{ index + 1 }}</template>
+        </Column>
+        <Column v-if="isColVisible('number')" field="number" header="N°" sortable />
+        <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
+          <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+        </Column>
+        <Column v-if="isColVisible('client')" header="Client">
+          <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
+        </Column>
+        <Column v-if="isColVisible('amount')" field="amount" header="Montant" sortable>
+          <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
+        </Column>
+        <Column v-if="isColVisible('paidAmount')" field="paidAmount" header="Payé" sortable>
+          <template #body="{ data }">{{ formatMontant(data.paidAmount, DEVISE_APP) }}</template>
+        </Column>
+        <Column v-if="isColVisible('status')" field="status" header="Statut" sortable>
+          <template #body="{ data }">
+            <Tag :value="invoiceStatusLabel(data.status)" :severity="invoiceStatusSeverity(data.status)" />
+          </template>
+        </Column>
+        <Column header="Actions" style="width: 5rem">
+          <template #body="{ data }">
+            <Button v-if="buildMenuItems(data).length" icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
+          </template>
+        </Column>
+        <template #expansion="{ data }">
+          <div class="invoice-expansion">
+            <div class="invoice-expansion__section">
+              <p class="invoice-expansion__title">Lignes</p>
+              <p v-if="!(data.lines ?? []).length" class="invoice-expansion__empty">Aucune ligne.</p>
+              <table v-else class="invoice-lines-table">
+                <thead>
+                  <tr>
+                    <th>Libellé</th>
+                    <th>Unité</th>
+                    <th>Qté</th>
+                    <th>P.U.</th>
+                    <th>Montant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(line, idx) in data.lines" :key="line.id || idx">
+                    <td>{{ line.description }}</td>
+                    <td>{{ line.unit || 'Lot' }}</td>
+                    <td>{{ line.quantity }}</td>
+                    <td>{{ formatMontant(line.unitPrice, DEVISE_APP) }}</td>
+                    <td>{{ formatMontant(line.amount ?? Number(line.quantity || 0) * Number(line.unitPrice || 0), DEVISE_APP) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="invoice-expansion__section">
+              <p class="invoice-expansion__title">Paiements</p>
+              <p v-if="!(data.payments ?? []).length" class="invoice-expansion__empty">Aucun paiement.</p>
+              <div v-for="payment in data.payments" :key="payment.id" class="invoice-payments__row">
+                <div>
+                  <strong>{{ formatDateFr(payment.date) }}</strong>
+                  — {{ formatMontant(payment.amount, DEVISE_APP) }}
+                  <span v-if="payment.description"> · {{ payment.description }}</span>
                 </div>
-                <div class="invoice-expansion__section">
-                  <p class="invoice-expansion__title">Paiements</p>
-                  <p v-if="!(data.payments ?? []).length" class="invoice-expansion__empty">Aucun paiement.</p>
-                  <div v-for="payment in data.payments" :key="payment.id" class="invoice-payments__row">
-                    <div>
-                      <strong>{{ formatDateFr(payment.date) }}</strong>
-                      — {{ formatMontant(payment.amount, DEVISE_APP) }}
-                      <span v-if="payment.description"> · {{ payment.description }}</span>
-                    </div>
-                    <TransactionAttachments :owner-id="payment.id" />
-                  </div>
-                </div>
+                <TransactionAttachments :owner-id="payment.id" />
               </div>
-            </template>
-          </DataTable>
-          <Menu ref="actionMenu" :model="menuModel" popup />
-          <ExportFormatMenu ref="exportMenu" @select="onExportSelect" />
-          <Menu ref="printMenu" :model="printFormatItems" popup />
-        </AppTableState>
+            </div>
+          </div>
+        </template>
+      </DataTable>
+      <Menu ref="actionMenu" :model="menuModel" popup />
+      <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
+      <ExportFormatMenu ref="exportMenu" @select="onExportSelect" />
+      <Menu ref="printMenu" :model="printFormatItems" popup />
+    </AppTableState>
 
     <AppMobileFab
       v-if="isAppMobile && canCreate"

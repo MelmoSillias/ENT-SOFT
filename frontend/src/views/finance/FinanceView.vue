@@ -11,6 +11,7 @@ import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTa
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import InvoiceListView from '@/views/finance/InvoiceListView.vue'
 import TransactionListPanel from '@/views/finance/TransactionListPanel.vue'
+import PrestationListPanel from '@/views/finance/PrestationListPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,12 +21,13 @@ const activeTab = ref('invoices')
 const tabItems = [
   { value: 'invoices', label: 'Factures', shortLabel: 'Factures' },
   { value: 'expenses', label: 'Dépenses', shortLabel: 'Dépenses' },
+  { value: 'prestations', label: 'Prestations', shortLabel: 'Presta.' },
   { value: 'transactions', label: 'Transactions', shortLabel: 'Transac.' },
 ]
 
 function syncFromQuery() {
   const tab = route.query.tab
-  if (tab === 'expenses' || tab === 'transactions' || tab === 'invoices') {
+  if (tab === 'expenses' || tab === 'transactions' || tab === 'invoices' || tab === 'prestations') {
     activeTab.value = tab
   } else {
     activeTab.value = 'invoices'
@@ -53,11 +55,13 @@ watch(activeTab, (tab) => {
           <TabList>
             <Tab value="invoices">Factures</Tab>
             <Tab value="expenses">Dépenses</Tab>
+            <Tab value="prestations">Prestations</Tab>
             <Tab value="transactions">Transactions</Tab>
           </TabList>
           <TabPanels>
             <TabPanel value="invoices" />
             <TabPanel value="expenses" />
+            <TabPanel value="prestations" />
             <TabPanel value="transactions" />
           </TabPanels>
         </Tabs>
@@ -71,6 +75,9 @@ watch(activeTab, (tab) => {
             title="Dépenses"
             create-label="Nouvelle dépense"
           />
+        </div>
+        <div v-else-if="activeTab === 'prestations'">
+          <PrestationListPanel />
         </div>
         <div v-else-if="activeTab === 'transactions'">
           <TransactionListPanel

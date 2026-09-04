@@ -26,6 +26,8 @@ use App\Prestataire\Application\Query\GetPrestataire\GetPrestataireHandler;
 use App\Prestataire\Application\Query\GetPrestataire\GetPrestataireQuery;
 use App\Prestataire\Application\Query\GetPrestation\GetPrestationHandler;
 use App\Prestataire\Application\Query\GetPrestation\GetPrestationQuery;
+use App\Prestataire\Application\Query\ListAllPrestations\ListAllPrestationsHandler;
+use App\Prestataire\Application\Query\ListAllPrestations\ListAllPrestationsQuery;
 use App\Prestataire\Application\Query\ListPrestataires\ListPrestatairesHandler;
 use App\Prestataire\Application\Query\ListPrestataires\ListPrestatairesQuery;
 use App\Prestataire\Application\Query\ListPrestationsByPrestataire\ListPrestationsByPrestataireHandler;
@@ -61,6 +63,13 @@ final class PrestataireController extends AbstractController
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
+    }
+
+    #[Route('/prestations', name: 'api_prestations_list_all', methods: ['GET'], priority: 20)]
+    #[IsGranted('employee.prestataires.view')]
+    public function listAllPrestations(ListAllPrestationsHandler $handler): JsonResponse
+    {
+        return $this->json($handler->handle(new ListAllPrestationsQuery()));
     }
 
     #[Route('/prestations/{prestationId}', name: 'api_prestations_get', methods: ['GET'], priority: 10)]

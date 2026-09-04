@@ -1,11 +1,16 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import {
@@ -18,6 +23,27 @@ const { isAppMobile } = useAppMobileLayout()
 const clients = ref([])
 const loadingClients = ref(false)
 const errorClients = ref(null)
+const searchTerm = ref('')
+const rowContextMenu = ref()
+
+const COLUMNS = [
+  { key: 'title', label: 'Nom', defaultVisible: true },
+  { key: 'code', label: 'Code', defaultVisible: true },
+  { key: 'updatedAt', label: 'Supprimé le', defaultVisible: true },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_corbeille_clients', COLUMNS, { defaultSortField: 'updatedAt', defaultSortOrder: -1 })
 
 function clientLabel(client) {
   return client.title || client.code || '—'
@@ -32,6 +58,27 @@ function formatDate(iso) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+const filteredClients = computed(() => {
+  const q = searchTerm.value.trim().toLowerCase()
+  let list = clients.value
+  if (q) {
+    list = list.filter(
+      (c) =>
+        String(c.title || '').toLowerCase().includes(q) ||
+        String(c.code || '').toLowerCase().includes(q),
+    )
+  }
+  return sortByField(list, sortField.value === 'title' ? 'title' : sortField.value, sortOrder.value)
+})
+
+function clientActions(item) {
+  return [{ label: 'Restaurer', icon: 'pi pi-replay', command: () => restoreClient(item) }]
+}
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
 
 async function loadClients() {
@@ -72,32 +119,69 @@ defineExpose({ load })
 <template>
   <div class="corbeille-panel">
     <section class="corbeille-panel__section">
-      <h3>Clients</h3>
+      <AppTablePanelHeader
+        title="Clients"
+        :count-label="`${filteredClients.length}`"
+        :show-create="false"
+        show-search
+        v-model:search-term="searchTerm"
+        search-placeholder="Rechercher…"
+        :sticky="isAppMobile"
+        @reload="loadClients"
+      >
+        <template #actions>
+          <AppTableSettingsPopover
+            v-model:visible-col-keys="visibleColKeys"
+            v-model:rows="tableRows"
+            v-model:show-index="showIndex"
+            v-model:sort-field="sortField"
+            v-model:sort-order="sortOrder"
+            :columns="tableColumns"
+            :row-options="ROW_OPTIONS"
+            :sort-options="sortOptions"
+            @toggle-col="toggleCol"
+          />
+        </template>
+      </AppTablePanelHeader>
       <p class="corbeille-panel__hint">Clients masqués. La restauration les réaffiche dans le module Clients.</p>
       <AppTableState
         :loading="loadingClients"
         :error="errorClients"
-        :is-empty="!loadingClients && !errorClients && clients.length === 0"
+        :is-empty="!loadingClients && !errorClients && filteredClients.length === 0"
         empty-title="Aucun client dans la corbeille"
         empty-text="Les clients supprimés apparaîtront ici."
         @retry="loadClients"
       >
         <AppEntityDataView
           v-if="isAppMobile"
-          :items="clients"
+          :items="filteredClients"
           :title-of="clientLabel"
           :code-of="(item) => item.code"
           :meta-of="(item) => `Supprimé le ${formatDate(item.updatedAt)}`"
-          :actions-of="(item) => [{ label: 'Restaurer', icon: 'pi pi-replay', command: () => restoreClient(item) }]"
+          :actions-of="clientActions"
+          :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
         />
-        <DataTable v-else :value="clients" paginator :rows="10" striped-rows data-key="id">
-          <Column header="Nom">
+        <DataTable
+          v-else
+          :value="filteredClients"
+          paginator
+          :rows="tableRows"
+          striped-rows
+          data-key="id"
+          :sort-field="sortField || undefined"
+          :sort-order="sortOrder"
+          @row-contextmenu="onRowContextMenu"
+        >
+          <Column v-if="showIndex" header="#" style="width: 3.5rem">
+            <template #body="{ index }">{{ index + 1 }}</template>
+          </Column>
+          <Column v-if="isColVisible('title')" header="Nom" field="title" sortable>
             <template #body="{ data }">
               {{ clientLabel(data) }}
             </template>
           </Column>
-          <Column field="code" header="Code" />
-          <Column header="Supprimé le">
+          <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
+          <Column v-if="isColVisible('updatedAt')" header="Supprimé le" field="updatedAt" sortable>
             <template #body="{ data }">
               {{ formatDate(data.updatedAt) }}
             </template>
@@ -116,6 +200,7 @@ defineExpose({ load })
           </Column>
         </DataTable>
       </AppTableState>
+      <AppRowContextMenu ref="rowContextMenu" :actions-of="clientActions" />
     </section>
   </div>
 </template>
@@ -125,11 +210,6 @@ defineExpose({ load })
   display: flex;
   flex-direction: column;
   gap: 2rem;
-}
-
-.corbeille-panel__section h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
 }
 
 .corbeille-panel__hint {

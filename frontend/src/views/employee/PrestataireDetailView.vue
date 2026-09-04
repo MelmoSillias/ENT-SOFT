@@ -43,7 +43,13 @@ import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTa
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
+import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import ExportFormatMenu from '@/domains/impression/components/ExportFormatMenu.vue'
 import ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
@@ -70,6 +76,40 @@ const currentItem = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
 const exportMenu = ref()
+const rowContextMenu = ref()
+const searchTerm = ref('')
+const filterWorkStatus = ref(null)
+const filterPaymentStatus = ref(null)
+
+const PRESTATION_COLUMNS = [
+  { key: 'description', label: 'Description', defaultVisible: true },
+  { key: 'site', label: 'Site', defaultVisible: true },
+  { key: 'amount', label: 'Montant', defaultVisible: true },
+  { key: 'paidAmount', label: 'Payé', defaultVisible: true },
+  { key: 'workStatus', label: 'Statut', defaultVisible: true },
+  { key: 'paymentStatus', label: 'Paiement', defaultVisible: true },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_prestataire_prestations', PRESTATION_COLUMNS, {
+  defaultSortField: 'description',
+})
+
+const PAYMENT_STATUS_OPTIONS = [
+  { label: 'Impayé', value: 'unpaid' },
+  { label: 'Partiel', value: 'partial' },
+  { label: 'Payé', value: 'paid' },
+]
 
 const WORK_STATUS_OPTIONS = [
   { label: 'En attente', value: 'pending' },
@@ -80,6 +120,28 @@ const PAYMENT_STATUS_LABEL = { unpaid: 'Impayé', partial: 'Partiel', paid: 'Pay
 const PAYMENT_STATUS_SEVERITY = { unpaid: 'danger', partial: 'warn', paid: 'success' }
 const WORK_STATUS_LABEL = Object.fromEntries(WORK_STATUS_OPTIONS.map((o) => [o.value, o.label]))
 const WORK_STATUS_SEVERITY = { pending: 'secondary', in_progress: 'info', completed: 'success' }
+
+const filteredPrestations = computed(() => {
+  const q = searchTerm.value.trim().toLowerCase()
+  let list = prestations.value
+  if (filterWorkStatus.value) {
+    list = list.filter((p) => p.workStatus === filterWorkStatus.value)
+  }
+  if (filterPaymentStatus.value) {
+    list = list.filter((p) => p.paymentStatus === filterPaymentStatus.value)
+  }
+  if (q) {
+    list = list.filter((p) => {
+      const site = p.siteId ? (siteMap.value[p.siteId] || '') : ''
+      return (
+        String(p.description || '').toLowerCase().includes(q) ||
+        site.toLowerCase().includes(q) ||
+        String(p.amount).includes(q)
+      )
+    })
+  }
+  return sortByField(list, sortField.value, sortOrder.value)
+})
 
 const prestataireTabItems = computed(() => [
   { value: '0', label: 'Informations', shortLabel: 'Infos' },
@@ -92,13 +154,34 @@ const infoItems = computed(() => {
     { key: 'email', label: 'Email', icon: 'pi pi-envelope', value: prestataire.value.email },
     { key: 'phone', label: 'Téléphone', icon: 'pi pi-phone', value: prestataire.value.phone },
     { key: 'address', label: 'Adresse', icon: 'pi pi-map-marker', value: prestataire.value.address || null, full: true },
-    { key: 'open', label: 'Prestations non clôturées', icon: 'pi pi-briefcase', value: prestataire.value.openPrestationsCount ?? 0 },
-    {
-      key: 'reliquat',
-      label: 'Reliquat total',
-      icon: 'pi pi-wallet',
-      value: formatMontant(prestataire.value.unpaidCompletedReliquat ?? 0, DEVISE_APP),
-    },
+  ]
+})
+
+const prestationStatsItems = computed(() => {
+  const list = prestations.value
+  const total = list.length
+  const byWork = { pending: 0, in_progress: 0, completed: 0 }
+  const byPay = { unpaid: 0, partial: 0, paid: 0 }
+  let amountTotal = 0
+  let paidTotal = 0
+  for (const p of list) {
+    byWork[p.workStatus] = (byWork[p.workStatus] ?? 0) + 1
+    byPay[p.paymentStatus] = (byPay[p.paymentStatus] ?? 0) + 1
+    amountTotal += Number(p.amount) || 0
+    paidTotal += Number(p.paidAmount) || 0
+  }
+  const reliquat = Math.max(0, amountTotal - paidTotal)
+  return [
+    { key: 'total', label: 'Total prestations', icon: 'pi pi-briefcase', value: total },
+    { key: 'pending', label: 'En attente', icon: 'pi pi-clock', value: byWork.pending },
+    { key: 'in_progress', label: 'En cours', icon: 'pi pi-play', value: byWork.in_progress },
+    { key: 'completed', label: 'Terminées', icon: 'pi pi-check-circle', value: byWork.completed },
+    { key: 'amount', label: 'Montant total', icon: 'pi pi-wallet', value: formatMontant(amountTotal, DEVISE_APP) },
+    { key: 'paid', label: 'Montant payé', icon: 'pi pi-money-bill', value: formatMontant(paidTotal, DEVISE_APP) },
+    { key: 'reliquat', label: 'Reliquat', icon: 'pi pi-exclamation-circle', value: formatMontant(reliquat, DEVISE_APP) },
+    { key: 'unpaid', label: 'Impayées', icon: 'pi pi-times-circle', value: byPay.unpaid },
+    { key: 'partial', label: 'Partiellement payées', icon: 'pi pi-minus-circle', value: byPay.partial },
+    { key: 'paidCount', label: 'Payées', icon: 'pi pi-verified', value: byPay.paid },
   ]
 })
 
@@ -210,6 +293,10 @@ function buildMenuItems(item) {
 function toggleMenu(event, item) {
   menuModel.value = buildMenuItems(item)
   actionMenu.value?.toggle(event)
+}
+
+function onPrestationRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
 
 function askDelete(item) {
@@ -390,24 +477,78 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
           <TabPanels>
             <TabPanel value="0">
               <AppDetailInfoList :items="infoItems" />
+              <h2 class="detail-section-title">Statistiques prestations</h2>
+              <AppDetailInfoList :items="prestationStatsItems" />
             </TabPanel>
             <TabPanel value="1">
-              <div v-if="!isAppMobile" class="prestations-toolbar">
-                <Button v-if="canCreate" label="Ajouter prestation" icon="pi pi-plus" size="small" @click="openCreate" />
-                <div class="prestations-toolbar__export">
-                  <Button icon="pi pi-print" text rounded v-tooltip.top="'Imprimer'" @click="printTable" />
-                  <Button icon="pi pi-download" text rounded v-tooltip.top="'Exporter'" @click="(e) => exportMenu?.toggle(e)" />
-                  <ExportFormatMenu ref="exportMenu" @select="exportTable" />
-                </div>
-              </div>
+              <AppTablePanelHeader
+                title="Prestations"
+                :count-label="`${filteredPrestations.length}`"
+                create-label="Ajouter prestation"
+                :show-create="canCreate && !isAppMobile"
+                :hide-create-on-mobile="true"
+                :show-search="true"
+                :search-term="searchTerm"
+                search-placeholder="Rechercher une prestation…"
+                :sticky="isAppMobile"
+                @create="openCreate"
+                @reload="load"
+                @update:search-term="searchTerm = $event"
+              >
+                <template #actions>
+                  <div v-if="!isAppMobile" class="prestations-toolbar__export">
+                    <Button icon="pi pi-print" text rounded v-tooltip.top="'Imprimer'" @click="printTable" />
+                    <Button icon="pi pi-download" text rounded v-tooltip.top="'Exporter'" @click="(e) => exportMenu?.toggle(e)" />
+                    <ExportFormatMenu ref="exportMenu" @select="exportTable" />
+                  </div>
+                  <AppTableSettingsPopover
+                    v-model:visible-col-keys="visibleColKeys"
+                    v-model:rows="tableRows"
+                    v-model:show-index="showIndex"
+                    v-model:sort-field="sortField"
+                    v-model:sort-order="sortOrder"
+                    :columns="tableColumns"
+                    :row-options="ROW_OPTIONS"
+                    :sort-options="sortOptions"
+                    @toggle-col="toggleCol"
+                  >
+                    <template #filters>
+                      <p class="app-table-settings__title">Filtres</p>
+                      <AppFilterSelect
+                        v-model="filterWorkStatus"
+                        :options="WORK_STATUS_OPTIONS"
+                        option-label="label"
+                        option-value="value"
+                        placeholder="Statut travail"
+                        show-clear
+                        fluid
+                        size="small"
+                        class="app-table-settings__mb"
+                      />
+                      <AppFilterSelect
+                        v-model="filterPaymentStatus"
+                        :options="PAYMENT_STATUS_OPTIONS"
+                        option-label="label"
+                        option-value="value"
+                        placeholder="Statut paiement"
+                        show-clear
+                        fluid
+                        size="small"
+                      />
+                    </template>
+                  </AppTableSettingsPopover>
+                </template>
+              </AppTablePanelHeader>
+
               <AppEntityDataView
-                v-if="isAppMobile && prestations.length"
-                :items="prestations"
+                v-if="isAppMobile && filteredPrestations.length"
+                :items="filteredPrestations"
                 :title-of="(item) => item.description"
                 :subtitle-of="(item) => (item.siteId ? siteMap[item.siteId] || null : null)"
                 :meta-of="(item) => `${formatMontant(item.amount, DEVISE_APP)} · ${formatMontant(item.paidAmount ?? 0, DEVISE_APP)} payé`"
                 :status-of="(item) => ({ value: PAYMENT_STATUS_LABEL[item.paymentStatus] || item.paymentStatus, severity: PAYMENT_STATUS_SEVERITY[item.paymentStatus] })"
                 :actions-of="buildMenuItems"
+                :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
               >
                 <template #footer="{ item }">
                   <Tag
@@ -417,23 +558,35 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                   />
                 </template>
               </AppEntityDataView>
-              <DataTable v-else-if="!isAppMobile && prestations.length" :value="prestations" paginator :rows="10" striped-rows>
-                <Column field="description" header="Description" />
-                <Column header="Site">
+              <DataTable
+                v-else-if="!isAppMobile && filteredPrestations.length"
+                :value="filteredPrestations"
+                paginator
+                :rows="tableRows"
+                striped-rows
+                :sort-field="sortField || undefined"
+                :sort-order="sortOrder"
+                @row-contextmenu="onPrestationRowContextMenu"
+              >
+                <Column v-if="showIndex" header="#" style="width: 3.5rem">
+                  <template #body="{ index }">{{ index + 1 }}</template>
+                </Column>
+                <Column v-if="isColVisible('description')" field="description" header="Description" sortable />
+                <Column v-if="isColVisible('site')" header="Site">
                   <template #body="{ data }">{{ data.siteId ? (siteMap[data.siteId] || '—') : '—' }}</template>
                 </Column>
-                <Column header="Montant">
+                <Column v-if="isColVisible('amount')" header="Montant" field="amount" sortable>
                   <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
                 </Column>
-                <Column header="Payé">
+                <Column v-if="isColVisible('paidAmount')" header="Payé" field="paidAmount" sortable>
                   <template #body="{ data }">{{ formatMontant(data.paidAmount ?? 0, DEVISE_APP) }}</template>
                 </Column>
-                <Column header="Statut">
+                <Column v-if="isColVisible('workStatus')" header="Statut" field="workStatus" sortable>
                   <template #body="{ data }">
                     <Tag :value="WORK_STATUS_LABEL[data.workStatus] || data.workStatus" :severity="WORK_STATUS_SEVERITY[data.workStatus]" />
                   </template>
                 </Column>
-                <Column header="Paiement">
+                <Column v-if="isColVisible('paymentStatus')" header="Paiement" field="paymentStatus" sortable>
                   <template #body="{ data }">
                     <Tag :value="PAYMENT_STATUS_LABEL[data.paymentStatus] || data.paymentStatus" :severity="PAYMENT_STATUS_SEVERITY[data.paymentStatus]" />
                   </template>
@@ -444,8 +597,11 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                   </template>
                 </Column>
               </DataTable>
-              <p v-else-if="!prestations.length" class="dashboard-page__state">Aucune prestation.</p>
+              <p v-else class="dashboard-page__state">
+                {{ prestations.length ? 'Aucune prestation ne correspond aux filtres.' : 'Aucune prestation.' }}
+              </p>
               <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
+              <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
             </TabPanel>
           </TabPanels>
         </Tabs>
@@ -532,6 +688,12 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+}
+.detail-section-title {
+  margin: 1.25rem 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--layout-text-color);
 }
 .prestations-toolbar {
   display: flex;

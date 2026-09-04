@@ -23,6 +23,10 @@ import { useConfirm } from 'primevue/useconfirm'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
+import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
+import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { sortByField } from '@/domains/shared/utils/sortByField'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { getUserFormErrors, sanitizePhoneInput } from '@/domains/shared/utils/formValidation'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
@@ -41,6 +45,29 @@ const confirm = useConfirm()
 const { hasPermission } = usePermissions()
 const { isAppMobile } = useAppMobileLayout()
 
+const USER_COLUMNS = [
+  { key: 'login', label: 'Login', defaultVisible: true },
+  { key: 'nom', label: 'Nom', defaultVisible: true },
+  { key: 'prenom', label: 'Prénom', defaultVisible: true },
+  { key: 'role', label: 'Rôle', defaultVisible: true },
+  { key: 'isActive', label: 'Actif', defaultVisible: true },
+]
+
+const {
+  ROW_OPTIONS,
+  columns: tableColumns,
+  visibleColKeys,
+  rows: tableRows,
+  showIndex,
+  sortField,
+  sortOrder,
+  sortOptions,
+  isColVisible,
+  toggleCol,
+} = useTableSettings('table_users', USER_COLUMNS, {
+  defaultSortField: 'login',
+})
+
 const activeTab = ref('0')
 const tabItems = computed(() => {
   const items = [{ value: '0', label: 'Utilisateurs', shortLabel: 'Users' }]
@@ -50,10 +77,12 @@ const tabItems = computed(() => {
   return items
 })
 const items = ref([])
+const searchTerm = ref('')
 const roleOptions = ref([])
 const permissionsCatalog = ref([])
 const rolePermissions = ref({})
 const loading = ref(true)
+const rowContextMenu = ref()
 const dialog = ref(false)
 const permDialog = ref(false)
 const resetDialog = ref(false)
@@ -299,67 +328,115 @@ function userActions(user) {
     { label: 'Suspendre', icon: 'pi pi-ban', severity: 'danger', command: () => suspendUser(user) },
   ]
 }
+
+const filteredItems = computed(() => {
+  const q = searchTerm.value.trim().toLowerCase()
+  let list = items.value
+  if (q) {
+    list = list.filter((item) =>
+      [item.login, item.nom, item.prenom, item.role]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(q),
+    )
+  }
+  return sortByField(list, sortField.value, sortOrder.value)
+})
+
+function onRowContextMenu(event) {
+  rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
+}
 </script>
 
 <template>
   <section class="dashboard-page">
-    <AppMobileSegmentTabs
-      v-if="isAppMobile && tabItems.length > 1"
-      v-model="activeTab"
-      :items="tabItems"
-    />
-    <Tabs v-else-if="!isAppMobile" v-model:value="activeTab">
-      <TabList>
-        <Tab value="0">Utilisateurs</Tab>
-        <Tab v-if="canManageRoles" value="1">Rôles & permissions</Tab>
-      </TabList>
-      <TabPanels>
-        <TabPanel value="0" />
-        <TabPanel v-if="canManageRoles" value="1" />
-      </TabPanels>
-    </Tabs>
-
-    <Card v-show="activeTab === '0'" class="dashboard-panel">
-      <template #title>
-        <AppTablePanelHeader
-          title="Utilisateurs"
-          :count-label="`${items.length}`"
-          create-label="Nouvel utilisateur"
-          :hide-create-on-mobile="isAppMobile"
-          :sticky="isAppMobile"
-          @create="openCreate"
-          @reload="load"
-        />
-      </template>
+    <Card class="dashboard-panel">
       <template #content>
-        <AppTableState
-          :loading="loading"
-          :is-empty="!loading && items.length === 0"
-          empty-title="Aucun utilisateur"
-          empty-text="Créez un utilisateur pour commencer."
-          @retry="load"
-        >
-          <DataTable :value="items" paginator :rows="10" striped-rows>
-            <Column field="login" header="Login" />
-            <Column field="nom" header="Nom" />
-            <Column field="prenom" header="Prénom" />
-            <Column field="role" header="Rôle" />
-            <Column field="isActive" header="Actif">
-              <template #body="{ data }">{{ data.isActive ? 'Oui' : 'Non' }}</template>
-            </Column>
-            <Column header="Actions" style="width: 14rem">
-              <template #body="{ data }">
-                <AppTableActionsMenu :actions="userActions(data)" />
-              </template>
-            </Column>
-          </DataTable>
-        </AppTableState>
+        <AppMobileSegmentTabs
+          v-if="isAppMobile && tabItems.length > 1"
+          v-model="activeTab"
+          :items="tabItems"
+        />
+        <Tabs v-else-if="!isAppMobile" v-model:value="activeTab">
+          <TabList>
+            <Tab value="0">Utilisateurs</Tab>
+            <Tab v-if="canManageRoles" value="1">Rôles & permissions</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel value="0" />
+            <TabPanel v-if="canManageRoles" value="1" />
+          </TabPanels>
+        </Tabs>
+
+        <div v-show="activeTab === '0'">
+          <AppTablePanelHeader
+            title="Utilisateurs"
+            :count-label="`${filteredItems.length}`"
+            create-label="Nouvel utilisateur"
+            :hide-create-on-mobile="isAppMobile"
+            :sticky="isAppMobile"
+            show-search
+            v-model:search-term="searchTerm"
+            search-placeholder="Rechercher login, nom…"
+            @create="openCreate"
+            @reload="load"
+          >
+            <template #actions>
+              <AppTableSettingsPopover
+                v-model:visible-col-keys="visibleColKeys"
+                v-model:rows="tableRows"
+                v-model:show-index="showIndex"
+                v-model:sort-field="sortField"
+                v-model:sort-order="sortOrder"
+                :columns="tableColumns"
+                :row-options="ROW_OPTIONS"
+                :sort-options="sortOptions"
+                @toggle-col="toggleCol"
+              />
+            </template>
+          </AppTablePanelHeader>
+          <AppTableState
+            :loading="loading"
+            :is-empty="!loading && filteredItems.length === 0"
+            empty-title="Aucun utilisateur"
+            empty-text="Créez un utilisateur pour commencer."
+            @retry="load"
+          >
+            <DataTable
+              :value="filteredItems"
+              paginator
+              :rows="tableRows"
+              striped-rows
+              :sort-field="sortField || undefined"
+              :sort-order="sortOrder"
+              @row-contextmenu="onRowContextMenu"
+            >
+              <Column v-if="showIndex" header="#" style="width: 3.5rem">
+                <template #body="{ index }">{{ index + 1 }}</template>
+              </Column>
+              <Column v-if="isColVisible('login')" field="login" header="Login" sortable />
+              <Column v-if="isColVisible('nom')" field="nom" header="Nom" sortable />
+              <Column v-if="isColVisible('prenom')" field="prenom" header="Prénom" sortable />
+              <Column v-if="isColVisible('role')" field="role" header="Rôle" sortable />
+              <Column v-if="isColVisible('isActive')" field="isActive" header="Actif" sortable>
+                <template #body="{ data }">{{ data.isActive ? 'Oui' : 'Non' }}</template>
+              </Column>
+              <Column header="Actions" style="width: 14rem">
+                <template #body="{ data }">
+                  <AppTableActionsMenu :actions="userActions(data)" />
+                </template>
+              </Column>
+            </DataTable>
+          </AppTableState>
+          <AppRowContextMenu ref="rowContextMenu" :actions-of="userActions" />
+        </div>
+
+        <div v-if="canManageRoles" v-show="activeTab === '1'">
+          <RolesPermissionsPanel embedded />
+        </div>
       </template>
     </Card>
-
-    <div v-if="canManageRoles" v-show="activeTab === '1'">
-      <RolesPermissionsPanel />
-    </div>
 
     <AppMobileFab
       v-if="isAppMobile && activeTab === '0'"
