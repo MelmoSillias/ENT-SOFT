@@ -1139,10 +1139,23 @@
     min-width: 0;
   }
 
-  .p-select-dropdown,
+  /* Overlays are teleported to body — constrain to viewport (not .p-select-dropdown chevron) */
+  .p-select-overlay,
   .p-multiselect-overlay,
-  .p-autocomplete-overlay {
+  .p-autocomplete-overlay,
+  .p-datepicker-panel,
+  .p-cascader-overlay,
+  .p-treeselect-overlay {
+    box-sizing: border-box;
     max-width: calc(100vw - 1.25rem);
+    max-width: calc(100dvw - 1.25rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    overflow-x: hidden;
+  }
+
+  .p-select-list-container,
+  .p-multiselect-list-container,
+  .p-autocomplete-list-container {
+    max-width: 100%;
   }
 
   .p-multiselect-chip-item,
@@ -1159,12 +1172,14 @@
   }
 
   .p-select-option,
-  .p-multiselect-option {
+  .p-multiselect-option,
+  .p-autocomplete-option {
     min-width: 0;
   }
 
   .p-select-option-label,
-  .p-multiselect-option-label {
+  .p-multiselect-option-label,
+  .p-autocomplete-option-label {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

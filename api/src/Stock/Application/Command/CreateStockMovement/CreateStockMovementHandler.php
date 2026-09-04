@@ -2,7 +2,6 @@
 
 namespace App\Stock\Application\Command\CreateStockMovement;
 
-use App\SharedKernel\Domain\Validation\FieldValidator;
 use App\Stock\Application\Dto\StockMovementLineResponseDto;
 use App\Stock\Application\Dto\StockMovementResponseDto;
 use App\Stock\Domain\Entity\StockMovement;
@@ -22,11 +21,9 @@ final class CreateStockMovementHandler
 
     public function handle(CreateStockMovementCommand $command): StockMovementResponseDto
     {
-        $unit = FieldValidator::requireNonEmpty($command->unit, 'Unité');
         $movement = new StockMovement(
             date: new \DateTimeImmutable($command->date),
             quantity: $command->quantity,
-            unit: $unit,
             direction: StockMovementDirection::from($command->direction),
             clientId: $command->clientId ? Uuid::fromString($command->clientId) : null,
             projectId: $command->projectId ? Uuid::fromString($command->projectId) : null,

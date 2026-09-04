@@ -31,6 +31,21 @@ export const STOCK_DIRECTION_OPTIONS = [
   { label: 'Sortie', value: 'out' },
 ]
 
+export const EQUIPMENT_UNIT_OPTIONS = [
+  { label: 'Unité', value: 'unit' },
+  { label: 'Lot', value: 'lot' },
+  { label: 'Mètre', value: 'meter' },
+  { label: 'm²', value: 'm2' },
+  { label: 'm³', value: 'm3' },
+  { label: 'Kilogramme', value: 'kg' },
+  { label: 'Litre', value: 'liter' },
+  { label: 'Pièce', value: 'piece' },
+  { label: 'Boîte', value: 'box' },
+  { label: 'Ensemble', value: 'set' },
+  { label: 'Heure', value: 'hour' },
+  { label: 'Jour', value: 'day' },
+]
+
 export const TRANSACTION_TYPE_OPTIONS = [
   { label: 'Recette', value: 'income' },
   { label: 'Dépense', value: 'expense' },
@@ -119,6 +134,12 @@ export function stockDirectionLabel(direction) {
 
 export function stockDirectionSeverity(direction) {
   return direction === 'out' ? 'warn' : 'success'
+}
+
+const equipmentUnitMap = Object.fromEntries(EQUIPMENT_UNIT_OPTIONS.map((o) => [o.value, o.label]))
+
+export function equipmentUnitLabel(unit) {
+  return equipmentUnitMap[unit] ?? unit ?? '—'
 }
 
 const transactionTypeMap = Object.fromEntries(TRANSACTION_TYPE_OPTIONS.map((o) => [o.value, o.label]))

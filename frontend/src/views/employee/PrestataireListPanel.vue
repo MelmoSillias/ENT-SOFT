@@ -10,6 +10,9 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import PrestataireFormFields from '@/domains/employee/components/PrestataireFormFields.vue'
 import {
   listPrestataires,
@@ -26,10 +29,18 @@ import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 
+defineProps({
+  fabEnabled: {
+    type: Boolean,
+    default: true,
+  },
+})
+
 const router = useRouter()
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
 const items = ref([])
 const searchTerm = ref('')
@@ -92,6 +103,9 @@ const filteredItems = computed(() => {
     [item.name, item.prenom, item.nom, item.email, item.phone].filter(Boolean).join(' ').toLowerCase().includes(q),
   )
 })
+
+const countLabel = computed(() => `${filteredItems.value.length}`)
+const dialogTitle = computed(() => (editingId.value ? 'Modifier prestataire' : 'Nouveau prestataire'))
 
 function openCreate() {
   editingId.value = null
@@ -183,9 +197,11 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     <template #title>
       <AppTablePanelHeader
         title="Prestataires"
-        :count-label="`${filteredItems.length}`"
+        :count-label="countLabel"
         create-label="Nouveau prestataire"
         :show-create="canCreate"
+        :hide-create-on-mobile="isAppMobile"
+        :sticky="isAppMobile"
         :reloading="reloading"
         show-search
         v-model:search-term="searchTerm"
@@ -196,7 +212,17 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     </template>
     <template #content>
       <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-        <DataTable :value="filteredItems" paginator :rows="10" striped-rows>
+        <AppEntityDataView
+          v-if="isAppMobile"
+          :items="filteredItems"
+          :title-of="(item) => item.name || `${item.prenom} ${item.nom}`"
+          :subtitle-of="(item) => item.email || null"
+          :meta-of="(item) => `${item.openPrestationsCount ?? 0} ouverte(s) · ${formatMontant(item.unpaidCompletedReliquat ?? 0, DEVISE_APP)}`"
+          :status-of="(item) => ({ value: item.isEnabled ? 'Actif' : 'Inactif', severity: item.isEnabled ? 'success' : 'secondary' })"
+          :actions-of="buildMenuItems"
+          @select="(item) => router.push({ name: 'prestataire-detail', params: { id: item.id } })"
+        />
+        <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
           <Column header="Nom">
             <template #body="{ data }">{{ data.name || `${data.prenom} ${data.nom}` }}</template>
           </Column>
@@ -219,12 +245,18 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             </template>
           </Column>
         </DataTable>
-        <Menu ref="actionMenu" :model="menuModel" popup />
+        <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
       </AppTableState>
     </template>
   </Card>
 
-  <Dialog v-model:visible="dialog" :header="editingId ? 'Modifier prestataire' : 'Nouveau prestataire'" modal style="width: min(640px, 95vw)">
+  <AppMobileFab
+    v-if="isAppMobile && canCreate && fabEnabled"
+    aria-label="Nouveau prestataire"
+    @click="openCreate"
+  />
+
+  <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(640px, 95vw)">
     <PrestataireFormFields v-model="form" :errors="fieldErrors" />
     <template #footer>
       <Button label="Annuler" severity="secondary" text :disabled="saving || deleting" @click="dialog = false" />

@@ -27,6 +27,7 @@ import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
 const route = useRoute()
@@ -50,6 +51,20 @@ const clientTabItems = computed(() => [
   { value: '1', label: `Projets (${projects.value.length})`, shortLabel: 'Projets' },
   { value: '2', label: `Factures (${invoices.value.length})`, shortLabel: 'Factures' },
 ])
+
+const infoItems = computed(() => {
+  if (!client.value) return []
+  return [
+    { key: 'code', label: 'Code', icon: 'pi pi-hashtag', value: client.value.code },
+    { key: 'title', label: 'Titre', icon: 'pi pi-building', value: client.value.title },
+    { key: 'address', label: 'Adresse de service', icon: 'pi pi-map-marker', value: client.value.address || null, full: true },
+    { key: 'postalBox', label: 'Boîte postale', icon: 'pi pi-inbox', value: client.value.postalBox || null },
+    { key: 'city', label: 'Ville', icon: 'pi pi-globe', value: client.value.city || null },
+    { key: 'description', label: 'Description', icon: 'pi pi-align-left', value: client.value.description || null, full: true },
+    { key: 'status', label: 'Statut', icon: 'pi pi-check-circle' },
+    { key: 'createdAt', label: 'Créé le', icon: 'pi pi-calendar', value: formatDateFr(client.value.createdAt) },
+  ]
+})
 
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
@@ -174,16 +189,11 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async () => {
             </TabList>
             <TabPanels>
               <TabPanel value="0">
-                <dl class="detail-dl">
-                  <div><dt>Code</dt><dd>{{ client.code }}</dd></div>
-                  <div><dt>Titre</dt><dd>{{ client.title }}</dd></div>
-                  <div><dt>Adresse de service</dt><dd>{{ client.address || '—' }}</dd></div>
-                  <div><dt>Boîte postale</dt><dd>{{ client.postalBox || '—' }}</dd></div>
-                  <div><dt>Ville</dt><dd>{{ client.city || '—' }}</dd></div>
-                  <div><dt>Description</dt><dd>{{ client.description || '—' }}</dd></div>
-                  <div><dt>Statut</dt><dd><Tag :value="client.isEnabled ? 'Actif' : 'Inactif'" /></dd></div>
-                  <div><dt>Créé le</dt><dd>{{ formatDateFr(client.createdAt) }}</dd></div>
-                </dl>
+                <AppDetailInfoList :items="infoItems">
+                  <template #status>
+                    <Tag :value="client.isEnabled ? 'Actif' : 'Inactif'" />
+                  </template>
+                </AppDetailInfoList>
               </TabPanel>
               <TabPanel value="1">
                 <AppEntityDataView
@@ -273,27 +283,6 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async () => {
 .detail-header__actions {
   display: flex;
   gap: 0.5rem;
-}
-
-.detail-dl {
-  display: grid;
-  gap: 0.75rem;
-  margin: 0;
-}
-
-.detail-dl div {
-  display: grid;
-  grid-template-columns: 8rem 1fr;
-  gap: 0.5rem;
-}
-
-.detail-dl dt {
-  font-weight: 600;
-  color: var(--layout-text-muted);
-}
-
-.detail-dl dd {
-  margin: 0;
 }
 
 .dashboard-page__state {

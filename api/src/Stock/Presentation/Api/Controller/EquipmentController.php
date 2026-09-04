@@ -37,6 +37,7 @@ final class EquipmentController extends AbstractController
         $result = $handler->handle(new CreateEquipmentCommand(
             title: $data['title'] ?? '',
             description: $data['description'] ?? null,
+            unit: $data['unit'] ?? 'unit',
             clientId: $data['clientId'] ?? null,
         ));
 
@@ -59,6 +60,7 @@ final class EquipmentController extends AbstractController
             id: $id,
             title: $data['title'] ?? null,
             description: array_key_exists('description', $data) ? $data['description'] : null,
+            unit: $data['unit'] ?? null,
             clientId: array_key_exists('clientId', $data) ? $data['clientId'] : null,
             hasDescription: array_key_exists('description', $data),
             hasClientId: array_key_exists('clientId', $data),

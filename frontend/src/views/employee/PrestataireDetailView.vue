@@ -39,6 +39,11 @@ import { toApiDate } from '@/domains/shared/utils/dateUtils'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
+import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import ExportFormatMenu from '@/domains/impression/components/ExportFormatMenu.vue'
 import ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
@@ -48,6 +53,7 @@ const router = useRouter()
 const toast = useAppToast()
 const confirm = useConfirm()
 const { hasPermission } = usePermissions()
+const { isAppMobile } = useAppMobileLayout()
 
 const prestataire = ref(null)
 const prestations = ref([])
@@ -74,6 +80,27 @@ const PAYMENT_STATUS_LABEL = { unpaid: 'Impayé', partial: 'Partiel', paid: 'Pay
 const PAYMENT_STATUS_SEVERITY = { unpaid: 'danger', partial: 'warn', paid: 'success' }
 const WORK_STATUS_LABEL = Object.fromEntries(WORK_STATUS_OPTIONS.map((o) => [o.value, o.label]))
 const WORK_STATUS_SEVERITY = { pending: 'secondary', in_progress: 'info', completed: 'success' }
+
+const prestataireTabItems = computed(() => [
+  { value: '0', label: 'Informations', shortLabel: 'Infos' },
+  { value: '1', label: `Prestations (${prestations.value.length})`, shortLabel: 'Presta.' },
+])
+
+const infoItems = computed(() => {
+  if (!prestataire.value) return []
+  return [
+    { key: 'email', label: 'Email', icon: 'pi pi-envelope', value: prestataire.value.email },
+    { key: 'phone', label: 'Téléphone', icon: 'pi pi-phone', value: prestataire.value.phone },
+    { key: 'address', label: 'Adresse', icon: 'pi pi-map-marker', value: prestataire.value.address || null, full: true },
+    { key: 'open', label: 'Prestations non clôturées', icon: 'pi pi-briefcase', value: prestataire.value.openPrestationsCount ?? 0 },
+    {
+      key: 'reliquat',
+      label: 'Reliquat total',
+      icon: 'pi pi-wallet',
+      value: formatMontant(prestataire.value.unpaidCompletedReliquat ?? 0, DEVISE_APP),
+    },
+  ]
+})
 
 function emptyForm() {
   return { description: '', siteId: null, amount: 0, workStatus: 'pending' }
@@ -344,27 +371,28 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
             <h1 class="detail-header__title">{{ prestataire.name || `${prestataire.prenom} ${prestataire.nom}` }}</h1>
             <Tag :value="prestataire.isEnabled ? 'Actif' : 'Inactif'" />
           </div>
-          <Button label="Retour" icon="pi pi-arrow-left" text @click="router.push({ name: 'employees' })" />
+          <div class="detail-header__actions">
+            <Button label="Retour" icon="pi pi-arrow-left" text @click="router.push({ name: 'employees' })" />
+          </div>
         </div>
       </template>
       <template #content>
+        <AppMobileSegmentTabs
+          v-if="isAppMobile"
+          v-model="activeTab"
+          :items="prestataireTabItems"
+        />
         <Tabs v-model:value="activeTab">
-          <TabList>
+          <TabList v-if="!isAppMobile">
             <Tab value="0">Informations</Tab>
             <Tab value="1">Prestations ({{ prestations.length }})</Tab>
           </TabList>
           <TabPanels>
             <TabPanel value="0">
-              <dl class="detail-dl">
-                <div><dt>Email</dt><dd>{{ prestataire.email }}</dd></div>
-                <div><dt>Téléphone</dt><dd>{{ prestataire.phone }}</dd></div>
-                <div><dt>Adresse</dt><dd>{{ prestataire.address || '—' }}</dd></div>
-                <div><dt>Prestations non clôturées</dt><dd>{{ prestataire.openPrestationsCount ?? 0 }}</dd></div>
-                <div><dt>Reliquat total</dt><dd>{{ formatMontant(prestataire.unpaidCompletedReliquat ?? 0, DEVISE_APP) }}</dd></div>
-              </dl>
+              <AppDetailInfoList :items="infoItems" />
             </TabPanel>
             <TabPanel value="1">
-              <div class="prestations-toolbar">
+              <div v-if="!isAppMobile" class="prestations-toolbar">
                 <Button v-if="canCreate" label="Ajouter prestation" icon="pi pi-plus" size="small" @click="openCreate" />
                 <div class="prestations-toolbar__export">
                   <Button icon="pi pi-print" text rounded v-tooltip.top="'Imprimer'" @click="printTable" />
@@ -372,7 +400,24 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                   <ExportFormatMenu ref="exportMenu" @select="exportTable" />
                 </div>
               </div>
-              <DataTable :value="prestations" paginator :rows="10" striped-rows>
+              <AppEntityDataView
+                v-if="isAppMobile && prestations.length"
+                :items="prestations"
+                :title-of="(item) => item.description"
+                :subtitle-of="(item) => (item.siteId ? siteMap[item.siteId] || null : null)"
+                :meta-of="(item) => `${formatMontant(item.amount, DEVISE_APP)} · ${formatMontant(item.paidAmount ?? 0, DEVISE_APP)} payé`"
+                :status-of="(item) => ({ value: PAYMENT_STATUS_LABEL[item.paymentStatus] || item.paymentStatus, severity: PAYMENT_STATUS_SEVERITY[item.paymentStatus] })"
+                :actions-of="buildMenuItems"
+              >
+                <template #footer="{ item }">
+                  <Tag
+                    :value="WORK_STATUS_LABEL[item.workStatus] || item.workStatus"
+                    :severity="WORK_STATUS_SEVERITY[item.workStatus]"
+                    rounded
+                  />
+                </template>
+              </AppEntityDataView>
+              <DataTable v-else-if="!isAppMobile && prestations.length" :value="prestations" paginator :rows="10" striped-rows>
                 <Column field="description" header="Description" />
                 <Column header="Site">
                   <template #body="{ data }">{{ data.siteId ? (siteMap[data.siteId] || '—') : '—' }}</template>
@@ -399,12 +444,19 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                   </template>
                 </Column>
               </DataTable>
-              <Menu ref="actionMenu" :model="menuModel" popup />
+              <p v-else-if="!prestations.length" class="dashboard-page__state">Aucune prestation.</p>
+              <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
             </TabPanel>
           </TabPanels>
         </Tabs>
       </template>
     </Card>
+
+    <AppMobileFab
+      v-if="isAppMobile && canCreate && prestataire && activeTab === '1'"
+      aria-label="Ajouter prestation"
+      @click="openCreate"
+    />
 
     <Dialog v-model:visible="dialog" :header="editingId ? 'Modifier prestation' : 'Nouvelle prestation'" modal style="width: min(520px, 95vw)">
       <div class="field">
@@ -476,18 +528,10 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
   margin: 0 0 0.35rem;
   font-size: 1.25rem;
 }
-.detail-dl {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem 1.25rem;
-  margin: 0;
-}
-.detail-dl dt {
-  font-size: 0.75rem;
-  color: var(--p-text-muted-color);
-}
-.detail-dl dd {
-  margin: 0.15rem 0 0;
+.detail-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 .prestations-toolbar {
   display: flex;
@@ -507,5 +551,9 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
   margin-bottom: 0.85rem;
 }
 .required { color: var(--p-red-500, #ef4444); }
-.dashboard-page__state { padding: 1.5rem; }
+.dashboard-page__state {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--layout-text-muted);
+}
 </style>

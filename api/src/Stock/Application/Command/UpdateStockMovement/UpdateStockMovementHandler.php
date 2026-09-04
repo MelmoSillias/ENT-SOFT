@@ -2,7 +2,6 @@
 
 namespace App\Stock\Application\Command\UpdateStockMovement;
 
-use App\SharedKernel\Domain\Validation\FieldValidator;
 use App\Stock\Application\Dto\StockMovementLineResponseDto;
 use App\Stock\Application\Dto\StockMovementResponseDto;
 use App\Stock\Domain\Entity\StockMovementLine;
@@ -32,9 +31,6 @@ final class UpdateStockMovementHandler
         }
         if ($command->quantity !== null) {
             $movement->setQuantity($command->quantity);
-        }
-        if ($command->unit !== null) {
-            $movement->setUnit(FieldValidator::requireNonEmpty($command->unit, 'Unité'));
         }
         if ($command->direction !== null) {
             $movement->setDirection(StockMovementDirection::from($command->direction));

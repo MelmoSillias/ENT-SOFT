@@ -13,4 +13,11 @@ interface StockMovementLineRepositoryInterface
 
     /** @return list<StockMovementLine> */
     public function findByMovementId(Uuid $movementId): array;
+
+    /**
+     * Net stock quantity per equipment (entrées − sorties).
+     *
+     * @return array<string, float> equipmentId => quantity
+     */
+    public function sumNetQuantitiesByEquipment(): array;
 }

@@ -7,9 +7,11 @@ import AppStatsCards from '@/domains/shared/components/AppStatsCards.vue'
 import DashboardSkeleton from '@/domains/shared/components/DashboardSkeleton.vue'
 import { getDashboardSummary } from '@/domains/dashboard/services/dashboardService'
 import { useAuthStore } from '@/domains/auth/stores/auth'
+import { appConfig } from '@/config/app'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const brand = appConfig.branding
 
 const summary = ref(null)
 const loading = ref(true)
@@ -28,6 +30,32 @@ async function load() {
 }
 
 onMounted(load)
+
+const firstName = computed(() => {
+  const prenom = authStore.user?.prenom?.trim()
+  if (prenom) return prenom
+  return authStore.user?.login || null
+})
+
+const greeting = computed(() => {
+  const hour = new Date().getHours()
+  let salutation = 'Bonjour'
+  if (hour >= 18 || hour < 5) salutation = 'Bonsoir'
+  else if (hour >= 12) salutation = 'Bon après-midi'
+  return firstName.value ? `${salutation}, ${firstName.value}` : salutation
+})
+
+const todayLabel = computed(() => {
+  try {
+    return new Intl.DateTimeFormat('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }).format(new Date())
+  } catch {
+    return ''
+  }
+})
 
 const statsItems = computed(() => {
   if (!summary.value) return []
@@ -87,10 +115,18 @@ function goTo(routeName) {
 
 <template>
   <section class="dashboard-page dashboard-home">
-    <div class="dashboard-home__intro">
-      <p class="dashboard-home__period-title">Vue d'ensemble ENT</p>
-      <p class="dashboard-home__period-hint">CONNECTER • ALIMENTER • ÉQUIPER • INNOVER</p>
-    </div>
+    <header class="dashboard-home__intro">
+      <div class="dashboard-home__intro-main">
+        <div class="dashboard-home__intro-icon" aria-hidden="true">
+          <i class="pi pi-home" />
+        </div>
+        <div class="dashboard-home__intro-copy">
+          <p v-if="todayLabel" class="dashboard-home__eyebrow">{{ todayLabel }}</p>
+          <h1 class="dashboard-home__title">{{ greeting }}</h1>
+          <p class="dashboard-home__subtitle">Vue d'ensemble de l'activité</p>
+        </div>
+      </div> 
+    </header>
 
     <DashboardSkeleton v-if="loading" :show-exchange-rates="false" />
 
@@ -102,7 +138,7 @@ function goTo(routeName) {
     <template v-else-if="summary">
       <AppStatsCards :items="statsItems" />
 
-      <Card v-if="quickActions.length" class="dashboard-panel dashboard-panel--compact">
+      <Card v-if="quickActions.length" class="dashboard-panel dashboard-panel--compact dashboard-panel--sober">
         <template #title>
           <span class="dashboard-panel__title">Actions rapides</span>
         </template>
@@ -124,27 +160,6 @@ function goTo(routeName) {
 </template>
 
 <style scoped>
-.dashboard-home__intro {
-  margin-bottom: 1.25rem;
-}
-
-.dashboard-home__period-title,
-.dashboard-home__period-hint {
-  margin: 0;
-}
-
-.dashboard-home__period-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--layout-text);
-}
-
-.dashboard-home__period-hint {
-  margin-top: 0.2rem;
-  font-size: 0.8rem;
-  color: var(--layout-text-muted);
-}
-
 .dashboard-page__state {
   padding: 2rem 1rem;
   text-align: center;

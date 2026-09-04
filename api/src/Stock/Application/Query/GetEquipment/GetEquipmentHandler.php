@@ -5,12 +5,14 @@ namespace App\Stock\Application\Query\GetEquipment;
 use App\Stock\Application\Dto\EquipmentResponseDto;
 use App\Stock\Domain\Exception\EquipmentNotFoundException;
 use App\Stock\Domain\Repository\EquipmentRepositoryInterface;
+use App\Stock\Domain\Repository\StockMovementLineRepositoryInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class GetEquipmentHandler
 {
     public function __construct(
         private readonly EquipmentRepositoryInterface $equipmentRepository,
+        private readonly StockMovementLineRepositoryInterface $lineRepository,
     ) {
     }
 
@@ -21,6 +23,9 @@ final class GetEquipmentHandler
             throw EquipmentNotFoundException::withId($query->id);
         }
 
-        return EquipmentResponseDto::fromEntity($equipment);
+        $quantities = $this->lineRepository->sumNetQuantitiesByEquipment();
+        $quantity = $quantities[(string) $equipment->getId()] ?? 0.0;
+
+        return EquipmentResponseDto::fromEntity($equipment, $quantity);
     }
 }

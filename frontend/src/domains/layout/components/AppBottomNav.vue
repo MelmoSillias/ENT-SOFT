@@ -10,7 +10,7 @@ const route = useRoute()
 const router = useRouter()
 const { menuModel, setMobileSidebarOpen } = useLayout()
 
-const PRIMARY_KEYS = ['dashboard', 'projects', 'clients', 'finance']
+const PRIMARY_KEYS = ['dashboard', 'projects', 'clients', 'finance', 'employees']
 
 const primaryItems = computed(() => {
   const flat = flattenMenu(menuModel.value || [])

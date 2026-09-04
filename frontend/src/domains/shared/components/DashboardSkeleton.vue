@@ -1,20 +1,24 @@
 <template>
-  <div class="dashboard-skeleton">
+  <div class="dashboard-skeleton" :class="{ 'dashboard-skeleton--mobile': isAppMobile }">
     <div class="dashboard-skeleton__overview">
       <div class="stats-grid stats-grid--with-amounts">
         <Card
-          v-for="index in 6"
+          v-for="index in kpiCount"
           :key="`stat-${index}`"
           class="stats-card stats-card--skeleton"
           :class="{ 'stats-card--amount': index <= 2 }"
         >
           <template #content>
             <div class="stats-card__content">
-              <Skeleton width="3rem" height="3rem" border-radius="0.9rem" />
+              <Skeleton
+                :width="isAppMobile ? '2.5rem' : '3rem'"
+                :height="isAppMobile ? '2.5rem' : '3rem'"
+                border-radius="0.9rem"
+              />
               <div class="stats-card__lines">
                 <Skeleton width="5rem" height="0.75rem" />
-                <Skeleton :width="index <= 2 ? '10rem' : '4rem'" height="1.5rem" />
-                <Skeleton width="7rem" height="0.75rem" />
+                <Skeleton :width="index <= 2 ? (isAppMobile ? '8rem' : '10rem') : '4rem'" height="1.5rem" />
+                <Skeleton v-if="!isAppMobile || index <= 2" width="7rem" height="0.75rem" />
               </div>
             </div>
           </template>
@@ -23,11 +27,16 @@
 
       <Card class="dashboard-panel dashboard-panel--compact dashboard-panel--sober">
         <template #title>
-          <Skeleton width="10rem" height="1rem" />
+          <Skeleton :width="isAppMobile ? '7rem' : '10rem'" height="1rem" />
         </template>
         <template #content>
           <div class="dashboard-skeleton__etats">
-            <Skeleton v-for="index in 5" :key="`etat-${index}`" height="3.5rem" border-radius="0.75rem" />
+            <Skeleton
+              v-for="index in etatCount"
+              :key="`etat-${index}`"
+              :height="isAppMobile ? '2.75rem' : '3.5rem'"
+              border-radius="0.75rem"
+            />
           </div>
         </template>
       </Card>
@@ -39,7 +48,7 @@
           <Skeleton width="2rem" height="2rem" border-radius="0.5rem" />
           <div class="dashboard-skeleton__section-lines">
             <Skeleton width="8rem" height="0.875rem" />
-            <Skeleton width="12rem" height="0.75rem" />
+            <Skeleton v-if="!isAppMobile" width="12rem" height="0.75rem" />
           </div>
         </div>
       </template>
@@ -48,7 +57,12 @@
           <Skeleton v-for="index in 3" :key="`tab-${index}`" width="5.5rem" height="2rem" border-radius="0.375rem" />
         </div>
         <div class="dashboard-skeleton__rates">
-          <Skeleton v-for="index in 6" :key="`rate-${index}`" height="5rem" border-radius="0.75rem" />
+          <Skeleton
+            v-for="index in rateCount"
+            :key="`rate-${index}`"
+            :height="isAppMobile ? '4.25rem' : '5rem'"
+            border-radius="0.75rem"
+          />
         </div>
       </template>
     </Card>
@@ -56,8 +70,10 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import Card from 'primevue/card'
 import Skeleton from 'primevue/skeleton'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
 defineProps({
   showExchangeRates: {
@@ -65,6 +81,12 @@ defineProps({
     default: true,
   },
 })
+
+const { isAppMobile } = useAppMobileLayout()
+
+const kpiCount = computed(() => (isAppMobile.value ? 4 : 6))
+const etatCount = computed(() => (isAppMobile.value ? 4 : 5))
+const rateCount = computed(() => (isAppMobile.value ? 4 : 6))
 </script>
 
 <style scoped>
@@ -74,6 +96,11 @@ defineProps({
   gap: 1.25rem;
   align-items: stretch;
   margin-bottom: 1.25rem;
+}
+
+.dashboard-skeleton--mobile .dashboard-skeleton__overview {
+  gap: var(--app-card-gap, 0.625rem);
+  margin-bottom: var(--app-card-gap, 0.625rem);
 }
 
 .stats-grid {
@@ -108,10 +135,24 @@ defineProps({
   }
 }
 
+.dashboard-skeleton--mobile .stats-grid {
+  gap: var(--app-card-gap, 0.625rem);
+}
+
+.dashboard-skeleton--mobile .stats-grid--with-amounts > .stats-card,
+.dashboard-skeleton--mobile .stats-grid--with-amounts > .stats-card--amount {
+  grid-column: span 12;
+}
+
 .stats-card__content {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
+}
+
+.dashboard-skeleton--mobile .stats-card__content {
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .stats-card__lines {
@@ -120,10 +161,19 @@ defineProps({
   flex: 1;
 }
 
+.dashboard-skeleton--mobile .stats-card__lines {
+  gap: 0.35rem;
+}
+
 .dashboard-skeleton__etats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.5rem;
+}
+
+.dashboard-skeleton--mobile .dashboard-skeleton__etats {
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
 }
 
 .dashboard-skeleton__section-header {
@@ -144,10 +194,20 @@ defineProps({
   margin-bottom: 1rem;
 }
 
+.dashboard-skeleton--mobile .dashboard-skeleton__tabs {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
 .dashboard-skeleton__rates {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 0.65rem;
 }
 
+.dashboard-skeleton--mobile .dashboard-skeleton__rates {
+  grid-template-columns: 1fr 1fr;
+  gap: var(--app-card-gap, 0.625rem);
+}
 </style>

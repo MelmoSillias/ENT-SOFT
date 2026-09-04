@@ -5,6 +5,7 @@ namespace App\Stock\Domain\Entity;
 use App\SharedKernel\Domain\Trait\SoftDeletableTrait;
 use App\SharedKernel\Domain\Trait\TimestampableTrait;
 use App\SharedKernel\Domain\Trait\UuidEntityTrait;
+use App\Stock\Domain\Enum\EquipmentUnit;
 use App\Stock\Infrastructure\Persistence\Doctrine\DoctrineEquipmentRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
@@ -27,25 +28,36 @@ class Equipment
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description;
 
+    #[ORM\Column(length: 50, enumType: EquipmentUnit::class)]
+    private EquipmentUnit $unit;
+
     #[ORM\Column(type: 'uuid', nullable: true)]
     private ?Uuid $clientId;
 
-    public function __construct(string $code, string $title, ?string $description = null, ?Uuid $clientId = null)
-    {
+    public function __construct(
+        string $code,
+        string $title,
+        ?string $description = null,
+        EquipmentUnit $unit = EquipmentUnit::UNIT,
+        ?Uuid $clientId = null,
+    ) {
         $this->initializeUuid();
         $this->initializeTimestamps();
         $this->code = $code;
         $this->title = $title;
         $this->description = $description;
+        $this->unit = $unit;
         $this->clientId = $clientId;
     }
 
     public function getCode(): string { return $this->code; }
     public function getTitle(): string { return $this->title; }
     public function getDescription(): ?string { return $this->description; }
+    public function getUnit(): EquipmentUnit { return $this->unit; }
     public function getClientId(): ?Uuid { return $this->clientId; }
 
     public function setTitle(string $title): void { $this->title = $title; $this->touch(); }
     public function setDescription(?string $description): void { $this->description = $description; $this->touch(); }
+    public function setUnit(EquipmentUnit $unit): void { $this->unit = $unit; $this->touch(); }
     public function setClientId(?Uuid $clientId): void { $this->clientId = $clientId; $this->touch(); }
 }

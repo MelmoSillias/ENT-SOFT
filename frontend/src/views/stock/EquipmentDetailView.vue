@@ -13,11 +13,12 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { getEquipment } from '@/domains/stock/services/equipmentService'
 import { listStockMovements } from '@/domains/stock/services/stockMovementService'
 import { listClients } from '@/domains/client/services/clientService'
-import { formatDateFr, stockDirectionLabel, stockDirectionSeverity } from '@/domains/shared/utils/entLabels'
+import { formatDateFr, stockDirectionLabel, stockDirectionSeverity, equipmentUnitLabel } from '@/domains/shared/utils/entLabels'
 
 const route = useRoute()
 const router = useRouter()
@@ -38,6 +39,21 @@ const equipmentTabItems = computed(() => [
   { value: '0', label: 'Informations', shortLabel: 'Infos' },
   { value: '1', label: `Mouvements (${equipmentMovements.value.length})`, shortLabel: 'Mouv.' },
 ])
+
+const infoItems = computed(() => {
+  if (!equipment.value) return []
+  return [
+    { key: 'description', label: 'Description', icon: 'pi pi-align-left', value: equipment.value.description || null, full: true },
+    { key: 'quantity', label: 'Quantité', icon: 'pi pi-box', value: `${equipment.value.quantity ?? 0} ${equipmentUnitLabel(equipment.value.unit)}` },
+    { key: 'unit', label: 'Unité', icon: 'pi pi-tag', value: equipmentUnitLabel(equipment.value.unit) },
+    { key: 'client', label: 'Client', icon: 'pi pi-building', value: clientMap.value[equipment.value.clientId] || null },
+  ]
+})
+
+function lineQuantity(item) {
+  const line = item.lines?.find((l) => l.equipmentId === equipment.value?.id)
+  return line?.quantity ?? item.quantity
+}
 
 async function load() {
   loading.value = true
@@ -90,16 +106,13 @@ onMounted(load)
           </TabList>
           <TabPanels>
             <TabPanel value="0">
-              <dl class="detail-dl">
-                <div><dt>Description</dt><dd>{{ equipment.description || '—' }}</dd></div>
-                <div><dt>Client</dt><dd>{{ clientMap[equipment.clientId] || '—' }}</dd></div>
-              </dl>
+              <AppDetailInfoList :items="infoItems" />
             </TabPanel>
             <TabPanel value="1">
               <AppEntityDataView
                 v-if="isAppMobile && equipmentMovements.length"
                 :items="equipmentMovements"
-                :title-of="(item) => `${item.quantity} ${item.unit}`"
+                :title-of="(item) => `${lineQuantity(item)} ${equipmentUnitLabel(equipment.unit)}`"
                 :meta-of="(item) => formatDateFr(item.date)"
                 :status-of="(item) => ({ value: stockDirectionLabel(item.direction), severity: stockDirectionSeverity(item.direction) })"
               />
@@ -107,8 +120,14 @@ onMounted(load)
                 <Column header="Date">
                   <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
                 </Column>
-                <Column field="quantity" header="Quantité" />
-                <Column field="unit" header="Unité" />
+                <Column header="Type">
+                  <template #body="{ data }">
+                    <Tag :value="stockDirectionLabel(data.direction)" :severity="stockDirectionSeverity(data.direction)" />
+                  </template>
+                </Column>
+                <Column header="Quantité">
+                  <template #body="{ data }">{{ lineQuantity(data) }} {{ equipmentUnitLabel(equipment.unit) }}</template>
+                </Column>
                 <Column header="Client">
                   <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
                 </Column>
@@ -139,26 +158,6 @@ onMounted(load)
 .detail-header__title {
   margin: 0.15rem 0 0.35rem;
   font-size: 1.25rem;
-}
-
-.detail-dl {
-  display: grid;
-  gap: 0.75rem;
-  margin: 0;
-}
-
-.detail-dl div {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.detail-dl dt {
-  font-size: 0.75rem;
-  color: var(--layout-text-muted);
-}
-
-.detail-dl dd {
-  margin: 0;
 }
 
 .dashboard-page__state {

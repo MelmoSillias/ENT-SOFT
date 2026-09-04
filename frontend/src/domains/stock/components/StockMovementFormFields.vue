@@ -1,7 +1,6 @@
 <script setup>
 import Select from 'primevue/select'
 import DatePicker from 'primevue/datepicker'
-import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Button from 'primevue/button'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
@@ -36,11 +35,6 @@ function removeLine(index) {
     <div class="field">
       <label>Direction</label>
       <Select v-model="form.direction" :options="STOCK_DIRECTION_OPTIONS" option-label="label" option-value="value" fluid />
-    </div>
-    <div class="field">
-      <label>Unité <span class="required">*</span></label>
-      <InputText v-model="form.unit" :invalid="Boolean(errors.unit)" fluid />
-      <AppFieldError :message="errors.unit" />
     </div>
     <div class="field">
       <label>Client</label>

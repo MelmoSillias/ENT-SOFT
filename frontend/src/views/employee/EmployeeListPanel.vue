@@ -23,6 +23,13 @@ import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 
+defineProps({
+  fabEnabled: {
+    type: Boolean,
+    default: true,
+  },
+})
+
 const router = useRouter()
 const toast = useAppToast()
 const confirm = useConfirm()
@@ -238,7 +245,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   </Card>
 
   <AppMobileFab
-    v-if="isAppMobile && canCreate"
+    v-if="isAppMobile && canCreate && fabEnabled"
     aria-label="Nouvel employé"
     @click="openCreate"
   />

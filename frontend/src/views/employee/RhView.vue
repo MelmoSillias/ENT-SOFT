@@ -44,10 +44,10 @@ const tabItems = computed(() => {
     </Tabs>
 
     <div v-if="canEmployees" v-show="activeTab === '0'">
-      <EmployeeListPanel />
+      <EmployeeListPanel :fab-enabled="activeTab === '0'" />
     </div>
     <div v-if="canPrestataires" v-show="activeTab === '1'">
-      <PrestataireListPanel />
+      <PrestataireListPanel :fab-enabled="activeTab === '1'" />
     </div>
   </section>
 </template>

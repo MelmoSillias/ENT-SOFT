@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -22,6 +22,7 @@ import StockMovementListPanel from '@/views/stock/StockMovementListPanel.vue'
 import { listEquipment, createEquipment, updateEquipment, deleteEquipment } from '@/domains/stock/services/equipmentService'
 import { listClients } from '@/domains/client/services/clientService'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
+import { equipmentUnitLabel } from '@/domains/shared/utils/entLabels'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
@@ -48,6 +49,7 @@ const editingId = ref(null)
 const actionItem = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
+const movementsPanel = ref(null)
 
 const stockTabItems = [
   { value: 'list', label: 'Liste', shortLabel: 'Liste' },
@@ -55,9 +57,10 @@ const stockTabItems = [
 ]
 
 const canCreate = computed(() => hasPermission('stock.equipment.create'))
+const canCreateMovement = computed(() => hasPermission('stock.movements.create'))
 
 function emptyForm() {
-  return { title: '', description: '', clientId: null }
+  return { title: '', description: '', unit: 'unit', clientId: null }
 }
 
 const form = ref(emptyForm())
@@ -65,6 +68,7 @@ const form = ref(emptyForm())
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
   if (!hasRequiredText(form.value.title)) errs.title = requiredMessage('Titre')
+  if (!form.value.unit) errs.unit = requiredMessage('Unité')
   return errs
 })
 
@@ -105,7 +109,13 @@ const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
   if (!q) return items.value
   return items.value.filter((item) =>
-    [item.code, item.title, item.description, clientMap.value[item.clientId]].filter(Boolean).join(' ').toLowerCase().includes(q),
+    [
+      item.code,
+      item.title,
+      item.description,
+      equipmentUnitLabel(item.unit),
+      clientMap.value[item.clientId],
+    ].filter(Boolean).join(' ').toLowerCase().includes(q),
   )
 })
 
@@ -121,15 +131,35 @@ function openCreate() {
 
 function openEdit(item) {
   editingId.value = item.id
-  form.value = { code: item.code, title: item.title ?? '', description: item.description ?? '', clientId: item.clientId }
+  form.value = {
+    code: item.code,
+    title: item.title ?? '',
+    description: item.description ?? '',
+    unit: item.unit ?? 'unit',
+    clientId: item.clientId,
+  }
   resetErrors()
   dialog.value = true
+}
+
+async function openMovement(item, direction) {
+  stockTab.value = 'movements'
+  await nextTick()
+  movementsPanel.value?.openCreate({
+    equipmentId: item.id,
+    direction,
+    clientId: item.clientId ?? null,
+  })
 }
 
 function buildMenuItems(item) {
   const menu = [
     { label: 'Voir le détail', icon: 'pi pi-eye', command: () => router.push({ name: 'equipment-detail', params: { id: item.id } }) },
   ]
+  if (canCreateMovement.value) {
+    menu.push({ label: 'Entrée de stock', icon: 'pi pi-sign-in', command: () => openMovement(item, 'in') })
+    menu.push({ label: 'Sortie de stock', icon: 'pi pi-sign-out', command: () => openMovement(item, 'out') })
+  }
   if (hasPermission('stock.equipment.update')) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
   if (hasPermission('stock.equipment.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', command: () => askDelete(item) })
   return menu
@@ -164,7 +194,12 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async (item) => {
 
 const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   if (!validateForm()) return
-  const payload = { title: form.value.title.trim(), description: form.value.description || null, clientId: form.value.clientId || null }
+  const payload = {
+    title: form.value.title.trim(),
+    description: form.value.description || null,
+    unit: form.value.unit,
+    clientId: form.value.clientId || null,
+  }
   try {
     if (editingId.value) await updateEquipment(editingId.value, payload)
     else await createEquipment(payload)
@@ -175,6 +210,10 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     toast.add({ severity: 'error', summary: 'Équipement', detail: e.response?.data?.error || 'Erreur.' })
   }
 })
+
+function quantityDisplay(item) {
+  return `${item.quantity ?? 0} ${equipmentUnitLabel(item.unit)}`
+}
 </script>
 
 <template>
@@ -197,7 +236,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           </TabPanels>
         </Tabs>
 
-        <div v-if="stockTab === 'list'">
+        <div v-show="stockTab === 'list'">
           <AppTablePanelHeader
             title="Matériels et équipements"
             :count-label="countLabel"
@@ -218,13 +257,20 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               :items="filteredItems"
               :title-of="(item) => item.title"
               :code-of="(item) => item.code"
-              :subtitle-of="(item) => clientMap[item.clientId] || item.description || null"
+              :subtitle-of="(item) => quantityDisplay(item)"
+              :meta-of="(item) => clientMap[item.clientId] || item.description || null"
               :actions-of="buildMenuItems"
               @select="(item) => router.push({ name: 'equipment-detail', params: { id: item.id } })"
             />
             <DataTable v-else :value="filteredItems" paginator :rows="10" striped-rows>
               <Column field="code" header="Code" />
               <Column field="title" header="Titre" />
+              <Column header="Quantité">
+                <template #body="{ data }">{{ data.quantity ?? 0 }}</template>
+              </Column>
+              <Column header="Unité">
+                <template #body="{ data }">{{ equipmentUnitLabel(data.unit) }}</template>
+              </Column>
               <Column header="Client">
                 <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
               </Column>
@@ -238,8 +284,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           </AppTableState>
         </div>
 
-        <div v-else-if="stockTab === 'movements'">
-          <StockMovementListPanel />
+        <div v-show="stockTab === 'movements'">
+          <StockMovementListPanel ref="movementsPanel" @changed="fetchItems" />
         </div>
       </template>
     </Card>

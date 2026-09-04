@@ -20,6 +20,7 @@ import { getProjectDetail, updateProject, createProjectEvent } from '@/domains/p
 import ProjectSitesTable from '@/domains/project/components/ProjectSitesTable.vue'
 import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
+import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import {
   formatDateFr,
@@ -54,6 +55,28 @@ const projectTabItems = computed(() => [
   { value: '2', label: `Événements (${project.value?.events?.length ?? 0})`, shortLabel: 'Évén.' },
   { value: '3', label: 'Documents', shortLabel: 'Docs' },
 ])
+
+const identityItems = computed(() => {
+  if (!project.value) return []
+  return [
+    { key: 'code', label: 'Code', icon: 'pi pi-hashtag', value: project.value.code },
+    { key: 'title', label: 'Titre', icon: 'pi pi-folder', value: project.value.title },
+    { key: 'client', label: 'Client', icon: 'pi pi-building', value: project.value.clientTitle || project.value.clientId },
+    { key: 'object', label: 'Objet', icon: 'pi pi-align-left', value: project.value.object || null, full: true },
+    { key: 'status', label: 'Statut', icon: 'pi pi-flag', value: projectStatusLabel(project.value.status) },
+  ]
+})
+
+const planningItems = computed(() => {
+  if (!project.value) return []
+  return [
+    { key: 'dateDebut', label: 'Date début', icon: 'pi pi-calendar', value: formatDateFr(project.value.dateDebut) },
+    { key: 'dateFin', label: 'Date fin', icon: 'pi pi-calendar-minus', value: formatDateFr(project.value.dateFin) },
+    { key: 'budget', label: 'Budget', icon: 'pi pi-wallet', value: formatMontant(project.value.budget, DEVISE_APP) },
+    { key: 'createdAt', label: 'Créé le', icon: 'pi pi-clock', value: formatDateTimeFr(project.value.createdAt) },
+    { key: 'updatedAt', label: 'Modifié le', icon: 'pi pi-history', value: formatDateTimeFr(project.value.updatedAt) },
+  ]
+})
 
 const statusSaving = ref(false)
 
@@ -293,24 +316,12 @@ onMounted(load)
               <div class="detail-info">
                 <section class="detail-section">
                   <h2 class="detail-section__title">Identité</h2>
-                  <dl class="detail-dl">
-                    <div><dt>Code</dt><dd>{{ project.code }}</dd></div>
-                    <div><dt>Titre</dt><dd>{{ project.title }}</dd></div>
-                    <div><dt>Client</dt><dd>{{ project.clientTitle || project.clientId }}</dd></div>
-                    <div class="detail-dl__full"><dt>Objet</dt><dd>{{ project.object || '—' }}</dd></div>
-                    <div><dt>Statut</dt><dd>{{ projectStatusLabel(project.status) }}</dd></div>
-                  </dl>
+                  <AppDetailInfoList :items="identityItems" />
                 </section>
 
                 <section class="detail-section">
                   <h2 class="detail-section__title">Planning & budget</h2>
-                  <dl class="detail-dl">
-                    <div><dt>Date début</dt><dd>{{ formatDateFr(project.dateDebut) }}</dd></div>
-                    <div><dt>Date fin</dt><dd>{{ formatDateFr(project.dateFin) }}</dd></div>
-                    <div><dt>Budget</dt><dd>{{ formatMontant(project.budget, DEVISE_APP) }}</dd></div>
-                    <div><dt>Créé le</dt><dd>{{ formatDateTimeFr(project.createdAt) }}</dd></div>
-                    <div><dt>Modifié le</dt><dd>{{ formatDateTimeFr(project.updatedAt) }}</dd></div>
-                  </dl>
+                  <AppDetailInfoList :items="planningItems" />
                 </section>
 
                 <section v-if="project.lots?.length" class="detail-section">
@@ -502,44 +513,27 @@ onMounted(load)
   border-top: 1px solid var(--p-content-border-color, #e5e7eb);
 }
 
-.detail-dl {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem 1.25rem;
-  margin: 0;
-}
-
-.detail-dl div {
-  display: grid;
-  grid-template-columns: 7.5rem 1fr;
-  gap: 0.5rem;
-}
-
-.detail-dl__full {
-  grid-column: 1 / -1;
-}
-
-.detail-dl dt {
-  font-weight: 600;
-  color: var(--layout-text-muted);
-}
-
-.detail-dl dd {
-  margin: 0;
-}
-
 .detail-lots {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0;
+  border: 1px solid var(--layout-panel-border);
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  overflow: hidden;
 }
 
 .detail-lots li {
   display: flex;
   gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--layout-panel-border);
+}
+
+.detail-lots li:last-child {
+  border-bottom: 0;
 }
 
 .detail-lots__code {
@@ -599,11 +593,5 @@ onMounted(load)
   padding: 2rem;
   text-align: center;
   color: var(--layout-text-muted);
-}
-
-@media (max-width: 640px) {
-  .detail-dl {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

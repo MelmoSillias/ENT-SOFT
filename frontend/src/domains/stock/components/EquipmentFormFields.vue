@@ -3,6 +3,7 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
+import { EQUIPMENT_UNIT_OPTIONS } from '@/domains/shared/utils/entLabels'
 
 const form = defineModel({ type: Object, required: true })
 
@@ -24,6 +25,18 @@ defineProps({
       <label>Titre <span class="required">*</span></label>
       <InputText v-model="form.title" :invalid="Boolean(errors.title)" fluid />
       <AppFieldError :message="errors.title" />
+    </div>
+    <div class="field">
+      <label>Unité <span class="required">*</span></label>
+      <Select
+        v-model="form.unit"
+        :options="EQUIPMENT_UNIT_OPTIONS"
+        option-label="label"
+        option-value="value"
+        :invalid="Boolean(errors.unit)"
+        fluid
+      />
+      <AppFieldError :message="errors.unit" />
     </div>
     <div class="field ent-form-grid__full">
       <label>Description</label>

@@ -4,7 +4,29 @@
       <Skeleton width="12rem" height="1.25rem" />
     </div>
 
-    <div class="app-table-skeleton__table">
+    <div v-if="isAppMobile" class="app-table-skeleton__cards app-entity-dataview">
+      <article
+        v-for="row in rows"
+        :key="`card-${row}`"
+        class="app-table-skeleton__card app-entity-card"
+        aria-hidden="true"
+      >
+        <div class="app-entity-card__row">
+          <div class="app-table-skeleton__card-body">
+            <Skeleton :width="codeWidth(row)" height="0.65rem" border-radius="0.3rem" />
+            <Skeleton :width="titleWidth(row)" height="0.95rem" border-radius="0.35rem" />
+            <Skeleton :width="subtitleWidth(row)" height="0.7rem" border-radius="0.3rem" />
+          </div>
+          <Skeleton width="1.75rem" height="1.75rem" border-radius="999px" />
+        </div>
+        <div class="app-entity-card__meta-row">
+          <Skeleton width="4.25rem" height="1.35rem" border-radius="999px" />
+          <Skeleton :width="metaWidth(row)" height="0.7rem" border-radius="0.3rem" />
+        </div>
+      </article>
+    </div>
+
+    <div v-else class="app-table-skeleton__table">
       <div class="app-table-skeleton__head">
         <Skeleton
           v-for="index in columns"
@@ -32,6 +54,7 @@
 
 <script setup>
 import Skeleton from 'primevue/skeleton'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
 defineProps({
   rows: {
@@ -52,10 +75,28 @@ defineProps({
   },
 })
 
+const { isAppMobile } = useAppMobileLayout()
+
 function columnWidth(index, row = 0) {
   const base = [18, 22, 14, 20, 16, 24]
   const width = base[(index + row) % base.length]
   return `${width + ((row * 3 + index) % 8)}%`
+}
+
+function codeWidth(row) {
+  return `${28 + ((row * 5) % 18)}%`
+}
+
+function titleWidth(row) {
+  return `${52 + ((row * 7) % 28)}%`
+}
+
+function subtitleWidth(row) {
+  return `${38 + ((row * 11) % 32)}%`
+}
+
+function metaWidth(row) {
+  return `${30 + ((row * 9) % 24)}%`
 }
 </script>
 
@@ -68,6 +109,21 @@ function columnWidth(index, row = 0) {
 
 .app-table-skeleton__title {
   margin-bottom: 0.25rem;
+}
+
+.app-table-skeleton__cards {
+  pointer-events: none;
+}
+
+.app-table-skeleton__card {
+  cursor: default;
+}
+
+.app-table-skeleton__card-body {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .app-table-skeleton__table {

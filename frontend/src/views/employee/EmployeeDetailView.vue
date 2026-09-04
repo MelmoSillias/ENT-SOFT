@@ -13,6 +13,7 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { getEmployee } from '@/domains/employee/services/employeeService'
 import { listTasks } from '@/domains/task/services/taskService'
@@ -34,6 +35,16 @@ const employeeTabItems = computed(() => [
   { value: '0', label: 'Informations', shortLabel: 'Infos' },
   { value: '1', label: `Tâches (${tasks.value.length})`, shortLabel: 'Tâches' },
 ])
+
+const infoItems = computed(() => {
+  if (!employee.value) return []
+  return [
+    { key: 'email', label: 'Email', icon: 'pi pi-envelope', value: employee.value.email },
+    { key: 'phone', label: 'Téléphone', icon: 'pi pi-phone', value: employee.value.phone },
+    { key: 'role', label: 'Fonction', icon: 'pi pi-id-card', value: employee.value.roleCode || employee.value.function },
+    { key: 'address', label: 'Adresse', icon: 'pi pi-map-marker', value: employee.value.address || null, full: true },
+  ]
+})
 
 async function load() {
   loading.value = true
@@ -85,12 +96,7 @@ onMounted(load)
           </TabList>
           <TabPanels>
             <TabPanel value="0">
-              <dl class="detail-dl">
-                <div><dt>Email</dt><dd>{{ employee.email }}</dd></div>
-                <div><dt>Téléphone</dt><dd>{{ employee.phone }}</dd></div>
-                <div><dt>Fonction</dt><dd>{{ employee.roleCode || employee.function }}</dd></div>
-                <div><dt>Adresse</dt><dd>{{ employee.address || '—' }}</dd></div>
-              </dl>
+              <AppDetailInfoList :items="infoItems" />
             </TabPanel>
             <TabPanel value="1">
               <AppEntityDataView
@@ -135,26 +141,6 @@ onMounted(load)
 .detail-header__title {
   margin: 0 0 0.35rem;
   font-size: 1.25rem;
-}
-
-.detail-dl {
-  display: grid;
-  gap: 0.75rem;
-  margin: 0;
-}
-
-.detail-dl div {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.detail-dl dt {
-  font-size: 0.75rem;
-  color: var(--layout-text-muted);
-}
-
-.detail-dl dd {
-  margin: 0;
 }
 
 .dashboard-page__state {

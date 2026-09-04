@@ -8,7 +8,6 @@ final readonly class CreateStockMovementCommand
     public function __construct(
         public string $date,
         public float $quantity,
-        public string $unit,
         public string $direction = 'in',
         public ?string $clientId = null,
         public ?string $projectId = null,
