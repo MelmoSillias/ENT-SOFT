@@ -217,6 +217,11 @@ function openEdit(item) {
 
 function buildMenuItems(item) {
   const menu = []
+  const locked =
+    item.isSystemGenerated === true ||
+    item.category === 'PrestationPayment' ||
+    item.category === 'InvoicePayment'
+  if (locked) return menu
   if (hasPermission('finance.transactions.update')) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
   if (hasPermission('finance.transactions.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', severity: 'danger', command: () => askDelete(item) })
   return menu

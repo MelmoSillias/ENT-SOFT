@@ -505,7 +505,7 @@ final readonly class EmployeeResponseDto
     {
         return new self(
             id: (string) $employee->getId(),
-            name: $employee->getName(),
+            fullName: $employee->getFullName(),
             email: $employee->getEmail(),
             phone: $employee->getPhone(),
             address: $employee->getAddress(),

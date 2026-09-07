@@ -4,6 +4,7 @@ namespace App\Finance\Application\Command\DeleteFinancialTransaction;
 
 use App\Finance\Application\Dto\FinancialTransactionResponseDto;
 use App\Finance\Domain\Exception\FinancialTransactionNotFoundException;
+use App\Finance\Domain\Exception\SystemGeneratedTransactionException;
 use App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -19,6 +20,10 @@ final class DeleteFinancialTransactionHandler
         $transaction = $this->transactionRepository->findById(Uuid::fromString($command->id));
         if (null === $transaction || !$transaction->isEnabled()) {
             throw FinancialTransactionNotFoundException::withId($command->id);
+        }
+
+        if (FinancialTransactionResponseDto::isSystemGeneratedCategory($transaction->getCategory())) {
+            throw SystemGeneratedTransactionException::cannotDelete();
         }
 
         $transaction->disable();

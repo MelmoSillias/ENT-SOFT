@@ -55,6 +55,11 @@ export async function payPrestation(prestationId, payload) {
   return data
 }
 
+export async function payPrestationsBatch(prestataireId, payload) {
+  const { data } = await api.post(`/prestataires/${prestataireId}/prestations/pay-batch`, payload)
+  return data
+}
+
 export async function changePrestationStatus(prestationId, workStatus) {
   const { data } = await api.patch(`/prestataires/prestations/${prestationId}/status`, { workStatus })
   return data

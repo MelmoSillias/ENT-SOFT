@@ -25,6 +25,7 @@ import {
   updatePrestation,
   deletePrestation,
   payPrestation,
+  payPrestationsBatch,
   changePrestationStatus,
   duplicatePrestation,
   resetPrestationPayments,
@@ -70,6 +71,7 @@ const error = ref(null)
 const activeTab = ref(route.query.tab === '1' ? '1' : '0')
 const dialog = ref(false)
 const payDialog = ref(false)
+const multiPayDialog = ref(false)
 const statusDialog = ref(false)
 const editingId = ref(null)
 const currentItem = ref(null)
@@ -194,7 +196,51 @@ function emptyPayForm() {
 
 const form = ref(emptyForm())
 const payForm = ref(emptyPayForm())
+const multiPayDate = ref(new Date())
+const multiPayAmounts = ref({})
 const statusForm = ref({ workStatus: 'pending' })
+
+const unpaidPrestations = computed(() =>
+  prestations.value.filter((p) => p.paymentStatus !== 'paid'),
+)
+
+const canMultiPay = computed(
+  () => hasPermission('employee.prestations.pay') && unpaidPrestations.value.length > 0,
+)
+
+const multiPaySelected = computed(() =>
+  unpaidPrestations.value
+    .map((p) => {
+      const amount = Number(multiPayAmounts.value[p.id] || 0)
+      return amount > 0 ? { ...p, payAmount: amount } : null
+    })
+    .filter(Boolean),
+)
+
+const multiPayTotal = computed(() =>
+  multiPaySelected.value.reduce((sum, p) => sum + Number(p.payAmount || 0), 0),
+)
+
+function remainingOf(item) {
+  return Math.max(0, Number(item.amount || 0) - Number(item.paidAmount || 0))
+}
+
+function openMultiPay() {
+  const amounts = {}
+  for (const p of unpaidPrestations.value) {
+    amounts[p.id] = null
+  }
+  multiPayAmounts.value = amounts
+  multiPayDate.value = new Date()
+  multiPayDialog.value = true
+}
+
+function fillMultiPayLine(item) {
+  multiPayAmounts.value = {
+    ...multiPayAmounts.value,
+    [item.id]: remainingOf(item),
+  }
+}
 
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
@@ -356,6 +402,31 @@ const { pending: paying, run: savePay } = useAsyncAction(async () => {
   }
 })
 
+const { pending: multiPaying, run: saveMultiPay } = useAsyncAction(async () => {
+  if (!multiPayDate.value) {
+    toast.add({ severity: 'warn', summary: 'Paiement', detail: 'Date requise.' })
+    return
+  }
+  if (multiPaySelected.value.length === 0) {
+    toast.add({ severity: 'warn', summary: 'Paiement', detail: 'Indiquez au moins un montant.' })
+    return
+  }
+  try {
+    await payPrestationsBatch(route.params.id, {
+      date: toApiDate(multiPayDate.value),
+      allocations: multiPaySelected.value.map((p) => ({
+        prestationId: p.id,
+        amount: Number(p.payAmount),
+      })),
+    })
+    multiPayDialog.value = false
+    prestations.value = await listPrestations(route.params.id)
+    toast.add({ severity: 'success', summary: 'Paiement', detail: 'Paiement groupé enregistré.' })
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Paiement', detail: e.response?.data?.error || 'Erreur.' })
+  }
+})
+
 const { pending: changingStatus, run: saveStatus } = useAsyncAction(async () => {
   try {
     await changePrestationStatus(currentItem.value.id, statusForm.value.workStatus)
@@ -496,6 +567,15 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                 @update:search-term="searchTerm = $event"
               >
                 <template #actions>
+                  <Button
+                    v-if="canMultiPay"
+                    label="Payer plusieurs"
+                    icon="pi pi-wallet"
+                    severity="secondary"
+                    outlined
+                    size="small"
+                    @click="openMultiPay"
+                  />
                   <div v-if="!isAppMobile" class="prestations-toolbar__export">
                     <Button icon="pi pi-print" text rounded v-tooltip.top="'Imprimer'" @click="printTable" />
                     <Button icon="pi pi-download" text rounded v-tooltip.top="'Exporter'" @click="(e) => exportMenu?.toggle(e)" />
@@ -660,6 +740,79 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
       </template>
     </Dialog>
 
+    <Dialog
+      v-model:visible="multiPayDialog"
+      header="Payer plusieurs prestations"
+      modal
+      style="width: min(720px, 96vw)"
+      content-class="multi-pay-dialog"
+    >
+      <div class="field">
+        <label>Date du paiement</label>
+        <DatePicker v-model="multiPayDate" date-format="dd/mm/yy" show-icon fluid />
+      </div>
+
+      <div v-if="multiPaySelected.length" class="multi-pay-tags">
+        <span class="multi-pay-tags__label">Incluses dans le paiement</span>
+        <div class="multi-pay-tags__list">
+          <Tag
+            v-for="item in multiPaySelected"
+            :key="item.id"
+            :value="`${item.description} · ${formatMontant(item.payAmount, DEVISE_APP)}`"
+            severity="info"
+            rounded
+          />
+        </div>
+      </div>
+
+      <div class="multi-pay-total">
+        <span>Total payé</span>
+        <strong>{{ formatMontant(multiPayTotal, DEVISE_APP) }}</strong>
+      </div>
+
+      <div class="multi-pay-list">
+        <div v-for="item in unpaidPrestations" :key="item.id" class="multi-pay-row">
+          <div class="multi-pay-row__info">
+            <p class="multi-pay-row__title">{{ item.description }}</p>
+            <p class="multi-pay-row__meta">
+              Reliquat {{ formatMontant(remainingOf(item), DEVISE_APP) }}
+              · {{ PAYMENT_STATUS_LABEL[item.paymentStatus] || item.paymentStatus }}
+            </p>
+          </div>
+          <div class="multi-pay-row__amount">
+            <InputNumber
+              v-model="multiPayAmounts[item.id]"
+              mode="currency"
+              :currency="DEVISE_APP.code"
+              locale="fr-FR"
+              :min="0"
+              :min-fraction-digits="0"
+              fluid
+            />
+            <Button
+              icon="pi pi-wallet"
+              text
+              rounded
+              v-tooltip.top="'Remplir le reliquat'"
+              @click="fillMultiPayLine(item)"
+            />
+          </div>
+        </div>
+        <p v-if="!unpaidPrestations.length" class="dashboard-page__state">Aucune prestation impayée.</p>
+      </div>
+
+      <template #footer>
+        <Button label="Annuler" text @click="multiPayDialog = false" />
+        <Button
+          label="Valider le paiement"
+          icon="pi pi-check"
+          :loading="multiPaying"
+          :disabled="multiPayTotal <= 0"
+          @click="saveMultiPay"
+        />
+      </template>
+    </Dialog>
+
     <Dialog v-model:visible="statusDialog" header="Changer le statut" modal style="width: min(380px, 95vw)">
       <div class="field">
         <label>Statut</label>
@@ -711,6 +864,72 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
   flex-direction: column;
   gap: 0.35rem;
   margin-bottom: 0.85rem;
+}
+.multi-pay-tags {
+  margin-bottom: 0.85rem;
+}
+.multi-pay-tags__label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.multi-pay-tags__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.multi-pay-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--p-primary-color, #3b82f6) 12%, transparent);
+  font-size: 1rem;
+}
+.multi-pay-total strong {
+  font-size: 1.25rem;
+}
+.multi-pay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: min(50vh, 420px);
+  overflow: auto;
+}
+.multi-pay-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--p-content-border-color, #e5e7eb);
+}
+.multi-pay-row__info {
+  min-width: 0;
+  flex: 1;
+}
+.multi-pay-row__title {
+  margin: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.multi-pay-row__meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--layout-text-muted);
+}
+.multi-pay-row__amount {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: min(220px, 45%);
+  flex-shrink: 0;
 }
 .required { color: var(--p-red-500, #ef4444); }
 .dashboard-page__state {

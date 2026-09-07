@@ -100,6 +100,9 @@ services:
     App\Prestataire\Domain\Repository\PrestationRepositoryInterface:
         alias: App\Prestataire\Infrastructure\Persistence\Doctrine\DoctrinePrestationRepository
 
+    App\Prestataire\Domain\Repository\PrestationPaymentAllocationRepositoryInterface:
+        alias: App\Prestataire\Infrastructure\Persistence\Doctrine\DoctrinePrestationPaymentAllocationRepository
+
     App\Task\Domain\Repository\TaskRepositoryInterface:
         alias: App\Task\Infrastructure\Persistence\Doctrine\DoctrineTaskRepository
 

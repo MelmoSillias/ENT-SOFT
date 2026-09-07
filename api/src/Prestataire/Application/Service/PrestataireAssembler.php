@@ -2,21 +2,20 @@
 
 namespace App\Prestataire\Application\Service;
 
-use App\Finance\Domain\Enum\TransactionStatus;
-use App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface;
 use App\Prestataire\Application\Dto\PrestataireResponseDto;
 use App\Prestataire\Application\Dto\PrestationResponseDto;
 use App\Prestataire\Domain\Entity\Prestataire;
 use App\Prestataire\Domain\Entity\Prestation;
 use App\Prestataire\Domain\Enum\PrestationPaymentStatus;
 use App\Prestataire\Domain\Enum\PrestationWorkStatus;
+use App\Prestataire\Domain\Repository\PrestationPaymentAllocationRepositoryInterface;
 use App\Prestataire\Domain\Repository\PrestationRepositoryInterface;
 
 final class PrestataireAssembler
 {
     public function __construct(
         private readonly PrestationRepositoryInterface $prestationRepository,
-        private readonly FinancialTransactionRepositoryInterface $transactionRepository,
+        private readonly PrestationPaymentAllocationRepositoryInterface $allocationRepository,
     ) {
     }
 
@@ -48,15 +47,10 @@ final class PrestataireAssembler
 
     public function toPrestationDto(Prestation $prestation): PrestationResponseDto
     {
-        $payments = $this->transactionRepository->findEnabledPaymentsByPrestationId($prestation->getId());
-        $paidAmount = 0.0;
-        foreach ($payments as $payment) {
-            if ($payment->getStatus() === TransactionStatus::COMPLETED) {
-                $paidAmount += $payment->getAmount();
-            }
-        }
+        $paidAmount = $this->sumPaidAmount($prestation);
+        $hasPayments = $this->allocationRepository->hasEnabledByPrestationId($prestation->getId());
 
-        return PrestationResponseDto::fromEntity($prestation, $paidAmount, $payments !== []);
+        return PrestationResponseDto::fromEntity($prestation, $paidAmount, $hasPayments);
     }
 
     public function recalculatePaymentStatus(Prestation $prestation): void
@@ -72,15 +66,8 @@ final class PrestataireAssembler
         }
     }
 
-    private function sumPaidAmount(Prestation $prestation): float
+    public function sumPaidAmount(Prestation $prestation): float
     {
-        $paid = 0.0;
-        foreach ($this->transactionRepository->findEnabledPaymentsByPrestationId($prestation->getId()) as $payment) {
-            if ($payment->getStatus() === TransactionStatus::COMPLETED) {
-                $paid += $payment->getAmount();
-            }
-        }
-
-        return $paid;
+        return $this->allocationRepository->sumCompletedAmountByPrestationId($prestation->getId());
     }
 }

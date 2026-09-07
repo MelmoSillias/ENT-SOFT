@@ -60,12 +60,20 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
     public function findEnabledPaymentsByPrestationId(Uuid $prestationId): array
     {
         $qb = $this->createQueryBuilder('t')
+            ->innerJoin(
+                \App\Prestataire\Domain\Entity\PrestationPaymentAllocation::class,
+                'a',
+                'WITH',
+                'a.transactionId = t.id',
+            )
             ->andWhere('t.isEnabled = :enabled')
+            ->andWhere('a.isEnabled = :enabled')
             ->andWhere('t.category = :category')
             ->setParameter('enabled', true)
             ->setParameter('category', TransactionCategory::PRESTATION_PAYMENT)
-            ->orderBy('t.date', 'DESC');
-        UuidQueryParameter::eq($qb, 't.prestationId', 'prestationId', $prestationId);
+            ->orderBy('t.date', 'DESC')
+            ->distinct();
+        UuidQueryParameter::eq($qb, 'a.prestationId', 'prestationId', $prestationId);
 
         return $qb->getQuery()->getResult();
     }

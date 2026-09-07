@@ -3,6 +3,7 @@
 namespace App\Finance\Application\Dto;
 
 use App\Finance\Domain\Entity\FinancialTransaction;
+use App\Finance\Domain\Enum\TransactionCategory;
 
 final readonly class FinancialTransactionResponseDto
 {
@@ -20,6 +21,7 @@ final readonly class FinancialTransactionResponseDto
         public ?string $siteId,
         public ?string $invoiceId,
         public ?string $prestationId,
+        public bool $isSystemGenerated,
         public bool $isEnabled,
         public string $createdAt,
         public string $updatedAt,
@@ -42,10 +44,19 @@ final readonly class FinancialTransactionResponseDto
             siteId: $t->getSiteId()?->toRfc4122(),
             invoiceId: $t->getInvoiceId()?->toRfc4122(),
             prestationId: $t->getPrestationId()?->toRfc4122(),
+            isSystemGenerated: self::isSystemGeneratedCategory($t->getCategory()),
             isEnabled: $t->isEnabled(),
             createdAt: $t->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $t->getUpdatedAt()->format(\DateTimeInterface::ATOM),
         );
+    }
+
+    public static function isSystemGeneratedCategory(TransactionCategory $category): bool
+    {
+        return in_array($category, [
+            TransactionCategory::PRESTATION_PAYMENT,
+            TransactionCategory::INVOICE_PAYMENT,
+        ], true);
     }
 
     /** @return array<string, mixed> */
@@ -65,6 +76,7 @@ final readonly class FinancialTransactionResponseDto
             'siteId' => $this->siteId,
             'invoiceId' => $this->invoiceId,
             'prestationId' => $this->prestationId,
+            'isSystemGenerated' => $this->isSystemGenerated,
             'isEnabled' => $this->isEnabled,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,

@@ -16,6 +16,8 @@ use App\Prestataire\Application\Command\DuplicatePrestation\DuplicatePrestationC
 use App\Prestataire\Application\Command\DuplicatePrestation\DuplicatePrestationHandler;
 use App\Prestataire\Application\Command\PayPrestation\PayPrestationCommand;
 use App\Prestataire\Application\Command\PayPrestation\PayPrestationHandler;
+use App\Prestataire\Application\Command\PayPrestations\PayPrestationsCommand;
+use App\Prestataire\Application\Command\PayPrestations\PayPrestationsHandler;
 use App\Prestataire\Application\Command\ResetPrestationPayments\ResetPrestationPaymentsCommand;
 use App\Prestataire\Application\Command\ResetPrestationPayments\ResetPrestationPaymentsHandler;
 use App\Prestataire\Application\Command\UpdatePrestataire\UpdatePrestataireCommand;
@@ -153,6 +155,31 @@ final class PrestataireController extends AbstractController
     public function listPrestations(string $id, ListPrestationsByPrestataireHandler $handler): JsonResponse
     {
         return $this->json($handler->handle(new ListPrestationsByPrestataireQuery($id)));
+    }
+
+    #[Route('/{id}/prestations/pay-batch', name: 'api_prestataires_prestations_pay_batch', methods: ['POST'], priority: 15)]
+    #[IsGranted('employee.prestations.pay')]
+    public function payPrestationsBatch(string $id, Request $request, PayPrestationsHandler $handler): JsonResponse
+    {
+        $data = $request->toArray();
+        $allocations = [];
+        foreach ($data['allocations'] ?? [] as $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+            $allocations[] = [
+                'prestationId' => (string) ($line['prestationId'] ?? ''),
+                'amount' => (float) ($line['amount'] ?? 0),
+            ];
+        }
+
+        $result = $handler->handle(new PayPrestationsCommand(
+            prestataireId: $id,
+            allocations: $allocations,
+            date: $data['date'] ?? null,
+        ));
+
+        return $this->json($result);
     }
 
     #[Route('/{id}/prestations', name: 'api_prestataires_prestations_create', methods: ['POST'])]
