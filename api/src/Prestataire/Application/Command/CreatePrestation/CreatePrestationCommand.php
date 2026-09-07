@@ -8,6 +8,7 @@ final readonly class CreatePrestationCommand
         public string $prestataireId,
         public string $description,
         public float $amount,
+        public ?string $date = null,
         public ?string $siteId = null,
         public ?string $workStatus = null,
     ) {

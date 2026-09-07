@@ -309,6 +309,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       <AppEntityDataView
         v-if="isAppMobile"
         :items="filteredItems"
+        :rows="tableRows"
+        :show-index="showIndex"
         :title-of="(item) => `${stockDirectionLabel(item.direction)} · ${quantityLabel(item)}`"
         :subtitle-of="(item) => lineLabel(item) || null"
         :meta-of="(item) => formatDateFr(item.date)"

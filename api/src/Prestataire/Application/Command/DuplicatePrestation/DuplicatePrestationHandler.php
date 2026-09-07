@@ -30,6 +30,7 @@ final class DuplicatePrestationHandler
             prestataireId: $source->getPrestataireId(),
             description: $source->getDescription(),
             amount: $source->getAmount(),
+            date: $source->getDate(),
             workStatus: PrestationWorkStatus::PENDING,
             paymentStatus: PrestationPaymentStatus::UNPAID,
             siteId: $source->getSiteId(),

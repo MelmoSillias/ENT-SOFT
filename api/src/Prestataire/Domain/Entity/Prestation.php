@@ -23,6 +23,9 @@ class Prestation
     #[ORM\Column(type: 'uuid')]
     private Uuid $prestataireId;
 
+    #[ORM\Column(type: 'date_immutable')]
+    private \DateTimeImmutable $date;
+
     #[ORM\Column(type: 'text')]
     private string $description;
 
@@ -42,6 +45,7 @@ class Prestation
         Uuid $prestataireId,
         string $description,
         float $amount,
+        \DateTimeImmutable $date,
         PrestationWorkStatus $workStatus = PrestationWorkStatus::PENDING,
         PrestationPaymentStatus $paymentStatus = PrestationPaymentStatus::UNPAID,
         ?Uuid $siteId = null,
@@ -49,6 +53,7 @@ class Prestation
         $this->initializeUuid();
         $this->initializeTimestamps();
         $this->prestataireId = $prestataireId;
+        $this->date = $date;
         $this->description = $description;
         $this->amount = $amount;
         $this->workStatus = $workStatus;
@@ -57,12 +62,14 @@ class Prestation
     }
 
     public function getPrestataireId(): Uuid { return $this->prestataireId; }
+    public function getDate(): \DateTimeImmutable { return $this->date; }
     public function getDescription(): string { return $this->description; }
     public function getSiteId(): ?Uuid { return $this->siteId; }
     public function getAmount(): float { return $this->amount; }
     public function getWorkStatus(): PrestationWorkStatus { return $this->workStatus; }
     public function getPaymentStatus(): PrestationPaymentStatus { return $this->paymentStatus; }
 
+    public function setDate(\DateTimeImmutable $date): void { $this->date = $date; $this->touch(); }
     public function setDescription(string $description): void { $this->description = $description; $this->touch(); }
     public function setSiteId(?Uuid $siteId): void { $this->siteId = $siteId; $this->touch(); }
     public function setAmount(float $amount): void { $this->amount = $amount; $this->touch(); }

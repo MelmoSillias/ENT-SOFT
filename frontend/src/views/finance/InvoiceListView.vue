@@ -9,12 +9,14 @@ import Dialog from 'primevue/dialog'
 import DatePicker from 'primevue/datepicker'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
+import Paginator from 'primevue/paginator'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
 import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
+import { useClientPagination } from '@/domains/shared/composables/useClientPagination'
 import { sortByField } from '@/domains/shared/utils/sortByField'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import InvoiceFormFields from '@/domains/finance/components/InvoiceFormFields.vue'
@@ -162,6 +164,14 @@ const filteredItems = computed(() => {
   const field = sortField.value === 'client' ? '_client' : sortField.value
   return sortByField(enriched, field, sortOrder.value)
 })
+
+const {
+  first: mobileFirst,
+  pageItems: mobilePageItems,
+  totalRecords: mobileTotal,
+  onPage: onMobilePage,
+  rankOf: mobileRankOf,
+} = useClientPagination(filteredItems, tableRows)
 
 const countLabel = computed(() => `${filteredItems.value.length}`)
 const dialogTitle = computed(() => (editingId.value ? 'Modifier facture' : 'Nouvelle facture'))
@@ -399,13 +409,14 @@ const printFormatItems = computed(() => [
     <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
       <div v-if="isAppMobile" class="app-entity-dataview">
         <article
-          v-for="item in filteredItems"
+          v-for="(item, index) in mobilePageItems"
           :key="item.id"
           class="app-entity-card"
           v-bind="rowContextMenu?.rowBindings(item) ?? {}"
           @click="expandedMobileId = expandedMobileId === item.id ? null : item.id"
         >
           <div class="app-entity-card__row">
+            <span v-if="showIndex" class="app-entity-card__index" aria-hidden="true">{{ mobileRankOf(index) }}</span>
             <div style="min-width: 0; flex: 1">
               <p class="app-entity-card__code">{{ item.number }}</p>
               <h3 class="app-entity-card__title">{{ clientMap[item.clientId] || 'Client' }}</h3>
@@ -449,6 +460,16 @@ const printFormatItems = computed(() => [
             </div>
           </div>
         </article>
+        <Paginator
+          v-if="mobileTotal > 0"
+          class="app-entity-dataview__paginator"
+          :rows="tableRows"
+          :first="mobileFirst"
+          :total-records="mobileTotal"
+          template="PrevPageLink PageLinks NextPageLink CurrentPageReport"
+          current-page-report-template="{first}-{last} / {totalRecords}"
+          @page="onMobilePage"
+        />
       </div>
       <DataTable
         v-else

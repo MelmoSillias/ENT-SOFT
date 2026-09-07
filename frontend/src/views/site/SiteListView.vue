@@ -239,6 +239,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           <AppEntityDataView
             v-if="isAppMobile"
             :items="filteredItems"
+            :rows="tableRows"
+            :show-index="showIndex"
             :title-of="(item) => item.title"
             :code-of="(item) => item.code"
             :subtitle-of="(item) => clientMap[item.clientId] || item.description || null"

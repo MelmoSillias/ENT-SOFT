@@ -47,7 +47,7 @@ final class Version20260904200000 extends AbstractMigration
         $this->addSql('ALTER TABLE employees_new RENAME TO employees');
 
         $this->addSql('CREATE TABLE IF NOT EXISTS prestataires (prenom VARCHAR(100) NOT NULL, nom VARCHAR(100) NOT NULL, email VARCHAR(255) NOT NULL, phone VARCHAR(50) NOT NULL, address CLOB DEFAULT NULL, id BLOB NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, is_enabled BOOLEAN DEFAULT 1 NOT NULL, PRIMARY KEY (id))');
-        $this->addSql('CREATE TABLE IF NOT EXISTS prestations (prestataire_id BLOB NOT NULL, description CLOB NOT NULL, site_id BLOB DEFAULT NULL, amount DOUBLE PRECISION NOT NULL, work_status VARCHAR(30) NOT NULL, payment_status VARCHAR(30) NOT NULL, id BLOB NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, is_enabled BOOLEAN DEFAULT 1 NOT NULL, PRIMARY KEY (id))');
+        $this->addSql('CREATE TABLE IF NOT EXISTS prestations (prestataire_id BLOB NOT NULL, date DATE NOT NULL, description CLOB NOT NULL, site_id BLOB DEFAULT NULL, amount DOUBLE PRECISION NOT NULL, work_status VARCHAR(30) NOT NULL, payment_status VARCHAR(30) NOT NULL, id BLOB NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, is_enabled BOOLEAN DEFAULT 1 NOT NULL, PRIMARY KEY (id))');
         $this->addSql('CREATE INDEX IF NOT EXISTS idx_prestation_prestataire ON prestations (prestataire_id)');
 
         // Rebuild financial_transactions: drop project_id, nullable parties, add prestation_id

@@ -36,7 +36,8 @@ class DoctrinePrestationRepository extends ServiceEntityRepository implements Pr
         return $this->createQueryBuilder('p')
             ->andWhere('p.isEnabled = :enabled')
             ->setParameter('enabled', true)
-            ->orderBy('p.createdAt', 'DESC')
+            ->orderBy('p.date', 'DESC')
+            ->addOrderBy('p.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
     }
@@ -46,7 +47,8 @@ class DoctrinePrestationRepository extends ServiceEntityRepository implements Pr
         $qb = $this->createQueryBuilder('p')
             ->andWhere('p.isEnabled = :enabled')
             ->setParameter('enabled', true)
-            ->orderBy('p.createdAt', 'DESC');
+            ->orderBy('p.date', 'DESC')
+            ->addOrderBy('p.createdAt', 'DESC');
         UuidQueryParameter::eq($qb, 'p.prestataireId', 'prestataireId', $prestataireId);
 
         return $qb->getQuery()->getResult();

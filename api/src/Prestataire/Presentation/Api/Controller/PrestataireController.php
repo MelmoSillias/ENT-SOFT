@@ -90,6 +90,7 @@ final class PrestataireController extends AbstractController
             id: $prestationId,
             description: $data['description'] ?? null,
             amount: isset($data['amount']) ? (float) $data['amount'] : null,
+            date: $data['date'] ?? null,
             siteId: array_key_exists('siteId', $data) ? ($data['siteId'] ?? null) : null,
             hasSiteId: array_key_exists('siteId', $data),
             workStatus: $data['workStatus'] ?? null,
@@ -191,6 +192,7 @@ final class PrestataireController extends AbstractController
             prestataireId: $id,
             description: $data['description'] ?? '',
             amount: (float) ($data['amount'] ?? 0),
+            date: $data['date'] ?? null,
             siteId: $data['siteId'] ?? null,
             workStatus: $data['workStatus'] ?? null,
         ));

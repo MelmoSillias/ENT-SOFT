@@ -96,7 +96,7 @@ defineExpose({ toggle, hide: () => panel.value?.hide() })
             :model-value="showIndex"
             @update:model-value="emit('update:showIndex', $event)"
           />
-          <span>Afficher la colonne #</span>
+          <span>Afficher la numérotation</span>
         </label>
       </template>
 

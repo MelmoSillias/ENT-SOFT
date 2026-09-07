@@ -8,6 +8,7 @@ final readonly class UpdatePrestationCommand
         public string $id,
         public ?string $description = null,
         public ?float $amount = null,
+        public ?string $date = null,
         public ?string $siteId = null,
         public bool $hasSiteId = false,
         public ?string $workStatus = null,

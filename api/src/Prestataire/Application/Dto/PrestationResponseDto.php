@@ -9,6 +9,7 @@ final readonly class PrestationResponseDto
     public function __construct(
         public string $id,
         public string $prestataireId,
+        public string $date,
         public string $description,
         public ?string $siteId,
         public float $amount,
@@ -36,6 +37,7 @@ final readonly class PrestationResponseDto
         return new self(
             id: (string) $prestation->getId(),
             prestataireId: $prestation->getPrestataireId()->toRfc4122(),
+            date: $prestation->getDate()->format('Y-m-d'),
             description: $prestation->getDescription(),
             siteId: $prestation->getSiteId()?->toRfc4122(),
             amount: $amount,
@@ -58,6 +60,7 @@ final readonly class PrestationResponseDto
             'id' => $this->id,
             'prestataireId' => $this->prestataireId,
             'prestataireName' => $this->prestataireName,
+            'date' => $this->date,
             'description' => $this->description,
             'siteId' => $this->siteId,
             'amount' => $this->amount,

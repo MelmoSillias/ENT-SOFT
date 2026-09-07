@@ -337,6 +337,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             <AppEntityDataView
               v-if="isAppMobile"
               :items="filteredItems"
+              :rows="tableRows"
+              :show-index="showIndex"
               :title-of="(item) => item.title"
               :subtitle-of="(item) => siteMap[item.siteId] || null"
               :meta-of="(item) => [employeeMap[item.employeeId], formatDateFr(item.dateDue)].filter(Boolean).join(' · ') || null"

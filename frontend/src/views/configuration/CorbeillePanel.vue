@@ -155,6 +155,8 @@ defineExpose({ load })
         <AppEntityDataView
           v-if="isAppMobile"
           :items="filteredClients"
+          :rows="tableRows"
+          :show-index="showIndex"
           :title-of="clientLabel"
           :code-of="(item) => item.code"
           :meta-of="(item) => `Supprimé le ${formatDate(item.updatedAt)}`"

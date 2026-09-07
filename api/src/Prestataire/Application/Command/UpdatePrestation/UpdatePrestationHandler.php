@@ -35,6 +35,9 @@ final class UpdatePrestationHandler
             $prestation->setAmount($command->amount);
             $this->assembler->recalculatePaymentStatus($prestation);
         }
+        if ($command->date !== null && $command->date !== '') {
+            $prestation->setDate(new \DateTimeImmutable($command->date));
+        }
         if ($command->hasSiteId) {
             $prestation->setSiteId(
                 $command->siteId !== null && $command->siteId !== ''

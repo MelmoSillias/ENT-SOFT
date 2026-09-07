@@ -37,6 +37,7 @@ import { listRoles } from '@/domains/access/services/roleService'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
 import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
@@ -403,7 +404,24 @@ function onRowContextMenu(event) {
             empty-text="Créez un utilisateur pour commencer."
             @retry="load"
           >
+            <AppEntityDataView
+              v-if="isAppMobile"
+              :items="filteredItems"
+              :rows="tableRows"
+              :show-index="showIndex"
+              :code-of="(item) => item.login"
+              :title-of="(item) => [item.prenom, item.nom].filter(Boolean).join(' ') || item.login"
+              :subtitle-of="(item) => item.role || null"
+              :status-of="(item) => ({
+                value: item.isActive !== false ? 'Actif' : 'Inactif',
+                severity: item.isActive !== false ? 'success' : 'secondary',
+              })"
+              :actions-of="userActions"
+              :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
+              @select="openEdit"
+            />
             <DataTable
+              v-else
               :value="filteredItems"
               paginator
               :rows="tableRows"

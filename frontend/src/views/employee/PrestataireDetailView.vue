@@ -36,7 +36,8 @@ import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
-import { toApiDate } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate } from '@/domains/shared/utils/dateUtils'
+import { formatDateFr } from '@/domains/shared/utils/entLabels'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
@@ -84,12 +85,15 @@ const filterWorkStatus = ref(null)
 const filterPaymentStatus = ref(null)
 
 const PRESTATION_COLUMNS = [
+  { key: 'date', label: 'Date', defaultVisible: true },
   { key: 'description', label: 'Description', defaultVisible: true },
   { key: 'site', label: 'Site', defaultVisible: true },
   { key: 'amount', label: 'Montant', defaultVisible: true },
   { key: 'paidAmount', label: 'Payé', defaultVisible: true },
   { key: 'workStatus', label: 'Statut', defaultVisible: true },
   { key: 'paymentStatus', label: 'Paiement', defaultVisible: true },
+  { key: 'createdAt', label: 'Créé le', defaultVisible: false },
+  { key: 'updatedAt', label: 'Modifié le', defaultVisible: false },
 ]
 
 const {
@@ -104,7 +108,8 @@ const {
   isColVisible,
   toggleCol,
 } = useTableSettings('table_prestataire_prestations', PRESTATION_COLUMNS, {
-  defaultSortField: 'description',
+  defaultSortField: 'date',
+  defaultSortOrder: -1,
 })
 
 const PAYMENT_STATUS_OPTIONS = [
@@ -188,7 +193,7 @@ const prestationStatsItems = computed(() => {
 })
 
 function emptyForm() {
-  return { description: '', siteId: null, amount: 0, workStatus: 'pending' }
+  return { date: new Date(), description: '', siteId: null, amount: 0, workStatus: 'pending' }
 }
 function emptyPayForm() {
   return { amount: 0, date: new Date(), description: '' }
@@ -244,6 +249,7 @@ function fillMultiPayLine(item) {
 
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
+  if (!form.value.date) errs.date = 'Date requise.'
   if (!hasRequiredText(form.value.description)) errs.description = requiredMessage('Description')
   if (form.value.amount == null || Number(form.value.amount) <= 0) errs.amount = 'Montant invalide.'
   return errs
@@ -293,6 +299,7 @@ function openCreate() {
 function openEdit(item) {
   editingId.value = item.id
   form.value = {
+    date: parseApiDate(item.date) || new Date(),
     description: item.description ?? '',
     siteId: item.siteId ?? null,
     amount: item.amount ?? 0,
@@ -370,6 +377,7 @@ function askReset(item) {
 const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   if (!validateForm()) return
   const payload = {
+    date: toApiDate(form.value.date),
     description: form.value.description.trim(),
     siteId: form.value.siteId,
     amount: Number(form.value.amount),
@@ -474,6 +482,7 @@ async function exportTable(format) {
     return
   }
   const rows = prestations.value.map((p) => ({
+    Date: formatDateFr(p.date),
     Description: p.description,
     Site: p.siteId ? (siteMap.value[p.siteId] || p.siteId) : '',
     Montant: p.amount,
@@ -506,10 +515,10 @@ function printTable() {
   const rows = prestations.value
     .map(
       (p) =>
-        `<tr><td>${p.description}</td><td>${p.siteId ? siteMap.value[p.siteId] || '' : ''}</td><td>${p.amount}</td><td>${WORK_STATUS_LABEL[p.workStatus] || ''}</td><td>${PAYMENT_STATUS_LABEL[p.paymentStatus] || ''}</td></tr>`,
+        `<tr><td>${formatDateFr(p.date)}</td><td>${p.description}</td><td>${p.siteId ? siteMap.value[p.siteId] || '' : ''}</td><td>${p.amount}</td><td>${WORK_STATUS_LABEL[p.workStatus] || ''}</td><td>${PAYMENT_STATUS_LABEL[p.paymentStatus] || ''}</td></tr>`,
     )
     .join('')
-  win.document.write(`<html><head><title>Prestations</title></head><body><h1>Prestations — ${prestataire.value?.name || ''}</h1><table border="1" cellpadding="6"><thead><tr><th>Description</th><th>Site</th><th>Montant</th><th>Statut</th><th>Paiement</th></tr></thead><tbody>${rows}</tbody></table></body></html>`)
+  win.document.write(`<html><head><title>Prestations</title></head><body><h1>Prestations — ${prestataire.value?.name || ''}</h1><table border="1" cellpadding="6"><thead><tr><th>Date</th><th>Description</th><th>Site</th><th>Montant</th><th>Statut</th><th>Paiement</th></tr></thead><tbody>${rows}</tbody></table></body></html>`)
   win.document.close()
   win.print()
 }
@@ -623,9 +632,11 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
               <AppEntityDataView
                 v-if="isAppMobile && filteredPrestations.length"
                 :items="filteredPrestations"
+                :rows="tableRows"
+                :show-index="showIndex"
                 :title-of="(item) => item.description"
                 :subtitle-of="(item) => (item.siteId ? siteMap[item.siteId] || null : null)"
-                :meta-of="(item) => `${formatMontant(item.amount, DEVISE_APP)} · ${formatMontant(item.paidAmount ?? 0, DEVISE_APP)} payé`"
+                :meta-of="(item) => `${formatDateFr(item.date)} · ${formatMontant(item.amount, DEVISE_APP)} · ${formatMontant(item.paidAmount ?? 0, DEVISE_APP)} payé`"
                 :status-of="(item) => ({ value: PAYMENT_STATUS_LABEL[item.paymentStatus] || item.paymentStatus, severity: PAYMENT_STATUS_SEVERITY[item.paymentStatus] })"
                 :actions-of="buildMenuItems"
                 :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
@@ -651,6 +662,9 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                 <Column v-if="showIndex" header="#" style="width: 3.5rem">
                   <template #body="{ index }">{{ index + 1 }}</template>
                 </Column>
+                <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
+                  <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+                </Column>
                 <Column v-if="isColVisible('description')" field="description" header="Description" sortable />
                 <Column v-if="isColVisible('site')" header="Site">
                   <template #body="{ data }">{{ data.siteId ? (siteMap[data.siteId] || '—') : '—' }}</template>
@@ -670,6 +684,12 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                   <template #body="{ data }">
                     <Tag :value="PAYMENT_STATUS_LABEL[data.paymentStatus] || data.paymentStatus" :severity="PAYMENT_STATUS_SEVERITY[data.paymentStatus]" />
                   </template>
+                </Column>
+                <Column v-if="isColVisible('createdAt')" field="createdAt" header="Créé le" sortable>
+                  <template #body="{ data }">{{ formatDateFr(data.createdAt) }}</template>
+                </Column>
+                <Column v-if="isColVisible('updatedAt')" field="updatedAt" header="Modifié le" sortable>
+                  <template #body="{ data }">{{ formatDateFr(data.updatedAt) }}</template>
                 </Column>
                 <Column header="Actions" style="width: 5rem">
                   <template #body="{ data }">
@@ -695,6 +715,11 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
     />
 
     <Dialog v-model:visible="dialog" :header="editingId ? 'Modifier prestation' : 'Nouvelle prestation'" modal style="width: min(520px, 95vw)">
+      <div class="field">
+        <label>Date <span class="required">*</span></label>
+        <DatePicker v-model="form.date" date-format="dd/mm/yy" show-icon :invalid="Boolean(fieldErrors.date)" fluid />
+        <AppFieldError :message="fieldErrors.date" />
+      </div>
       <div class="field">
         <label>Description <span class="required">*</span></label>
         <Textarea v-model="form.description" rows="3" :invalid="Boolean(fieldErrors.description)" fluid />

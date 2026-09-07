@@ -1,60 +1,141 @@
 <script setup>
+import { computed, ref, watch } from 'vue'
 import Tag from 'primevue/tag'
+import Paginator from 'primevue/paginator'
 import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
+import { useClientPagination } from '@/domains/shared/composables/useClientPagination'
 
-defineProps({
+const props = defineProps({
   items: {
     type: Array,
-    required: true
+    required: true,
   },
   /** (item) => string */
   titleOf: {
     type: Function,
-    required: true
+    required: true,
   },
   /** (item) => string | null */
   subtitleOf: {
     type: Function,
-    default: null
+    default: null,
   },
   /** (item) => string | null */
   codeOf: {
     type: Function,
-    default: null
+    default: null,
   },
   /** (item) => { value, severity } | null */
   statusOf: {
     type: Function,
-    default: null
+    default: null,
   },
   /** (item) => string | null — extra meta line */
   metaOf: {
     type: Function,
-    default: null
+    default: null,
   },
   /** (item) => action[] for AppTableActionsMenu */
   actionsOf: {
     type: Function,
-    default: null
+    default: null,
   },
   /** (item) => event bindings object (context menu / long-press) */
   rowBindingsOf: {
     type: Function,
-    default: null
+    default: null,
   },
   dataKey: {
     type: String,
-    default: 'id'
-  }
+    default: 'id',
+  },
+  /** Page size from table settings; enables client pagination when set and not lazy */
+  rows: {
+    type: Number,
+    default: null,
+  },
+  /** Show absolute rank (#) on each card */
+  showIndex: {
+    type: Boolean,
+    default: true,
+  },
+  /** Server-side / controlled pagination */
+  lazy: {
+    type: Boolean,
+    default: false,
+  },
+  first: {
+    type: Number,
+    default: 0,
+  },
+  totalRecords: {
+    type: Number,
+    default: null,
+  },
 })
 
-defineEmits(['select'])
+const emit = defineEmits(['select', 'page', 'update:first'])
+
+const {
+  first: clientFirst,
+  pageItems: clientPageItems,
+  totalRecords: clientTotal,
+  onPage: onClientPage,
+  rankOf: clientRankOf,
+} = useClientPagination(
+  () => props.items,
+  () => (props.lazy ? null : props.rows),
+)
+
+const localFirst = ref(props.first)
+
+watch(
+  () => props.first,
+  (value) => {
+    localFirst.value = value
+  },
+)
+
+const pageSize = computed(() => {
+  const value = Number(props.rows)
+  return Number.isFinite(value) && value > 0 ? value : null
+})
+
+const displayItems = computed(() => (props.lazy ? props.items : clientPageItems.value))
+
+const paginatorFirst = computed(() => (props.lazy ? localFirst.value : clientFirst.value))
+
+const paginatorTotal = computed(() => {
+  if (props.lazy) {
+    return props.totalRecords ?? props.items.length
+  }
+  return clientTotal.value
+})
+
+const showPaginator = computed(() => Boolean(pageSize.value) && paginatorTotal.value > 0)
+
+function rankOf(indexOnPage) {
+  if (props.lazy) {
+    return localFirst.value + indexOnPage + 1
+  }
+  return clientRankOf(indexOnPage)
+}
+
+function onPage(event) {
+  if (props.lazy) {
+    localFirst.value = event.first
+    emit('update:first', event.first)
+    emit('page', event)
+    return
+  }
+  onClientPage(event)
+}
 </script>
 
 <template>
   <div class="app-entity-dataview" role="list">
     <article
-      v-for="item in items"
+      v-for="(item, index) in displayItems"
       :key="item[dataKey]"
       class="app-entity-card"
       role="listitem"
@@ -64,6 +145,7 @@ defineEmits(['select'])
       @keydown.enter.prevent="$emit('select', item)"
     >
       <div class="app-entity-card__row">
+        <span v-if="showIndex" class="app-entity-card__index" aria-hidden="true">{{ rankOf(index) }}</span>
         <div style="min-width: 0; flex: 1">
           <p v-if="codeOf?.(item)" class="app-entity-card__code">{{ codeOf(item) }}</p>
           <h3 class="app-entity-card__title">{{ titleOf(item) }}</h3>
@@ -91,5 +173,16 @@ defineEmits(['select'])
 
       <slot name="footer" :item="item" />
     </article>
+
+    <Paginator
+      v-if="showPaginator"
+      class="app-entity-dataview__paginator"
+      :rows="pageSize"
+      :first="paginatorFirst"
+      :total-records="paginatorTotal"
+      template="PrevPageLink PageLinks NextPageLink CurrentPageReport"
+      current-page-report-template="{first}-{last} / {totalRecords}"
+      @page="onPage"
+    />
   </div>
 </template>

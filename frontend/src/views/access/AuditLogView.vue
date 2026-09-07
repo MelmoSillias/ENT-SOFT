@@ -372,6 +372,11 @@ function onRowContextMenu(event) {
           <AppEntityDataView
             v-if="isAppMobile"
             :items="displayItems"
+            :rows="tableRows"
+            :show-index="showIndex"
+            lazy
+            :first="first"
+            :total-records="totalRecords"
             :title-of="(item) => formatActionLabel(item.action)"
             :subtitle-of="(item) => item.description || null"
             :meta-of="(item) => `${formatDateTime(item.date_action)} · ${userLabel(item.utilisateur_id)}`"
@@ -379,6 +384,7 @@ function onRowContextMenu(event) {
             :actions-of="buildMenuItems"
             :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
             data-key="id"
+            @page="onPage"
           />
           <DataTable
             v-else

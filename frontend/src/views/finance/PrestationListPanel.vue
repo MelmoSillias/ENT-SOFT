@@ -29,7 +29,8 @@ import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
-import { toApiDate } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate } from '@/domains/shared/utils/dateUtils'
+import { formatDateFr } from '@/domains/shared/utils/entLabels'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import { sortByField } from '@/domains/shared/utils/sortByField'
@@ -85,6 +86,7 @@ const WORK_STATUS_LABEL = Object.fromEntries(WORK_STATUS_OPTIONS.map((o) => [o.v
 const WORK_STATUS_SEVERITY = { pending: 'secondary', in_progress: 'info', completed: 'success' }
 
 const PRESTATION_COLUMNS = [
+  { key: 'date', label: 'Date', defaultVisible: true },
   { key: 'prestataire', label: 'Prestataire', defaultVisible: true },
   { key: 'description', label: 'Description', defaultVisible: true },
   { key: 'site', label: 'Site', defaultVisible: true },
@@ -92,6 +94,8 @@ const PRESTATION_COLUMNS = [
   { key: 'paidAmount', label: 'Payé', defaultVisible: true },
   { key: 'workStatus', label: 'Statut', defaultVisible: true },
   { key: 'paymentStatus', label: 'Paiement', defaultVisible: true },
+  { key: 'createdAt', label: 'Créé le', defaultVisible: false },
+  { key: 'updatedAt', label: 'Modifié le', defaultVisible: false },
 ]
 
 const {
@@ -106,11 +110,12 @@ const {
   isColVisible,
   toggleCol,
 } = useTableSettings('table_finance_prestations', PRESTATION_COLUMNS, {
-  defaultSortField: 'prestataireName',
+  defaultSortField: 'date',
+  defaultSortOrder: -1,
 })
 
 function emptyForm() {
-  return { prestataireId: null, description: '', siteId: null, amount: 0, workStatus: 'pending' }
+  return { prestataireId: null, date: new Date(), description: '', siteId: null, amount: 0, workStatus: 'pending' }
 }
 function emptyPayForm() {
   return { amount: 0, date: new Date(), description: '' }
@@ -123,6 +128,7 @@ const statusForm = ref({ workStatus: 'pending' })
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
   if (!form.value.prestataireId && !editingId.value) errs.prestataireId = requiredMessage('Prestataire')
+  if (!form.value.date) errs.date = 'Date requise.'
   if (!hasRequiredText(form.value.description)) errs.description = requiredMessage('Description')
   if (form.value.amount == null || Number(form.value.amount) <= 0) errs.amount = 'Montant invalide.'
   return errs
@@ -202,6 +208,7 @@ function openEdit(item) {
   editingId.value = item.id
   form.value = {
     prestataireId: item.prestataireId,
+    date: parseApiDate(item.date) || new Date(),
     description: item.description ?? '',
     siteId: item.siteId ?? null,
     amount: item.amount ?? 0,
@@ -286,6 +293,7 @@ function askReset(item) {
 const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   if (!validateForm()) return
   const payload = {
+    date: toApiDate(form.value.date),
     description: form.value.description.trim(),
     siteId: form.value.siteId,
     amount: Number(form.value.amount),
@@ -427,9 +435,11 @@ const { run: runReset } = useAsyncAction(async (item) => {
       <AppEntityDataView
         v-if="isAppMobile"
         :items="filteredItems"
+        :rows="tableRows"
+        :show-index="showIndex"
         :title-of="(item) => item.description"
         :subtitle-of="(item) => item.prestataireName || null"
-        :meta-of="(item) => `${formatMontant(item.amount, DEVISE_APP)} · ${formatMontant(item.paidAmount ?? 0, DEVISE_APP)} payé${item.siteId && siteMap[item.siteId] ? ` · ${siteMap[item.siteId]}` : ''}`"
+        :meta-of="(item) => `${formatDateFr(item.date)} · ${formatMontant(item.amount, DEVISE_APP)} · ${formatMontant(item.paidAmount ?? 0, DEVISE_APP)} payé${item.siteId && siteMap[item.siteId] ? ` · ${siteMap[item.siteId]}` : ''}`"
         :status-of="(item) => ({ value: PAYMENT_STATUS_LABEL[item.paymentStatus] || item.paymentStatus, severity: PAYMENT_STATUS_SEVERITY[item.paymentStatus] })"
         :actions-of="buildMenuItems"
         :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
@@ -457,6 +467,9 @@ const { run: runReset } = useAsyncAction(async (item) => {
         <Column v-if="showIndex" header="#" style="width: 3.5rem">
           <template #body="{ index }">{{ index + 1 }}</template>
         </Column>
+        <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
+          <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+        </Column>
         <Column v-if="isColVisible('prestataire')" field="prestataireName" header="Prestataire" sortable>
           <template #body="{ data }">
             <button type="button" class="linkish" @click="openPrestataire(data)">
@@ -483,6 +496,12 @@ const { run: runReset } = useAsyncAction(async (item) => {
           <template #body="{ data }">
             <Tag :value="PAYMENT_STATUS_LABEL[data.paymentStatus] || data.paymentStatus" :severity="PAYMENT_STATUS_SEVERITY[data.paymentStatus]" />
           </template>
+        </Column>
+        <Column v-if="isColVisible('createdAt')" field="createdAt" header="Créé le" sortable>
+          <template #body="{ data }">{{ formatDateFr(data.createdAt) }}</template>
+        </Column>
+        <Column v-if="isColVisible('updatedAt')" field="updatedAt" header="Modifié le" sortable>
+          <template #body="{ data }">{{ formatDateFr(data.updatedAt) }}</template>
         </Column>
         <Column header="Actions" style="width: 5rem">
           <template #body="{ data }">
@@ -514,6 +533,11 @@ const { run: runReset } = useAsyncAction(async (item) => {
           fluid
         />
         <AppFieldError :message="fieldErrors.prestataireId" />
+      </div>
+      <div class="field">
+        <label>Date <span class="required">*</span></label>
+        <DatePicker v-model="form.date" date-format="dd/mm/yy" show-icon :invalid="Boolean(fieldErrors.date)" fluid />
+        <AppFieldError :message="fieldErrors.date" />
       </div>
       <div class="field">
         <label>Description <span class="required">*</span></label>

@@ -34,6 +34,10 @@ final class CreatePrestationHandler
             throw new \InvalidArgumentException('Le montant doit être supérieur à 0.');
         }
 
+        $date = $command->date !== null && $command->date !== ''
+            ? new \DateTimeImmutable($command->date)
+            : new \DateTimeImmutable('today');
+
         $workStatus = $command->workStatus !== null && $command->workStatus !== ''
             ? PrestationWorkStatus::from($command->workStatus)
             : PrestationWorkStatus::PENDING;
@@ -42,6 +46,7 @@ final class CreatePrestationHandler
             prestataireId: $prestataire->getId(),
             description: $description,
             amount: $command->amount,
+            date: $date,
             workStatus: $workStatus,
             paymentStatus: PrestationPaymentStatus::UNPAID,
             siteId: $command->siteId ? Uuid::fromString($command->siteId) : null,

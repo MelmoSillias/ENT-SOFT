@@ -12,13 +12,14 @@ import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
 import AccordionContent from 'primevue/accordioncontent'
-import Checkbox from 'primevue/checkbox'
 import { useConfirm } from 'primevue/useconfirm'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
 import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
+import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
+import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { sortByField } from '@/domains/shared/utils/sortByField'
@@ -93,6 +94,11 @@ const MODULE_ZONES = {
   access: { label: 'Administration', icon: 'pi pi-shield', order: 11 },
   referentiel: { label: 'Référentiel', icon: 'pi pi-database', order: 12 },
 }
+
+const permRoleOptions = [
+  { label: 'Autoriser', value: true, tone: 'grant' },
+  { label: 'Non autorisé', value: false, tone: 'deny' },
+]
 
 function emptyForm() {
   return { code: '', libelle: '' }
@@ -243,12 +249,37 @@ function roleActions(role) {
 function onRowContextMenu(event) {
   rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
+
+function roleStatusOf(item) {
+  return {
+    value: item.isEnabled ? 'Actif' : 'Masqué',
+    severity: item.isEnabled ? 'success' : 'warn',
+  }
+}
+
+function roleSubtitleOf(item) {
+  return item.isSystem ? 'Système' : 'Métier'
+}
+
+function roleMetaOf(item) {
+  return `${(item.permissions ?? []).length} permission${(item.permissions ?? []).length === 1 ? '' : 's'}`
+}
+
+function isPermGranted(code) {
+  return selectedCodes.value.includes(code)
+}
+
+function setPermGranted(code, granted) {
+  const idx = selectedCodes.value.indexOf(code)
+  if (granted && idx === -1) selectedCodes.value.push(code)
+  if (!granted && idx !== -1) selectedCodes.value.splice(idx, 1)
+}
 </script>
 
 <template>
   <div class="roles-permissions-panel">
     <Card v-if="!embedded" class="dashboard-panel">
-      <template #title>
+      <template #content>
         <AppTablePanelHeader
           title="Rôles & permissions"
           :count-label="`${filteredItems.length}`"
@@ -276,8 +307,6 @@ function onRowContextMenu(event) {
             />
           </template>
         </AppTablePanelHeader>
-      </template>
-      <template #content>
         <AppTableState
           :loading="loading"
           :is-empty="!loading && filteredItems.length === 0"
@@ -285,7 +314,22 @@ function onRowContextMenu(event) {
           empty-text="Créez un rôle pour commencer."
           @retry="load"
         >
+          <AppEntityDataView
+            v-if="isAppMobile"
+            :items="filteredItems"
+            :rows="tableRows"
+            :show-index="showIndex"
+            :code-of="(item) => item.code"
+            :title-of="(item) => item.libelle"
+            :subtitle-of="roleSubtitleOf"
+            :status-of="roleStatusOf"
+            :meta-of="roleMetaOf"
+            :actions-of="roleActions"
+            :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
+            @select="(item) => canManage && item.isEnabled && openEdit(item)"
+          />
           <DataTable
+            v-else
             :value="filteredItems"
             paginator
             :rows="tableRows"
@@ -357,7 +401,22 @@ function onRowContextMenu(event) {
         empty-text="Créez un rôle pour commencer."
         @retry="load"
       >
+        <AppEntityDataView
+          v-if="isAppMobile"
+          :items="filteredItems"
+          :rows="tableRows"
+          :show-index="showIndex"
+          :code-of="(item) => item.code"
+          :title-of="(item) => item.libelle"
+          :subtitle-of="roleSubtitleOf"
+          :status-of="roleStatusOf"
+          :meta-of="roleMetaOf"
+          :actions-of="roleActions"
+          :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
+          @select="(item) => canManage && item.isEnabled && openEdit(item)"
+        />
         <DataTable
+          v-else
           :value="filteredItems"
           paginator
           :rows="tableRows"
@@ -393,6 +452,12 @@ function onRowContextMenu(event) {
       </AppTableState>
     </template>
 
+    <AppMobileFab
+      v-if="isAppMobile && canManage"
+      aria-label="Nouveau rôle"
+      @click="openCreate"
+    />
+
     <AppRowContextMenu ref="rowContextMenu" :actions-of="roleActions" />
 
     <Dialog v-model:visible="dialog" :header="editingId ? 'Modifier le rôle' : 'Nouveau rôle'" modal style="width: min(420px, 95vw)">
@@ -412,18 +477,46 @@ function onRowContextMenu(event) {
       </template>
     </Dialog>
 
-    <Dialog v-model:visible="permDialog" header="Permissions par défaut" modal style="width: min(680px, 95vw)">
+    <Dialog v-model:visible="permDialog" header="Permissions par défaut" modal class="perm-dialog" style="width: min(680px, 95vw)">
       <p v-if="selectedRole" class="perm-user">
         Rôle : <strong>{{ selectedRole.libelle }}</strong>
         <span class="perm-role">({{ selectedRole.code }})</span>
       </p>
-      <Accordion v-model:value="expandedZones" multiple>
+      <div class="perm-legend" aria-hidden="true">
+        <span class="perm-legend__chip perm-legend__chip--grant">Autoriser</span>
+        <span class="perm-legend__chip perm-legend__chip--deny">Non autorisé</span>
+      </div>
+      <Accordion v-model:value="expandedZones" multiple class="perm-accordion">
         <AccordionPanel v-for="zone in groupedPermissions" :key="zone.module" :value="zone.module">
-          <AccordionHeader>{{ zone.label }}</AccordionHeader>
+          <AccordionHeader>
+            <div class="perm-zone__header-inner">
+              <span class="perm-zone__title">
+                <i :class="zone.icon" aria-hidden="true" />
+                {{ zone.label }}
+              </span>
+              <span class="perm-zone__count">{{ zone.permissions.length }}</span>
+            </div>
+          </AccordionHeader>
           <AccordionContent>
-            <div v-for="perm in zone.permissions" :key="perm.code" class="perm-check-row">
-              <Checkbox v-model="selectedCodes" :input-id="perm.code" :value="perm.code" />
-              <label :for="perm.code">{{ perm.libelle }}</label>
+            <div class="perm-zone__list">
+              <div v-for="perm in zone.permissions" :key="perm.code" class="perm-row">
+                <span class="perm-row__label">{{ perm.libelle }}</span>
+                <div class="perm-segment" role="group" :aria-label="perm.libelle">
+                  <button
+                    v-for="opt in permRoleOptions"
+                    :key="String(opt.value)"
+                    type="button"
+                    class="perm-segment__btn"
+                    :class="[
+                      `perm-segment__btn--${opt.tone}`,
+                      { 'perm-segment__btn--active': isPermGranted(perm.code) === opt.value },
+                    ]"
+                    @click="setPermGranted(perm.code, opt.value)"
+                  >
+                    {{ opt.label }}
+                  </button>
+                </div>
+              </div>
             </div>
           </AccordionContent>
         </AccordionPanel>
@@ -439,12 +532,144 @@ function onRowContextMenu(event) {
 <style scoped>
 .field { margin-bottom: 0.85rem; }
 .required { color: var(--p-red-500, #ef4444); }
+
 .perm-user { margin: 0 0 1rem; }
 .perm-role { margin-left: 0.35rem; color: var(--p-text-muted-color); font-size: 0.85rem; }
-.perm-check-row {
+
+.perm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.perm-legend__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.perm-legend__chip--grant { background: #16a34a; color: #fff; }
+.perm-legend__chip--deny { background: #dc2626; color: #fff; }
+
+.perm-accordion {
+  max-height: min(58vh, 560px);
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
+.perm-accordion :deep(.p-accordionpanel) {
+  border: 1px solid var(--p-content-border-color);
+  border-radius: var(--p-content-border-radius);
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+
+.perm-accordion :deep(.p-accordionpanel:last-child) { margin-bottom: 0; }
+
+.perm-accordion :deep(.p-accordionheader) {
+  padding: 0.55rem 0.75rem;
+  background: color-mix(in srgb, var(--p-content-background) 90%, var(--p-primary-color) 10%);
+}
+
+.perm-accordion :deep(.p-accordioncontent-content) {
+  padding: 0.35rem 0.75rem 0.65rem;
+}
+
+.perm-zone__header-inner {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.35rem 0;
+  gap: 0.75rem;
+  width: 100%;
+  padding-right: 0.25rem;
+}
+
+.perm-zone__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.perm-zone__count {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--p-text-muted-color);
+  background: var(--p-content-background);
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+}
+
+.perm-zone__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.perm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+  font-size: 0.84rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--p-content-border-color) 65%, transparent);
+}
+
+.perm-row:last-child { border-bottom: none; }
+.perm-row__label { line-height: 1.35; }
+
+.perm-segment {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--p-content-background);
+}
+
+.perm-segment__btn {
+  border: none;
+  border-right: 1px solid var(--p-content-border-color);
+  padding: 0.42rem 0.7rem;
+  min-width: 5.2rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  background: var(--p-content-background);
+  color: var(--p-text-muted-color);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.perm-segment__btn:last-child { border-right: none; }
+
+.perm-segment__btn:hover:not(.perm-segment__btn--active) {
+  background: color-mix(in srgb, var(--p-content-background) 85%, var(--p-text-color) 15%);
+}
+
+.perm-segment__btn--grant:not(.perm-segment__btn--active) { color: #15803d; }
+.perm-segment__btn--deny:not(.perm-segment__btn--active) { color: #b91c1c; }
+.perm-segment__btn--active.perm-segment__btn--grant { background: #16a34a; color: #fff; }
+.perm-segment__btn--active.perm-segment__btn--deny { background: #dc2626; color: #fff; }
+
+@media (max-width: 640px) {
+  .perm-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .perm-segment { width: 100%; }
+
+  .perm-segment__btn {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 0.35rem;
+  }
 }
 </style>

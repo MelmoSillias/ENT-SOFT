@@ -266,6 +266,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         <AppEntityDataView
           v-if="isAppMobile"
           :items="filteredItems"
+          :rows="tableRows"
+          :show-index="showIndex"
           :title-of="(item) => item.name || `${item.prenom} ${item.nom}`"
           :subtitle-of="(item) => item.email || null"
           :meta-of="(item) => `${item.openPrestationsCount ?? 0} ouverte(s) · ${formatMontant(item.unpaidCompletedReliquat ?? 0, DEVISE_APP)}`"
