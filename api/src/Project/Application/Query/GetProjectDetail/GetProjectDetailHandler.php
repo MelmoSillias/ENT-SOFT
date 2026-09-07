@@ -91,7 +91,7 @@ final class GetProjectDetailHandler
 
             $techId = $ps->getTechnicianId();
             $dto['technicianName'] = $techId !== null
-                ? (($employeesById[(string) $techId] ?? null)?->getName())
+                ? (($employeesById[(string) $techId] ?? null)?->getFullName() ?? null)
                 : null;
 
             $technicians = [];
@@ -103,7 +103,7 @@ final class GetProjectDetailHandler
                 if ($emp !== null) {
                     $technicians[] = [
                         'id' => $empId,
-                        'name' => $emp->getName(),
+                        'name' => $emp->getFullName(),
                     ];
                 } else {
                     $technicians[] = [
