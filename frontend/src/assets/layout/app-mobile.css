@@ -280,7 +280,6 @@
   z-index: 19;
   background: color-mix(in srgb, var(--layout-panel-bg) 94%, transparent);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--layout-panel-border);
 }
 
 /* Bleed only when tabs sit outside a panel (page-level sibling) */
