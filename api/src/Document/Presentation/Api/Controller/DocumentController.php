@@ -34,6 +34,27 @@ final class DocumentController extends AbstractController
     #[IsGranted('document.documents.upload')]
     public function upload(Request $request, DocumentUploadService $uploadService): JsonResponse
     {
+        // Flux chunké : le fichier a déjà été uploadé via /api/uploads,
+        // on reçoit un JSON avec uploadSessionId.
+        if (str_contains((string) $request->headers->get('Content-Type'), 'json')) {
+            $data = json_decode($request->getContent() ?: '{}', true) ?? [];
+            $sessionId = trim((string) ($data['uploadSessionId'] ?? ''));
+            if ($sessionId === '') {
+                return $this->json(['error' => 'uploadSessionId requis.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $document = $uploadService->uploadFromSession(
+                uploadSessionId: $sessionId,
+                title: (string) ($data['title'] ?? ''),
+                ownerType: DocumentOwnerType::from((string) ($data['ownerType'] ?? 'client')),
+                ownerId: Uuid::fromString((string) ($data['ownerId'] ?? '')),
+                description: isset($data['description']) ? (string) $data['description'] : null,
+            );
+
+            return $this->json(DocumentResponseDto::fromEntity($document)->toArray(), Response::HTTP_CREATED);
+        }
+
+        // Flux multipart classique (petits fichiers, rétrocompatibilité).
         $file = $request->files->get('file');
         if (!$file instanceof \Symfony\Component\HttpFoundation\File\UploadedFile) {
             return $this->json(['error' => 'Aucun fichier reçu.'], Response::HTTP_UNPROCESSABLE_ENTITY);

@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
-import { listDocuments, uploadDocument, deleteDocument } from '@/domains/document/services/documentService'
+import { listDocuments, uploadDocumentFile, deleteDocument } from '@/domains/document/services/documentService'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 
@@ -40,15 +40,15 @@ async function onFile(event) {
   if (!file || !props.ownerId) return
   uploading.value = true
   try {
-    const body = new FormData()
-    body.append('file', file)
-    body.append('title', file.name)
-    body.append('ownerType', props.ownerType)
-    body.append('ownerId', props.ownerId)
-    await uploadDocument(body)
+    await uploadDocumentFile({
+      file,
+      title: file.name,
+      ownerType: props.ownerType,
+      ownerId: props.ownerId,
+    })
     await load()
   } catch (e) {
-    toast.add({ severity: 'error', summary: 'Pièces jointes', detail: e.response?.data?.error || 'Envoi impossible.' })
+    toast.add({ severity: 'error', summary: 'Pièces jointes', detail: e.response?.data?.error || e.message || 'Envoi impossible.' })
   } finally {
     uploading.value = false
     if (fileInput.value) fileInput.value.value = ''

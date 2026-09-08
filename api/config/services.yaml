@@ -124,6 +124,17 @@ services:
     App\Stock\Domain\Repository\StockMovementRepositoryInterface:
         alias: App\Stock\Infrastructure\Persistence\Doctrine\DoctrineStockMovementRepository
 
+    App\Upload\Domain\Repository\UploadSessionRepositoryInterface:
+        alias: App\Upload\Infrastructure\Persistence\Doctrine\DoctrineUploadSessionRepository
+
+    App\Upload\Application\Service\UploadSessionService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Upload\Application\Service\UploadedFileClaimService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     App\Document\Domain\Repository\DocumentRepositoryInterface:
         alias: App\Document\Infrastructure\Persistence\Doctrine\DoctrineDocumentRepository
 

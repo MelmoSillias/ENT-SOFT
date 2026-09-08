@@ -12,6 +12,7 @@ import Menu from 'primevue/menu'
 import Popover from 'primevue/popover'
 
 import AppTopbarDateClock from '@/domains/layout/components/AppTopbarDateClock.vue'
+import UploadStatusCard from '@/domains/shared/uploads/UploadStatusCard.vue'
 import { useBreakpoint } from '@/domains/layout/composables/useBreakpoint'
 import { useLayoutStore } from '@/domains/layout/stores/layout'
 import { useAppBusyStore } from '@/domains/layout/stores/appBusy'
@@ -183,6 +184,7 @@ const goToProfile = () => {
       </div>
 
       <div class="app-topbar__actions">
+        <UploadStatusCard />
         <div
           v-if="exporting"
           class="app-topbar__export"

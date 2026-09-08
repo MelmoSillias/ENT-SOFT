@@ -6,6 +6,7 @@ use App\Document\Domain\Entity\Document;
 use App\Document\Domain\Enum\DocumentOwnerType;
 use App\Document\Domain\Repository\DocumentRepositoryInterface;
 use App\SharedKernel\Domain\Validation\FieldValidator;
+use App\Upload\Application\Service\UploadedFileClaimService;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Uid\Uuid;
 
@@ -16,8 +17,36 @@ final class DocumentUploadService
 
     public function __construct(
         private readonly DocumentRepositoryInterface $documentRepository,
+        private readonly UploadedFileClaimService $uploadClaimService,
         private readonly string $projectDir,
     ) {
+    }
+
+    /**
+     * Crée un document à partir d'une session d'upload chunké finalisée
+     * (fichiers volumineux, voir module Upload).
+     */
+    public function uploadFromSession(
+        string $uploadSessionId,
+        string $title,
+        DocumentOwnerType $ownerType,
+        Uuid $ownerId,
+        ?string $description = null,
+    ): Document {
+        $claimed = $this->uploadClaimService->claim($uploadSessionId, 'documents', 'doc_');
+        $title = trim($title) !== '' ? trim($title) : $claimed->originalFilename;
+
+        $document = new Document(
+            title: $title,
+            fileName: $claimed->originalFilename,
+            filePath: $claimed->publicPath,
+            ownerType: $ownerType,
+            ownerId: $ownerId,
+            description: $description,
+        );
+        $this->documentRepository->save($document);
+
+        return $document;
     }
 
     public function upload(

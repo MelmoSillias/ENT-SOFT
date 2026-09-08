@@ -67,6 +67,10 @@ doctrine:
                 type: attribute
                 dir: '%kernel.project_dir%/src/Configuration/Domain/Entity'
                 prefix: 'App\Configuration\Domain\Entity'
+            Upload:
+                type: attribute
+                dir: '%kernel.project_dir%/src/Upload/Domain/Entity'
+                prefix: 'App\Upload\Domain\Entity'
 
 when@test:
     doctrine:

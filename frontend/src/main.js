@@ -11,6 +11,7 @@ import '@/assets/main.css'
 import App from './App.vue'
 import router from './router'
 import { canDirective } from '@/domains/auth/directives/can'
+import { installUploadUnloadGuard, useUploadQueue } from '@/domains/shared/uploads/uploadQueue'
 
 const app = createApp(App)
 
@@ -32,5 +33,8 @@ app.use(ToastService)
 app.use(ConfirmationService)
 app.directive('tooltip', Tooltip)
 app.directive('can', canDirective)
+
+installUploadUnloadGuard()
+useUploadQueue().boot()
 
 app.mount('#app')

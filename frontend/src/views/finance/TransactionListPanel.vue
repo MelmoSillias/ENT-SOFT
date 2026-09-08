@@ -26,7 +26,7 @@ import {
   deleteFinancialTransaction,
   getTransactionStats,
 } from '@/domains/finance/services/financialTransactionService'
-import { uploadDocument } from '@/domains/document/services/documentService'
+import { uploadDocumentFile } from '@/domains/document/services/documentService'
 import { listClients } from '@/domains/client/services/clientService'
 import { listSites } from '@/domains/site/services/siteService'
 import {
@@ -276,12 +276,12 @@ const { run: runDelete } = useAsyncAction(async (item) => {
 
 async function uploadPending(ownerId) {
   for (const item of pendingAttachments.value) {
-    const body = new FormData()
-    body.append('file', item.file)
-    body.append('title', item.displayName || item.file.name)
-    body.append('ownerType', 'financial_transaction')
-    body.append('ownerId', ownerId)
-    await uploadDocument(body)
+    await uploadDocumentFile({
+      file: item.file,
+      title: item.displayName || item.file.name,
+      ownerType: 'financial_transaction',
+      ownerId,
+    })
   }
 }
 
