@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -20,6 +20,8 @@ import { sortByField } from '@/domains/shared/utils/sortByField'
 import EmployeeFormFields from '@/domains/employee/components/EmployeeFormFields.vue'
 import { listEmployees, createEmployee, updateEmployee, deleteEmployee } from '@/domains/employee/services/employeeService'
 import { listRoles } from '@/domains/access/services/roleService'
+import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { hasRequiredText, requiredMessage, hasValidPhone, sanitizePhoneInput } from '@/domains/shared/utils/formValidation'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
@@ -95,15 +97,20 @@ const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFiel
 
 const roleLabel = (code) => roleOptions.value.find((r) => r.value === code)?.label ?? code
 
+const filterPeriod = ref(null)
+
 async function fetchItems() {
-  items.value = await listEmployees()
+  items.value = await listEmployees(periodToApiParams(filterPeriod.value))
 }
 
 async function load() {
   loading.value = true
   error.value = null
   try {
-    const [emps, roles] = await Promise.all([listEmployees(), listRoles({ enabledOnly: true })])
+    const [emps, roles] = await Promise.all([
+      listEmployees(periodToApiParams(filterPeriod.value)),
+      listRoles({ enabledOnly: true }),
+    ])
     items.value = emps
     roleOptions.value = roles.map((r) => ({ label: r.libelle, value: r.code }))
   } catch (e) {
@@ -123,6 +130,10 @@ async function reload() {
 }
 
 onMounted(load)
+
+watch(filterPeriod, () => {
+  reload()
+})
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
@@ -253,7 +264,12 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             :row-options="ROW_OPTIONS"
             :sort-options="sortOptions"
             @toggle-col="toggleCol"
-          />
+          >
+            <template #filters>
+              <p class="app-table-settings__title">Filtres</p>
+              <AppPeriodFilter v-model="filterPeriod" />
+            </template>
+          </AppTableSettingsPopover>
         </template>
       </AppTablePanelHeader>
     </template>

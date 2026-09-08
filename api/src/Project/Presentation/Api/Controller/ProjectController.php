@@ -36,7 +36,11 @@ final class ProjectController extends AbstractController
     #[IsGranted('project.projects.view')]
     public function list(Request $request, ListProjectsHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle(new ListProjectsQuery($request->query->get('search'))));
+        return $this->json($handler->handle(new ListProjectsQuery(
+            search: $request->query->get('search'),
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        )));
     }
 
     #[Route('', name: 'api_projects_create', methods: ['POST'])]

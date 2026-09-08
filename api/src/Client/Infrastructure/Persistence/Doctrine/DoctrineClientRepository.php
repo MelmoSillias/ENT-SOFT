@@ -31,7 +31,7 @@ class DoctrineClientRepository extends ServiceEntityRepository implements Client
         return $qb->getQuery()->getOneOrNullResult();
     }
 
-    public function findAllEnabled(?string $search = null): array
+    public function findAllEnabled(?string $search = null, ?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array
     {
         $qb = $this->createQueryBuilder('c')
             ->andWhere('c.isEnabled = :enabled')
@@ -41,6 +41,13 @@ class DoctrineClientRepository extends ServiceEntityRepository implements Client
         if ($search !== null && trim($search) !== '') {
             $qb->andWhere('c.title LIKE :search OR c.code LIKE :search')
                 ->setParameter('search', '%'.trim($search).'%');
+        }
+
+        if ($from !== null) {
+            $qb->andWhere('c.createdAt >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('c.createdAt <= :to')->setParameter('to', $to);
         }
 
         return $qb->getQuery()->getResult();

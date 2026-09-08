@@ -23,9 +23,12 @@ final class FinancialTransactionController extends AbstractController
 {
     #[Route('', name: 'api_financial_transactions_list', methods: ['GET'])]
     #[IsGranted('finance.transactions.view')]
-    public function list(ListFinancialTransactionsHandler $handler): JsonResponse
+    public function list(Request $request, ListFinancialTransactionsHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle());
+        return $this->json($handler->handle(
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        ));
     }
 
     #[Route('/stats', name: 'api_financial_transactions_stats', methods: ['GET'], priority: 10)]

@@ -1,7 +1,7 @@
 import api from '@/services/api'
 
-export async function listStockMovements() {
-  const { data } = await api.get('/stock-movements')
+export async function listStockMovements(params = {}) {
+  const { data } = await api.get('/stock-movements', { params })
   return data.items ?? data
 }
 

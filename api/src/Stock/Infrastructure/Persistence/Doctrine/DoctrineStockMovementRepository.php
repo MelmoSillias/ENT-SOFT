@@ -31,13 +31,20 @@ class DoctrineStockMovementRepository extends ServiceEntityRepository implements
         return $qb->getQuery()->getOneOrNullResult();
     }
 
-    public function findAllEnabled(): array
+    public function findAllEnabled(?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array
     {
-        return $this->createQueryBuilder('m')
+        $qb = $this->createQueryBuilder('m')
             ->andWhere('m.isEnabled = :enabled')
             ->setParameter('enabled', true)
-            ->orderBy('m.date', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('m.date', 'DESC');
+
+        if ($from !== null) {
+            $qb->andWhere('m.date >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('m.date <= :to')->setParameter('to', $to);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 }

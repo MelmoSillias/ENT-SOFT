@@ -27,9 +27,12 @@ final class InvoiceController extends AbstractController
 {
     #[Route('', name: 'api_invoices_list', methods: ['GET'])]
     #[IsGranted('finance.invoices.view')]
-    public function list(ListInvoicesHandler $handler): JsonResponse
+    public function list(Request $request, ListInvoicesHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle());
+        return $this->json($handler->handle(
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        ));
     }
 
     #[Route('', name: 'api_invoices_create', methods: ['POST'])]

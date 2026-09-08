@@ -26,6 +26,8 @@ final class CreateTaskHandler
             description: $command->description,
             dateDue: $command->dateDue ? new \DateTimeImmutable($command->dateDue) : null,
             employeeId: $command->employeeId ? Uuid::fromString($command->employeeId) : null,
+            startAt: $command->startAt ? new \DateTimeImmutable($command->startAt) : null,
+            endAt: $command->endAt ? new \DateTimeImmutable($command->endAt) : null,
         );
         $this->taskRepository->save($task);
 

@@ -12,9 +12,13 @@ final readonly class UpdateTaskCommand
         public ?string $status = null,
         public ?string $siteId = null,
         public ?string $employeeId = null,
+        public ?string $startAt = null,
+        public ?string $endAt = null,
         public bool $hasDescription = false,
         public bool $hasDateDue = false,
         public bool $hasEmployeeId = false,
+        public bool $hasStartAt = false,
+        public bool $hasEndAt = false,
     ) {
     }
 }

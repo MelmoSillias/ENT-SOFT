@@ -34,14 +34,21 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
         return $qb->getQuery()->getOneOrNullResult();
     }
 
-    public function findAllEnabled(): array
+    public function findAllEnabled(?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array
     {
-        return $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->andWhere('t.isEnabled = :enabled')
             ->setParameter('enabled', true)
-            ->orderBy('t.date', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('t.date', 'DESC');
+
+        if ($from !== null) {
+            $qb->andWhere('t.date >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('t.date <= :to')->setParameter('to', $to);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 
     public function findEnabledPaymentsByInvoiceId(Uuid $invoiceId): array

@@ -8,7 +8,12 @@ use App\Stock\Domain\Repository\StockMovementLineRepositoryInterface;
 
 final readonly class ListEquipmentQuery
 {
-    public function __construct(public ?string $search = null) {}
+    public function __construct(
+        public ?string $search = null,
+        public ?string $from = null,
+        public ?string $to = null,
+    ) {
+    }
 }
 
 final class ListEquipmentHandler
@@ -29,7 +34,11 @@ final class ListEquipmentHandler
                 $e,
                 $quantities[(string) $e->getId()] ?? 0.0,
             )->toArray(),
-            $this->equipmentRepository->findAllEnabled($query->search),
+            $this->equipmentRepository->findAllEnabled(
+                $query->search,
+                $query->from ? new \DateTimeImmutable($query->from) : null,
+                $query->to ? new \DateTimeImmutable($query->to) : null,
+            ),
         );
     }
 }

@@ -14,11 +14,14 @@ final class ListInvoicesHandler
     }
 
     /** @return list<array<string, mixed>> */
-    public function handle(): array
+    public function handle(?string $from = null, ?string $to = null): array
     {
         return array_map(
             fn ($invoice) => $this->assembler->toDto($invoice)->toArray(),
-            $this->invoiceRepository->findAllEnabled(),
+            $this->invoiceRepository->findAllEnabled(
+                $from ? new \DateTimeImmutable($from) : null,
+                $to ? new \DateTimeImmutable($to) : null,
+            ),
         );
     }
 }

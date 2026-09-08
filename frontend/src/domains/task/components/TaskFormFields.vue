@@ -59,6 +59,34 @@ const statusOptions = TASK_STATUS_OPTIONS
       <label>Échéance</label>
       <DatePicker v-model="form.dateDue" date-format="dd/mm/yy" show-icon show-clear fluid />
     </div>
+    <div class="field">
+      <label>Début (planning)</label>
+      <DatePicker
+        v-model="form.startAt"
+        date-format="dd/mm/yy"
+        show-time
+        hour-format="24"
+        show-icon
+        show-clear
+        fluid
+        :invalid="Boolean(errors.startAt)"
+      />
+      <AppFieldError :message="errors.startAt" />
+    </div>
+    <div class="field">
+      <label>Fin (planning)</label>
+      <DatePicker
+        v-model="form.endAt"
+        date-format="dd/mm/yy"
+        show-time
+        hour-format="24"
+        show-icon
+        show-clear
+        fluid
+        :invalid="Boolean(errors.endAt)"
+      />
+      <AppFieldError :message="errors.endAt" />
+    </div>
     <div class="field ent-form-grid__full">
       <label>Description</label>
       <Textarea v-model="form.description" rows="3" auto-resize fluid />

@@ -17,7 +17,11 @@ final class ListSitesHandler
     {
         return array_map(
             static fn ($item) => SiteResponseDto::fromEntity($item)->toArray(),
-            $this->siteRepository->findAllEnabled($query->search),
+            $this->siteRepository->findAllEnabled(
+                $query->search,
+                $query->from ? new \DateTimeImmutable($query->from) : null,
+                $query->to ? new \DateTimeImmutable($query->to) : null,
+            ),
         );
     }
 }

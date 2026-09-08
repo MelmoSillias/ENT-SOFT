@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -34,6 +34,8 @@ import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import AppPhoneInput from '@/domains/shared/components/AppPhoneInput.vue'
 import RolesPermissionsPanel from '@/domains/access/components/RolesPermissionsPanel.vue'
 import { listRoles } from '@/domains/access/services/roleService'
+import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
 import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
@@ -131,10 +133,12 @@ const emptyForm = () => ({
 
 const form = ref(emptyForm())
 
+const filterPeriod = ref(null)
+
 async function load() {
   loading.value = true
   try {
-    const { data } = await api.get('/users')
+    const { data } = await api.get('/users', { params: periodToApiParams(filterPeriod.value) })
     items.value = Array.isArray(data) ? data : (data.items ?? [])
   } finally {
     loading.value = false
@@ -204,6 +208,10 @@ async function loadRoles() {
 
 onMounted(async () => {
   await Promise.all([load(), loadPermissionsCatalog(), loadRoles()])
+})
+
+watch(filterPeriod, () => {
+  load()
 })
 
 const dialogTitle = computed(() => (editingId.value ? 'Modifier utilisateur' : 'Nouvel utilisateur'))
@@ -394,7 +402,12 @@ function onRowContextMenu(event) {
                 :row-options="ROW_OPTIONS"
                 :sort-options="sortOptions"
                 @toggle-col="toggleCol"
-              />
+              >
+                <template #filters>
+                  <p class="app-table-settings__title">Filtres</p>
+                  <AppPeriodFilter v-model="filterPeriod" />
+                </template>
+              </AppTableSettingsPopover>
             </template>
           </AppTablePanelHeader>
           <AppTableState

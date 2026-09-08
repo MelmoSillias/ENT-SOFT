@@ -12,7 +12,7 @@ interface PrestationRepositoryInterface
     public function findById(Uuid $id): ?Prestation;
 
     /** @return list<Prestation> */
-    public function findAllEnabled(): array;
+    public function findAllEnabled(?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array;
 
     /** @return list<Prestation> */
     public function findByPrestataireId(Uuid $prestataireId): array;

@@ -26,7 +26,11 @@ final class SiteController extends AbstractController
     #[IsGranted('site.sites.view')]
     public function list(Request $request, ListSitesHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle(new ListSitesQuery($request->query->get('search'))));
+        return $this->json($handler->handle(new ListSitesQuery(
+            search: $request->query->get('search'),
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        )));
     }
 
     #[Route('', name: 'api_sites_create', methods: ['POST'])]

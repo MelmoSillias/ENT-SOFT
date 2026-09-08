@@ -17,5 +17,5 @@ interface UtilisateurRepositoryInterface
     public function findSystemAdmin(): ?Utilisateur;
 
     /** @return list<Utilisateur> */
-    public function findAll(): array;
+    public function findAll(?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array;
 }

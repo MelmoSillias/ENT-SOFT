@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -29,7 +29,8 @@ import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
-import { toApiDate, parseApiDate } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate, periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { formatDateFr } from '@/domains/shared/utils/entLabels'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
@@ -61,6 +62,7 @@ const reloading = ref(false)
 const searchTerm = ref('')
 const filterWorkStatus = ref(null)
 const filterPaymentStatus = ref(null)
+const filterPeriod = ref(null)
 const dialog = ref(false)
 const payDialog = ref(false)
 const statusDialog = ref(false)
@@ -168,7 +170,7 @@ async function load() {
   error.value = null
   try {
     const [list, prestataires, sites] = await Promise.all([
-      listAllPrestations(),
+      listAllPrestations(periodToApiParams(filterPeriod.value)),
       listPrestataires(),
       listSites(),
     ])
@@ -196,6 +198,10 @@ async function reload() {
 }
 
 onMounted(load)
+
+watch(filterPeriod, () => {
+  reload()
+})
 
 function openCreate() {
   editingId.value = null
@@ -398,6 +404,7 @@ const { run: runReset } = useAsyncAction(async (item) => {
         >
           <template #filters>
             <p class="app-table-settings__title">Filtres</p>
+            <AppPeriodFilter v-model="filterPeriod" />
             <AppFilterSelect
               v-model="filterWorkStatus"
               :options="WORK_STATUS_OPTIONS"

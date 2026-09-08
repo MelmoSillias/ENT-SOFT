@@ -12,5 +12,5 @@ interface PrestataireRepositoryInterface
     public function findById(Uuid $id): ?Prestataire;
 
     /** @return list<Prestataire> */
-    public function findAllEnabled(?string $search = null): array;
+    public function findAllEnabled(?string $search = null, ?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array;
 }

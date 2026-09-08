@@ -32,14 +32,21 @@ class DoctrineInvoiceRepository extends ServiceEntityRepository implements Invoi
         return $qb->getQuery()->getOneOrNullResult();
     }
 
-    public function findAllEnabled(): array
+    public function findAllEnabled(?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array
     {
-        return $this->createQueryBuilder('i')
+        $qb = $this->createQueryBuilder('i')
             ->andWhere('i.isEnabled = :enabled')
             ->setParameter('enabled', true)
-            ->orderBy('i.date', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('i.date', 'DESC');
+
+        if ($from !== null) {
+            $qb->andWhere('i.date >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('i.date <= :to')->setParameter('to', $to);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 
     public function countByClientId(Uuid $clientId): int

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -21,7 +21,8 @@ import ProjectFormFields from '@/domains/project/components/ProjectFormFields.vu
 import { listProjects, createProject, updateProject, deleteProject } from '@/domains/project/services/projectService'
 import { listClients } from '@/domains/client/services/clientService'
 import { projectStatusLabel, projectStatusSeverity, formatDateFr } from '@/domains/shared/utils/entLabels'
-import { toApiDate, parseApiDate } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate, periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
@@ -131,8 +132,10 @@ const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFiel
   return errs
 })
 
+const filterPeriod = ref(null)
+
 async function fetchItems() {
-  items.value = await listProjects()
+  items.value = await listProjects(periodToApiParams(filterPeriod.value))
 }
 
 async function loadClients() {
@@ -162,6 +165,10 @@ async function reload() {
 }
 
 onMounted(load)
+
+watch(filterPeriod, () => {
+  reload()
+})
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
@@ -303,7 +310,12 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               :row-options="ROW_OPTIONS"
               :sort-options="sortOptions"
               @toggle-col="toggleCol"
-            />
+            >
+              <template #filters>
+                <p class="app-table-settings__title">Filtres</p>
+                <AppPeriodFilter v-model="filterPeriod" />
+              </template>
+            </AppTableSettingsPopover>
           </template>
         </AppTablePanelHeader>
       </template>

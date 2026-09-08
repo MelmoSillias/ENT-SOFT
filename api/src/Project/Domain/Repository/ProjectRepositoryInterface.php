@@ -13,7 +13,7 @@ interface ProjectRepositoryInterface
     public function findById(Uuid $id): ?Project;
 
     /** @return list<Project> */
-    public function findAllEnabled(?string $search = null): array;
+    public function findAllEnabled(?string $search = null, ?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array;
 
     public function countByClientId(Uuid $clientId): int;
 

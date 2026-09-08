@@ -26,7 +26,11 @@ final class EmployeeController extends AbstractController
     #[IsGranted('employee.employees.view')]
     public function list(Request $request, ListEmployeesHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle(new ListEmployeesQuery($request->query->get('search'))));
+        return $this->json($handler->handle(new ListEmployeesQuery(
+            search: $request->query->get('search'),
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        )));
     }
 
     #[Route('', name: 'api_employees_create', methods: ['POST'])]

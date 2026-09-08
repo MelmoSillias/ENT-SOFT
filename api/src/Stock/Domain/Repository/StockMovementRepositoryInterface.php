@@ -12,5 +12,5 @@ interface StockMovementRepositoryInterface
     public function findById(Uuid $id): ?StockMovement;
 
     /** @return list<StockMovement> */
-    public function findAllEnabled(): array;
+    public function findAllEnabled(?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array;
 }

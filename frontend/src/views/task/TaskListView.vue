@@ -8,7 +8,12 @@ import Tag from 'primevue/tag'
 import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import SelectButton from 'primevue/selectbutton'
-import DatePicker from 'primevue/datepicker'
+import FullCalendar from '@fullcalendar/vue3'
+import dayGridPlugin from '@fullcalendar/daygrid'
+import timeGridPlugin from '@fullcalendar/timegrid'
+import listPlugin from '@fullcalendar/list'
+import interactionPlugin from '@fullcalendar/interaction'
+import frLocale from '@fullcalendar/core/locales/fr'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
@@ -20,11 +25,13 @@ import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLay
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { sortByField } from '@/domains/shared/utils/sortByField'
 import TaskFormFields from '@/domains/task/components/TaskFormFields.vue'
+import TaskResourceTimeline from '@/domains/task/components/timeline/TaskResourceTimeline.vue'
 import { listTasks, createTask, updateTask, deleteTask } from '@/domains/task/services/taskService'
 import { listSites } from '@/domains/site/services/siteService'
 import { listEmployees } from '@/domains/employee/services/employeeService'
 import { taskStatusLabel, taskStatusSeverity, formatDateFr, TASK_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
-import { toApiDate, parseApiDate } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate, toApiDateTime, parseApiDateTime, periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
@@ -46,8 +53,8 @@ const searchTerm = ref('')
 const filterSiteId = ref(null)
 const filterEmployeeId = ref(null)
 const filterStatus = ref(null)
+const filterPeriod = ref(null)
 const viewMode = ref('table')
-const calendarMonth = ref(new Date())
 const loading = ref(true)
 const error = ref(null)
 const reloading = ref(false)
@@ -61,6 +68,7 @@ const rowContextMenu = ref()
 const viewOptions = [
   { label: 'Tableau', value: 'table', icon: 'pi pi-list' },
   { label: 'Calendrier', value: 'calendar', icon: 'pi pi-calendar' },
+  { label: 'Timeline', value: 'timeline', icon: 'pi pi-sliders-h' },
 ]
 
 const statusFilterOptions = [{ label: 'Tous', value: null }, ...TASK_STATUS_OPTIONS]
@@ -91,7 +99,7 @@ const {
 const canCreate = computed(() => hasPermission('task.tasks.create'))
 
 function emptyForm() {
-  return { title: '', description: '', siteId: null, employeeId: null, status: 'pending', dateDue: null }
+  return { title: '', description: '', siteId: null, employeeId: null, status: 'pending', dateDue: null, startAt: null, endAt: null }
 }
 
 const form = ref(emptyForm())
@@ -100,6 +108,12 @@ const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFiel
   const errs = {}
   if (!hasRequiredText(form.value.title)) errs.title = requiredMessage('Titre')
   if (!form.value.siteId) errs.siteId = requiredMessage('Site')
+  if (form.value.startAt && form.value.endAt && form.value.endAt <= form.value.startAt) {
+    errs.endAt = 'La fin doit être après le début.'
+  }
+  if (form.value.endAt && !form.value.startAt) {
+    errs.startAt = 'Renseignez le début si une fin est définie.'
+  }
   return errs
 })
 
@@ -112,7 +126,7 @@ async function loadRefs() {
 }
 
 async function fetchItems() {
-  const params = {}
+  const params = { ...periodToApiParams(filterPeriod.value) }
   if (filterSiteId.value) params.siteId = filterSiteId.value
   if (filterEmployeeId.value) params.employeeId = filterEmployeeId.value
   if (filterStatus.value) params.status = filterStatus.value
@@ -142,7 +156,7 @@ async function reload() {
 }
 
 onMounted(load)
-watch([filterSiteId, filterEmployeeId, filterStatus], () => { if (!loading.value) reload() })
+watch([filterSiteId, filterEmployeeId, filterStatus, filterPeriod], () => { if (!loading.value) reload() })
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
@@ -162,20 +176,59 @@ const filteredItems = computed(() => {
   return sortByField(enriched, field, sortOrder.value)
 })
 
-const calendarGroups = computed(() => {
-  const month = calendarMonth.value.getMonth()
-  const year = calendarMonth.value.getFullYear()
-  const groups = {}
-  for (const task of filteredItems.value) {
-    if (!task.dateDue) continue
-    const d = new Date(task.dateDue)
-    if (d.getMonth() !== month || d.getFullYear() !== year) continue
-    const key = task.dateDue
-    if (!groups[key]) groups[key] = []
-    groups[key].push(task)
-  }
-  return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
-})
+const STATUS_COLORS = {
+  pending: '#f59e0b',
+  in_progress: '#3b82f6',
+  done: '#22c55e',
+  cancelled: '#94a3b8',
+}
+
+const calendarOptions = computed(() => ({
+  plugins: [dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin],
+  initialView: 'dayGridMonth',
+  locale: frLocale,
+  height: 'auto',
+  headerToolbar: {
+    left: 'prev,next today',
+    center: 'title',
+    right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
+  },
+  buttonText: { month: 'Mois', week: 'Semaine', day: 'Jour', list: 'Liste' },
+  dayMaxEventRows: 4,
+  navLinks: true,
+  weekNumbers: true,
+  nowIndicator: true,
+  events: filteredItems.value
+    .filter((t) => t.dateDue)
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      start: t.dateDue,
+      allDay: true,
+      backgroundColor: STATUS_COLORS[t.status] || '#64748b',
+      borderColor: STATUS_COLORS[t.status] || '#64748b',
+      extendedProps: { task: t },
+    })),
+  eventClick: (info) => {
+    if (hasPermission('task.tasks.update')) openEdit(info.event.extendedProps.task)
+  },
+  dateClick: (info) => {
+    if (!canCreate.value) return
+    openCreate()
+    form.value.dateDue = info.date
+  },
+}))
+
+const timelineResources = computed(() => employeeOptions.value.map((e) => ({ id: e.value, label: e.label })))
+
+function onTimelineCreate({ resourceId, start }) {
+  if (!canCreate.value) return
+  openCreate()
+  form.value.employeeId = resourceId
+  form.value.startAt = start
+  form.value.endAt = new Date(start.getTime() + 60 * 60 * 1000)
+  form.value.dateDue = start
+}
 
 const countLabel = computed(() => `${filteredItems.value.length}`)
 const dialogTitle = computed(() => (editingId.value ? 'Modifier tâche' : 'Nouvelle tâche'))
@@ -196,6 +249,8 @@ function openEdit(item) {
     employeeId: item.employeeId,
     status: item.status ?? 'pending',
     dateDue: parseApiDate(item.dateDue),
+    startAt: parseApiDateTime(item.startAt),
+    endAt: parseApiDateTime(item.endAt),
   }
   resetErrors()
   dialog.value = true
@@ -248,6 +303,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     employeeId: form.value.employeeId || null,
     status: form.value.status,
     dateDue: toApiDate(form.value.dateDue),
+    startAt: toApiDateTime(form.value.startAt),
+    endAt: toApiDateTime(form.value.endAt),
   }
   try {
     if (editingId.value) await updateTask(editingId.value, payload)
@@ -294,6 +351,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             >
               <template #filters>
                 <p class="app-table-settings__title">Filtres</p>
+                <AppPeriodFilter v-model="filterPeriod" />
                 <AppFilterSelect
                   v-model="filterSiteId"
                   :options="[{ label: 'Tous les sites', value: null }, ...siteOptions]"
@@ -385,27 +443,21 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
           </template>
 
-          <div v-else class="task-calendar">
-            <div class="task-calendar__toolbar">
-              <label>Mois</label>
-              <DatePicker v-model="calendarMonth" view="month" date-format="MM yy" show-icon />
-            </div>
-            <div v-if="calendarGroups.length" class="task-calendar__groups">
-              <Card v-for="[date, tasks] in calendarGroups" :key="date" class="task-calendar__day">
-                <template #title>{{ formatDateFr(date) }}</template>
-                <template #content>
-                  <ul class="task-calendar__list">
-                    <li v-for="task in tasks" :key="task.id">
-                      <strong>{{ task.title }}</strong>
-                      <Tag :value="taskStatusLabel(task.status)" :severity="taskStatusSeverity(task.status)" />
-                      <span class="task-calendar__meta">{{ siteMap[task.siteId] }}</span>
-                    </li>
-                  </ul>
-                </template>
-              </Card>
-            </div>
-            <p v-else class="dashboard-page__state">Aucune tâche ce mois-ci.</p>
+          <div v-else-if="viewMode === 'calendar'" class="task-calendar">
+            <FullCalendar :options="calendarOptions" />
           </div>
+
+          <TaskResourceTimeline
+            v-else
+            :tasks="filteredItems"
+            :resources="timelineResources"
+            :status-colors="STATUS_COLORS"
+            :can-update="hasPermission('task.tasks.update')"
+            :can-create="canCreate"
+            :mobile="isAppMobile"
+            @open-task="openEdit"
+            @create-at="onTimelineCreate"
+          />
         </AppTableState>
       </template>
     </Card>
@@ -427,41 +479,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
 </template>
 
 <style scoped>
-.task-calendar__toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+.task-calendar {
+  --fc-border-color: var(--layout-border, #e2e8f0);
+  --fc-today-bg-color: color-mix(in srgb, var(--p-primary-color, #3b82f6) 8%, transparent);
 }
 
-.task-calendar__groups {
-  display: grid;
-  gap: 0.75rem;
+.task-calendar :deep(.fc) {
+  font-size: 0.875rem;
 }
 
-.task-calendar__list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.task-calendar__list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.task-calendar__meta {
-  font-size: 0.8rem;
-  color: var(--layout-text-muted);
-}
-
-.dashboard-page__state {
-  padding: 2rem;
-  text-align: center;
-  color: var(--layout-text-muted);
+.task-calendar :deep(.fc .fc-event) {
+  cursor: pointer;
 }
 </style>

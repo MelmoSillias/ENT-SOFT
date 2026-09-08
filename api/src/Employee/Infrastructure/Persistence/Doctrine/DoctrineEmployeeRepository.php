@@ -43,7 +43,7 @@ class DoctrineEmployeeRepository extends ServiceEntityRepository implements Empl
         return $qb->getQuery()->getResult();
     }
 
-    public function findAllEnabled(?string $search = null): array
+    public function findAllEnabled(?string $search = null, ?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array
     {
         $qb = $this->createQueryBuilder('e')
             ->andWhere('e.isEnabled = :enabled')
@@ -54,6 +54,13 @@ class DoctrineEmployeeRepository extends ServiceEntityRepository implements Empl
         if ($search !== null && trim($search) !== '') {
             $qb->andWhere('e.prenom LIKE :search OR e.nom LIKE :search OR e.email LIKE :search OR e.roleCode LIKE :search')
                 ->setParameter('search', '%'.trim($search).'%');
+        }
+
+        if ($from !== null) {
+            $qb->andWhere('e.createdAt >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('e.createdAt <= :to')->setParameter('to', $to);
         }
 
         return $qb->getQuery()->getResult();

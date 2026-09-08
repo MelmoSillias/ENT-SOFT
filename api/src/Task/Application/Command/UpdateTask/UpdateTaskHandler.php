@@ -34,6 +34,16 @@ final class UpdateTaskHandler
                 ? new \DateTimeImmutable($command->dateDue)
                 : null);
         }
+        if ($command->hasStartAt) {
+            $task->setStartAt($command->startAt !== null && $command->startAt !== ''
+                ? new \DateTimeImmutable($command->startAt)
+                : null);
+        }
+        if ($command->hasEndAt) {
+            $task->setEndAt($command->endAt !== null && $command->endAt !== ''
+                ? new \DateTimeImmutable($command->endAt)
+                : null);
+        }
         if ($command->status !== null) {
             $task->setStatus(TaskStatus::from($command->status));
         }

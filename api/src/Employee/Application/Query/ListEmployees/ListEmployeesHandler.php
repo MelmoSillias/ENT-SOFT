@@ -17,7 +17,11 @@ final class ListEmployeesHandler
     {
         return array_map(
             static fn ($e) => EmployeeResponseDto::fromEntity($e)->toArray(),
-            $this->employeeRepository->findAllEnabled($query->search),
+            $this->employeeRepository->findAllEnabled(
+                $query->search,
+                $query->from ? new \DateTimeImmutable($query->from) : null,
+                $query->to ? new \DateTimeImmutable($query->to) : null,
+            ),
         );
     }
 }

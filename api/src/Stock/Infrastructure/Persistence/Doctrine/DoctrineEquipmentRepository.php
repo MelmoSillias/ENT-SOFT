@@ -31,7 +31,7 @@ class DoctrineEquipmentRepository extends ServiceEntityRepository implements Equ
         return $qb->getQuery()->getOneOrNullResult();
     }
 
-    public function findAllEnabled(?string $search = null): array
+    public function findAllEnabled(?string $search = null, ?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array
     {
         $qb = $this->createQueryBuilder('e')
             ->andWhere('e.isEnabled = :enabled')
@@ -41,6 +41,13 @@ class DoctrineEquipmentRepository extends ServiceEntityRepository implements Equ
         if ($search !== null && trim($search) !== '') {
             $qb->andWhere('e.title LIKE :search OR e.code LIKE :search')
                 ->setParameter('search', '%'.trim($search).'%');
+        }
+
+        if ($from !== null) {
+            $qb->andWhere('e.createdAt >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('e.createdAt <= :to')->setParameter('to', $to);
         }
 
         return $qb->getQuery()->getResult();

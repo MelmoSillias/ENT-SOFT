@@ -32,7 +32,7 @@ class DoctrineProjectRepository extends ServiceEntityRepository implements Proje
         return $qb->getQuery()->getOneOrNullResult();
     }
 
-    public function findAllEnabled(?string $search = null): array
+    public function findAllEnabled(?string $search = null, ?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array
     {
         $qb = $this->createQueryBuilder('p')
             ->andWhere('p.isEnabled = :enabled')
@@ -42,6 +42,13 @@ class DoctrineProjectRepository extends ServiceEntityRepository implements Proje
         if ($search !== null && trim($search) !== '') {
             $qb->andWhere('p.title LIKE :search OR p.code LIKE :search')
                 ->setParameter('search', '%'.trim($search).'%');
+        }
+
+        if ($from !== null) {
+            $qb->andWhere('p.createdAt >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('p.createdAt <= :to')->setParameter('to', $to);
         }
 
         return $qb->getQuery()->getResult();

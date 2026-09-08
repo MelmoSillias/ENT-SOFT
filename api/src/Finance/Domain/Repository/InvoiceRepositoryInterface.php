@@ -13,7 +13,7 @@ interface InvoiceRepositoryInterface
     public function findById(Uuid $id): ?Invoice;
 
     /** @return list<Invoice> */
-    public function findAllEnabled(): array;
+    public function findAllEnabled(?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array;
 
     public function countByClientId(Uuid $clientId): int;
 

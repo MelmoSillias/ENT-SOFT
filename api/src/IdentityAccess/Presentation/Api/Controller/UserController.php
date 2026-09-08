@@ -24,9 +24,12 @@ final class UserController extends AbstractController
 {
     #[Route('', name: 'api_users_list', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function list(ListUsersHandler $handler): JsonResponse
+    public function list(Request $request, ListUsersHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle(new ListUsersQuery()));
+        return $this->json($handler->handle(new ListUsersQuery(
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        )));
     }
 
     #[Route('', name: 'api_users_create', methods: ['POST'])]

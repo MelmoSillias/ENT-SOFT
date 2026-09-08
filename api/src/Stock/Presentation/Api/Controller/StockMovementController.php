@@ -23,9 +23,12 @@ final class StockMovementController extends AbstractController
 {
     #[Route('', name: 'api_stock_movements_list', methods: ['GET'])]
     #[IsGranted('stock.movements.view')]
-    public function list(ListStockMovementsHandler $handler): JsonResponse
+    public function list(Request $request, ListStockMovementsHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle());
+        return $this->json($handler->handle(
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        ));
     }
 
     #[Route('', name: 'api_stock_movements_create', methods: ['POST'])]

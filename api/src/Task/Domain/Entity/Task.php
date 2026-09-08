@@ -30,6 +30,12 @@ class Task
     #[ORM\Column(type: 'date_immutable', nullable: true)]
     private ?\DateTimeImmutable $dateDue;
 
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $startAt;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $endAt;
+
     #[ORM\Column(enumType: TaskStatus::class)]
     private TaskStatus $status;
 
@@ -46,6 +52,8 @@ class Task
         ?string $description = null,
         ?\DateTimeImmutable $dateDue = null,
         ?Uuid $employeeId = null,
+        ?\DateTimeImmutable $startAt = null,
+        ?\DateTimeImmutable $endAt = null,
     ) {
         $this->initializeUuid();
         $this->initializeTimestamps();
@@ -56,6 +64,8 @@ class Task
         $this->dateCreation = new \DateTimeImmutable();
         $this->dateDue = $dateDue;
         $this->employeeId = $employeeId;
+        $this->startAt = $startAt;
+        $this->endAt = $endAt;
     }
 
     public function getTitle(): string { return $this->title; }
@@ -65,6 +75,8 @@ class Task
     public function getStatus(): TaskStatus { return $this->status; }
     public function getSiteId(): Uuid { return $this->siteId; }
     public function getEmployeeId(): ?Uuid { return $this->employeeId; }
+    public function getStartAt(): ?\DateTimeImmutable { return $this->startAt; }
+    public function getEndAt(): ?\DateTimeImmutable { return $this->endAt; }
 
     public function setTitle(string $title): void { $this->title = $title; $this->touch(); }
     public function setDescription(?string $description): void { $this->description = $description; $this->touch(); }
@@ -72,4 +84,6 @@ class Task
     public function setStatus(TaskStatus $status): void { $this->status = $status; $this->touch(); }
     public function setSiteId(Uuid $siteId): void { $this->siteId = $siteId; $this->touch(); }
     public function setEmployeeId(?Uuid $employeeId): void { $this->employeeId = $employeeId; $this->touch(); }
+    public function setStartAt(?\DateTimeImmutable $startAt): void { $this->startAt = $startAt; $this->touch(); }
+    public function setEndAt(?\DateTimeImmutable $endAt): void { $this->endAt = $endAt; $this->touch(); }
 }

@@ -41,7 +41,7 @@ class DoctrineSiteRepository extends ServiceEntityRepository implements SiteRepo
             ->getOneOrNullResult();
     }
 
-    public function findAllEnabled(?string $search = null): array
+    public function findAllEnabled(?string $search = null, ?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array
     {
         $qb = $this->createQueryBuilder('s')
             ->andWhere('s.isEnabled = :enabled')
@@ -51,6 +51,13 @@ class DoctrineSiteRepository extends ServiceEntityRepository implements SiteRepo
         if ($search !== null && trim($search) !== '') {
             $qb->andWhere('s.title LIKE :search OR s.code LIKE :search')
                 ->setParameter('search', '%'.trim($search).'%');
+        }
+
+        if ($from !== null) {
+            $qb->andWhere('s.createdAt >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('s.createdAt <= :to')->setParameter('to', $to);
         }
 
         return $qb->getQuery()->getResult();

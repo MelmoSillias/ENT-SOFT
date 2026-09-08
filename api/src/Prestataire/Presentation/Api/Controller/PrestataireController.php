@@ -48,7 +48,11 @@ final class PrestataireController extends AbstractController
     #[IsGranted('employee.prestataires.view')]
     public function list(Request $request, ListPrestatairesHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle(new ListPrestatairesQuery($request->query->get('search'))));
+        return $this->json($handler->handle(new ListPrestatairesQuery(
+            search: $request->query->get('search'),
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        )));
     }
 
     #[Route('', name: 'api_prestataires_create', methods: ['POST'])]
@@ -69,9 +73,12 @@ final class PrestataireController extends AbstractController
 
     #[Route('/prestations', name: 'api_prestations_list_all', methods: ['GET'], priority: 20)]
     #[IsGranted('employee.prestataires.view')]
-    public function listAllPrestations(ListAllPrestationsHandler $handler): JsonResponse
+    public function listAllPrestations(Request $request, ListAllPrestationsHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle(new ListAllPrestationsQuery()));
+        return $this->json($handler->handle(new ListAllPrestationsQuery(
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        )));
     }
 
     #[Route('/prestations/{prestationId}', name: 'api_prestations_get', methods: ['GET'], priority: 10)]

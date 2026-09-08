@@ -14,7 +14,7 @@ interface SiteRepositoryInterface
     public function findByCode(string $code): ?Site;
 
     /** @return list<Site> */
-    public function findAllEnabled(?string $search = null): array;
+    public function findAllEnabled(?string $search = null, ?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array;
 
     /** @return list<Site> */
     public function findByIds(array $ids): array;

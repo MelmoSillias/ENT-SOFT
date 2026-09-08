@@ -31,15 +31,22 @@ class DoctrinePrestationRepository extends ServiceEntityRepository implements Pr
         return $qb->getQuery()->getOneOrNullResult();
     }
 
-    public function findAllEnabled(): array
+    public function findAllEnabled(?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array
     {
-        return $this->createQueryBuilder('p')
+        $qb = $this->createQueryBuilder('p')
             ->andWhere('p.isEnabled = :enabled')
             ->setParameter('enabled', true)
             ->orderBy('p.date', 'DESC')
-            ->addOrderBy('p.createdAt', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->addOrderBy('p.createdAt', 'DESC');
+
+        if ($from !== null) {
+            $qb->andWhere('p.date >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('p.date <= :to')->setParameter('to', $to);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 
     public function findByPrestataireId(Uuid $prestataireId): array

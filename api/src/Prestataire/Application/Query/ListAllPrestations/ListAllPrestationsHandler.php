@@ -24,7 +24,11 @@ final class ListAllPrestationsHandler
         }
 
         $result = [];
-        foreach ($this->prestationRepository->findAllEnabled() as $prestation) {
+        $prestations = $this->prestationRepository->findAllEnabled(
+            $query->from ? new \DateTimeImmutable($query->from) : null,
+            $query->to ? new \DateTimeImmutable($query->to) : null,
+        );
+        foreach ($prestations as $prestation) {
             $row = $this->assembler->toPrestationDto($prestation)->toArray();
             $row['prestataireName'] = $nameById[$row['prestataireId']] ?? null;
             $result[] = $row;

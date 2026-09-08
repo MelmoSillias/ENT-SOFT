@@ -1,7 +1,7 @@
 import api from '@/services/api'
 
-export async function listInvoices() {
-  const { data } = await api.get('/invoices')
+export async function listInvoices(params = {}) {
+  const { data } = await api.get('/invoices', { params })
   return data.items ?? data
 }
 

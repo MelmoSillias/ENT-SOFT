@@ -47,6 +47,8 @@ final class TaskController extends AbstractController
             description: $data['description'] ?? null,
             dateDue: $data['dateDue'] ?? null,
             employeeId: $data['employeeId'] ?? null,
+            startAt: $data['startAt'] ?? null,
+            endAt: $data['endAt'] ?? null,
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -72,9 +74,13 @@ final class TaskController extends AbstractController
             status: $data['status'] ?? null,
             siteId: $data['siteId'] ?? null,
             employeeId: array_key_exists('employeeId', $data) ? $data['employeeId'] : null,
+            startAt: array_key_exists('startAt', $data) ? $data['startAt'] : null,
+            endAt: array_key_exists('endAt', $data) ? $data['endAt'] : null,
             hasDescription: array_key_exists('description', $data),
             hasDateDue: array_key_exists('dateDue', $data),
             hasEmployeeId: array_key_exists('employeeId', $data),
+            hasStartAt: array_key_exists('startAt', $data),
+            hasEndAt: array_key_exists('endAt', $data),
         ));
 
         return $this->json($result->toArray());

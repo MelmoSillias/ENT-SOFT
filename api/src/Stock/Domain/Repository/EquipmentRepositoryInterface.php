@@ -12,5 +12,5 @@ interface EquipmentRepositoryInterface
     public function findById(Uuid $id): ?Equipment;
 
     /** @return list<Equipment> */
-    public function findAllEnabled(?string $search = null): array;
+    public function findAllEnabled(?string $search = null, ?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array;
 }

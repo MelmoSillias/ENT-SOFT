@@ -12,7 +12,7 @@ interface ClientRepositoryInterface
     public function findById(Uuid $id): ?Client;
 
     /** @return list<Client> */
-    public function findAllEnabled(?string $search = null): array;
+    public function findAllEnabled(?string $search = null, ?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array;
 
     /** @return list<Client> */
     public function findAllDisabled(): array;

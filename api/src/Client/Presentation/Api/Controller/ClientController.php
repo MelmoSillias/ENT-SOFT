@@ -32,7 +32,11 @@ final class ClientController extends AbstractController
     #[IsGranted('client.clients.view')]
     public function list(Request $request, ListClientsHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle(new ListClientsQuery($request->query->get('search'))));
+        return $this->json($handler->handle(new ListClientsQuery(
+            search: $request->query->get('search'),
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        )));
     }
 
     #[Route('', name: 'api_clients_create', methods: ['POST'])]

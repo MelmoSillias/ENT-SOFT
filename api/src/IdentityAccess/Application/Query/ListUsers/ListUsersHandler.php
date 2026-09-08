@@ -17,7 +17,10 @@ final class ListUsersHandler
     {
         return array_map(
             static fn ($user) => UserResponseDto::fromEntity($user)->toArray(),
-            $this->utilisateurRepository->findAll(),
+            $this->utilisateurRepository->findAll(
+                $query->from ? new \DateTimeImmutable($query->from) : null,
+                $query->to ? new \DateTimeImmutable($query->to) : null,
+            ),
         );
     }
 }

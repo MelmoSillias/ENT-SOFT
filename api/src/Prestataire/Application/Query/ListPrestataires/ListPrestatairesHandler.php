@@ -18,7 +18,11 @@ final class ListPrestatairesHandler
     {
         return array_map(
             fn ($p) => $this->assembler->toPrestataireDto($p)->toArray(),
-            $this->prestataireRepository->findAllEnabled($query->search),
+            $this->prestataireRepository->findAllEnabled(
+                $query->search,
+                $query->from ? new \DateTimeImmutable($query->from) : null,
+                $query->to ? new \DateTimeImmutable($query->to) : null,
+            ),
         );
     }
 }

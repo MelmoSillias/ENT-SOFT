@@ -1,7 +1,7 @@
 import api from '@/services/api'
 
-export async function listFinancialTransactions() {
-  const { data } = await api.get('/financial-transactions')
+export async function listFinancialTransactions(params = {}) {
+  const { data } = await api.get('/financial-transactions', { params })
   return data.items ?? data
 }
 

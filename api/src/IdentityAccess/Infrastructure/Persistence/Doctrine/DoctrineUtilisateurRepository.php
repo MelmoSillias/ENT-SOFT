@@ -46,7 +46,7 @@ class DoctrineUtilisateurRepository extends ServiceEntityRepository implements U
             ->getOneOrNullResult();
     }
 
-    public function findAll(): array
+    public function findAll(?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array
     {
         $qb = $this->createQueryBuilder('u')
             ->orderBy('u.nom', 'ASC');
@@ -54,6 +54,13 @@ class DoctrineUtilisateurRepository extends ServiceEntityRepository implements U
         $systemAdmin = $this->findSystemAdmin();
         if ($systemAdmin !== null) {
             UuidQueryParameter::neq($qb, 'u.id', 'systemAdminId', $systemAdmin->getId());
+        }
+
+        if ($from !== null) {
+            $qb->andWhere('u.createdAt >= :from')->setParameter('from', $from);
+        }
+        if ($to !== null) {
+            $qb->andWhere('u.createdAt <= :to')->setParameter('to', $to);
         }
 
         return $qb->getQuery()->getResult();

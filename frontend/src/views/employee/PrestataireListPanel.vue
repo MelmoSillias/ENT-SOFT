@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -26,6 +26,8 @@ import {
 } from '@/domains/employee/services/prestataireService'
 import { hasRequiredText, requiredMessage, hasValidPhone, sanitizePhoneInput } from '@/domains/shared/utils/formValidation'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
+import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
@@ -98,8 +100,10 @@ const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFiel
   return errs
 })
 
+const filterPeriod = ref(null)
+
 async function fetchItems() {
-  items.value = await listPrestataires()
+  items.value = await listPrestataires(periodToApiParams(filterPeriod.value))
 }
 
 async function load() {
@@ -124,6 +128,10 @@ async function reload() {
 }
 
 onMounted(load)
+
+watch(filterPeriod, () => {
+  reload()
+})
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
@@ -257,7 +265,12 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             :row-options="ROW_OPTIONS"
             :sort-options="sortOptions"
             @toggle-col="toggleCol"
-          />
+          >
+            <template #filters>
+              <p class="app-table-settings__title">Filtres</p>
+              <AppPeriodFilter v-model="filterPeriod" />
+            </template>
+          </AppTableSettingsPopover>
         </template>
       </AppTablePanelHeader>
     </template>

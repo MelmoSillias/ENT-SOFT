@@ -17,7 +17,11 @@ final class ListProjectsHandler
     /** @return list<array<string, mixed>> */
     public function handle(ListProjectsQuery $query): array
     {
-        $projects = $this->projectRepository->findAllEnabled($query->search);
+        $projects = $this->projectRepository->findAllEnabled(
+            $query->search,
+            $query->from ? new \DateTimeImmutable($query->from) : null,
+            $query->to ? new \DateTimeImmutable($query->to) : null,
+        );
         $siteCounts = $this->projectSiteRepository->countByProjectIds(
             array_map(static fn ($p) => $p->getId(), $projects),
         );

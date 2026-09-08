@@ -17,7 +17,11 @@ final class ListClientsHandler
     {
         return array_map(
             static fn ($client) => ClientResponseDto::fromEntity($client)->toArray(),
-            $this->clientRepository->findAllEnabled($query->search),
+            $this->clientRepository->findAllEnabled(
+                $query->search,
+                $query->from ? new \DateTimeImmutable($query->from) : null,
+                $query->to ? new \DateTimeImmutable($query->to) : null,
+            ),
         );
     }
 }

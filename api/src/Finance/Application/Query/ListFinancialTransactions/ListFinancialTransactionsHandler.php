@@ -13,11 +13,14 @@ final class ListFinancialTransactionsHandler
     }
 
     /** @return list<array<string, mixed>> */
-    public function handle(): array
+    public function handle(?string $from = null, ?string $to = null): array
     {
         return array_map(
             static fn ($t) => FinancialTransactionResponseDto::fromEntity($t)->toArray(),
-            $this->transactionRepository->findAllEnabled(),
+            $this->transactionRepository->findAllEnabled(
+                $from ? new \DateTimeImmutable($from) : null,
+                $to ? new \DateTimeImmutable($to) : null,
+            ),
         );
     }
 }

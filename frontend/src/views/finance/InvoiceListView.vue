@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
@@ -26,7 +26,8 @@ import { listInvoices, createInvoice, updateInvoice, deleteInvoice, payInvoice, 
 import { listClients } from '@/domains/client/services/clientService'
 import { listProjects } from '@/domains/project/services/projectService'
 import { invoiceStatusLabel, invoiceStatusSeverity, formatDateFr } from '@/domains/shared/utils/entLabels'
-import { toApiDate, parseApiDate } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate, periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
@@ -122,8 +123,10 @@ async function loadRefs() {
   clientMap.value = Object.fromEntries(clients.map((c) => [c.id, c.title]))
 }
 
+const filterPeriod = ref(null)
+
 async function fetchItems() {
-  items.value = await listInvoices()
+  items.value = await listInvoices(periodToApiParams(filterPeriod.value))
 }
 
 async function load() {
@@ -148,6 +151,10 @@ async function reload() {
 }
 
 onMounted(load)
+
+watch(filterPeriod, () => {
+  reload()
+})
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
@@ -403,7 +410,12 @@ const printFormatItems = computed(() => [
           :row-options="ROW_OPTIONS"
           :sort-options="sortOptions"
           @toggle-col="toggleCol"
-        />
+        >
+          <template #filters>
+            <p class="app-table-settings__title">Filtres</p>
+            <AppPeriodFilter v-model="filterPeriod" />
+          </template>
+        </AppTableSettingsPopover>
       </template>
     </AppTablePanelHeader>
     <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">

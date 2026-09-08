@@ -12,7 +12,7 @@ interface FinancialTransactionRepositoryInterface
     public function findById(Uuid $id): ?FinancialTransaction;
 
     /** @return list<FinancialTransaction> */
-    public function findAllEnabled(): array;
+    public function findAllEnabled(?\DateTimeImmutable $from = null, ?\DateTimeImmutable $to = null): array;
 
     /** @return list<FinancialTransaction> */
     public function findEnabledPaymentsByInvoiceId(Uuid $invoiceId): array;

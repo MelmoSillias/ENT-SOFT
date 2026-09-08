@@ -11,6 +11,8 @@ final readonly class CreateTaskCommand
         public ?string $description = null,
         public ?string $dateDue = null,
         public ?string $employeeId = null,
+        public ?string $startAt = null,
+        public ?string $endAt = null,
     ) {
     }
 }

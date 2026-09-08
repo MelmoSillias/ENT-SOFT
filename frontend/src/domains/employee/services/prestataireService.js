@@ -1,7 +1,7 @@
 import api from '@/services/api'
 
-export async function listPrestataires() {
-  const { data } = await api.get('/prestataires')
+export async function listPrestataires(params = {}) {
+  const { data } = await api.get('/prestataires', { params })
   return Array.isArray(data) ? data : (data.items ?? [])
 }
 
@@ -25,8 +25,8 @@ export async function deletePrestataire(id) {
   return data
 }
 
-export async function listAllPrestations() {
-  const { data } = await api.get('/prestataires/prestations')
+export async function listAllPrestations(params = {}) {
+  const { data } = await api.get('/prestataires/prestations', { params })
   return Array.isArray(data) ? data : (data.items ?? [])
 }
 

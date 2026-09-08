@@ -26,7 +26,11 @@ final class EquipmentController extends AbstractController
     #[IsGranted('stock.equipment.view')]
     public function list(Request $request, ListEquipmentHandler $handler): JsonResponse
     {
-        return $this->json($handler->handle(new ListEquipmentQuery($request->query->get('search'))));
+        return $this->json($handler->handle(new ListEquipmentQuery(
+            search: $request->query->get('search'),
+            from: $request->query->get('from'),
+            to: $request->query->get('to'),
+        )));
     }
 
     #[Route('', name: 'api_equipment_create', methods: ['POST'])]

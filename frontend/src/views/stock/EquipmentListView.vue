@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -23,6 +23,8 @@ import EquipmentFormFields from '@/domains/stock/components/EquipmentFormFields.
 import StockMovementListPanel from '@/views/stock/StockMovementListPanel.vue'
 import { listEquipment, createEquipment, updateEquipment, deleteEquipment } from '@/domains/stock/services/equipmentService'
 import { listClients } from '@/domains/client/services/clientService'
+import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
 import { equipmentUnitLabel } from '@/domains/shared/utils/entLabels'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
@@ -106,8 +108,10 @@ async function loadClients() {
   clientMap.value = Object.fromEntries(clients.map((c) => [c.id, c.title]))
 }
 
+const filterPeriod = ref(null)
+
 async function fetchItems() {
-  items.value = await listEquipment()
+  items.value = await listEquipment(periodToApiParams(filterPeriod.value))
 }
 
 async function load() {
@@ -132,6 +136,10 @@ async function reload() {
 }
 
 onMounted(load)
+
+watch(filterPeriod, () => {
+  reload()
+})
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
@@ -308,7 +316,12 @@ function quantityDisplay(item) {
                 :row-options="ROW_OPTIONS"
                 :sort-options="sortOptions"
                 @toggle-col="toggleCol"
-              />
+              >
+                <template #filters>
+                  <p class="app-table-settings__title">Filtres</p>
+                  <AppPeriodFilter v-model="filterPeriod" />
+                </template>
+              </AppTableSettingsPopover>
             </template>
           </AppTablePanelHeader>
           <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">

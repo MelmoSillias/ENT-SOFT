@@ -16,10 +16,14 @@ final class ListStockMovementsHandler
     }
 
     /** @return list<array<string, mixed>> */
-    public function handle(): array
+    public function handle(?string $from = null, ?string $to = null): array
     {
         $result = [];
-        foreach ($this->movementRepository->findAllEnabled() as $movement) {
+        $movements = $this->movementRepository->findAllEnabled(
+            $from ? new \DateTimeImmutable($from) : null,
+            $to ? new \DateTimeImmutable($to) : null,
+        );
+        foreach ($movements as $movement) {
             $lines = array_map(
                 static fn ($l) => StockMovementLineResponseDto::fromEntity($l)->toArray(),
                 $this->lineRepository->findByMovementId($movement->getId()),

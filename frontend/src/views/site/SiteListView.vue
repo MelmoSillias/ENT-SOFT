@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
@@ -18,6 +18,8 @@ import { sortByField } from '@/domains/shared/utils/sortByField'
 import SiteFormFields from '@/domains/site/components/SiteFormFields.vue'
 import { listSites, createSite, updateSite, deleteSite } from '@/domains/site/services/siteService'
 import { listClients } from '@/domains/client/services/clientService'
+import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
@@ -86,8 +88,10 @@ async function loadClients() {
   clientMap.value = Object.fromEntries(clients.map((c) => [c.id, c.title]))
 }
 
+const filterPeriod = ref(null)
+
 async function fetchItems() {
-  items.value = await listSites()
+  items.value = await listSites(periodToApiParams(filterPeriod.value))
 }
 
 async function load() {
@@ -112,6 +116,10 @@ async function reload() {
 }
 
 onMounted(load)
+
+watch(filterPeriod, () => {
+  reload()
+})
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
@@ -230,7 +238,12 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               :row-options="ROW_OPTIONS"
               :sort-options="sortOptions"
               @toggle-col="toggleCol"
-            />
+            >
+              <template #filters>
+                <p class="app-table-settings__title">Filtres</p>
+                <AppPeriodFilter v-model="filterPeriod" />
+              </template>
+            </AppTableSettingsPopover>
           </template>
         </AppTablePanelHeader>
       </template>
