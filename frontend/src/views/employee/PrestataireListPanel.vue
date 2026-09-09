@@ -28,6 +28,10 @@ import { hasRequiredText, requiredMessage, hasValidPhone, sanitizePhoneInput } f
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
+import AppPersonNameCell from '@/domains/shared/components/AppPersonNameCell.vue'
+import AppPhotoUploadField from '@/domains/shared/components/AppPhotoUploadField.vue'
+import { deletePrestatairePhoto, uploadPrestatairePhoto } from '@/domains/shared/services/photoUploadService'
+import { personDisplayName } from '@/domains/shared/utils/personDisplay'
 import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
@@ -86,10 +90,13 @@ const rowContextMenu = ref()
 const canCreate = computed(() => hasPermission('employee.prestataires.create'))
 
 function emptyForm() {
-  return { prenom: '', nom: '', email: '', phone: '', address: '' }
+  return { prenom: '', nom: '', email: '', phone: '', address: '', photoUrl: null }
 }
 
 const form = ref(emptyForm())
+const pendingPhotoFile = ref(null)
+const photoError = ref(null)
+const dialogPhotoUrl = ref(null)
 
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
@@ -151,6 +158,9 @@ const dialogTitle = computed(() => (editingId.value ? 'Modifier prestataire' : '
 function openCreate() {
   editingId.value = null
   form.value = emptyForm()
+  pendingPhotoFile.value = null
+  photoError.value = null
+  dialogPhotoUrl.value = null
   resetErrors()
   dialog.value = true
 }
@@ -163,7 +173,11 @@ function openEdit(item) {
     email: item.email ?? '',
     phone: item.phone ?? '',
     address: item.address ?? '',
+    photoUrl: item.photoUrl ?? null,
   }
+  pendingPhotoFile.value = null
+  photoError.value = null
+  dialogPhotoUrl.value = item.photoUrl ?? null
   resetErrors()
   dialog.value = true
 }
@@ -226,8 +240,19 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     address: form.value.address || null,
   }
   try {
-    if (editingId.value) await updatePrestataire(editingId.value, payload)
-    else await createPrestataire(payload)
+    let saved
+    if (editingId.value) {
+      saved = await updatePrestataire(editingId.value, payload)
+    } else {
+      saved = await createPrestataire(payload)
+    }
+
+    const id = saved?.id || editingId.value
+    if (id && pendingPhotoFile.value) {
+      await uploadPrestatairePhoto(id, pendingPhotoFile.value)
+      pendingPhotoFile.value = null
+    }
+
     dialog.value = false
     await fetchItems()
     toast.add({ severity: 'success', summary: 'Prestataire', detail: 'Enregistré.' })
@@ -235,6 +260,48 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     toast.add({ severity: 'error', summary: 'Prestataire', detail: e.response?.data?.error || 'Erreur.' })
   }
 })
+
+const { pending: uploadingPhoto, run: runDialogUploadPhoto } = useAsyncAction(async (file) => {
+  photoError.value = null
+  if (!editingId.value) {
+    pendingPhotoFile.value = file
+    return
+  }
+  try {
+    const updated = await uploadPrestatairePhoto(editingId.value, file)
+    dialogPhotoUrl.value = updated.photoUrl
+    form.value.photoUrl = updated.photoUrl
+    const idx = items.value.findIndex((e) => e.id === updated.id)
+    if (idx >= 0) items.value[idx] = updated
+    toast.add({ severity: 'success', summary: 'Photo', detail: 'Photo mise à jour.' })
+  } catch (e) {
+    photoError.value = e.response?.data?.error || 'Impossible d\'envoyer la photo.'
+  }
+})
+
+const { pending: removingPhoto, run: runDialogRemovePhoto } = useAsyncAction(async () => {
+  photoError.value = null
+  if (!editingId.value) {
+    pendingPhotoFile.value = null
+    dialogPhotoUrl.value = null
+    return
+  }
+  try {
+    const updated = await deletePrestatairePhoto(editingId.value)
+    dialogPhotoUrl.value = null
+    form.value.photoUrl = null
+    const idx = items.value.findIndex((e) => e.id === updated.id)
+    if (idx >= 0) items.value[idx] = updated
+    toast.add({ severity: 'success', summary: 'Photo', detail: 'Photo supprimée.' })
+  } catch (e) {
+    photoError.value = e.response?.data?.error || 'Impossible de supprimer la photo.'
+  }
+})
+
+function onPendingPhoto(file) {
+  pendingPhotoFile.value = file
+  photoError.value = null
+}
 </script>
 
 <template>
@@ -281,10 +348,11 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :items="filteredItems"
           :rows="tableRows"
           :show-index="showIndex"
-          :title-of="(item) => item.name || `${item.prenom} ${item.nom}`"
+          :title-of="(item) => personDisplayName(item)"
           :subtitle-of="(item) => item.email || null"
           :meta-of="(item) => `${item.openPrestationsCount ?? 0} ouverte(s) · ${formatMontant(item.unpaidCompletedReliquat ?? 0, DEVISE_APP)}`"
           :status-of="(item) => ({ value: item.isEnabled ? 'Actif' : 'Inactif', severity: item.isEnabled ? 'success' : 'secondary' })"
+          :avatar-of="(item) => ({ name: personDisplayName(item), photoUrl: item.photoUrl })"
           :actions-of="buildMenuItems"
           :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
           @select="(item) => router.push({ name: 'prestataire-detail', params: { id: item.id } })"
@@ -303,7 +371,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             <template #body="{ index }">{{ index + 1 }}</template>
           </Column>
           <Column v-if="isColVisible('name')" header="Nom" sortable field="nom">
-            <template #body="{ data }">{{ data.name || `${data.prenom} ${data.nom}` }}</template>
+            <template #body="{ data }">
+              <AppPersonNameCell :name="personDisplayName(data)" :photo-url="data.photoUrl" />
+            </template>
           </Column>
           <Column v-if="isColVisible('email')" field="email" header="Email" sortable />
           <Column v-if="isColVisible('phone')" field="phone" header="Téléphone" sortable />
@@ -337,6 +407,17 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   />
 
   <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(640px, 95vw)">
+    <AppPhotoUploadField
+      :model-value="dialogPhotoUrl"
+      :person-name="personDisplayName(form)"
+      :immediate="Boolean(editingId)"
+      :uploading="uploadingPhoto"
+      :removing="removingPhoto"
+      :error="photoError"
+      @upload="runDialogUploadPhoto"
+      @pending-file="onPendingPhoto"
+      @remove="runDialogRemovePhoto"
+    />
     <PrestataireFormFields v-model="form" :errors="fieldErrors" />
     <template #footer>
       <Button label="Annuler" severity="secondary" text :disabled="saving || deleting" @click="dialog = false" />

@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 
-import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Drawer from 'primevue/drawer'
 import IconField from 'primevue/iconfield'
@@ -14,6 +13,7 @@ import Popover from 'primevue/popover'
 import AppNavItem from './AppNavItem.vue'
 import AppNavGroup from './AppNavGroup.vue'
 import AppSecondarySidebar from './AppSecondarySidebar.vue'
+import AppPersonAvatar from '@/domains/shared/components/AppPersonAvatar.vue'
 
 import { useLayoutStore } from '@/domains/layout/stores/layout'
 
@@ -71,14 +71,7 @@ const drawerVisible = computed({
   }
 })
 
-const userInitials = computed(() => {
-  return props.displayName
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((value) => value[0]?.toUpperCase())
-    .join('')
-})
+const userPhotoUrl = computed(() => props.user?.avatar || props.user?.photoUrl || null)
 
 const activeKey = computed(() => {
   const routeName = route.name
@@ -207,10 +200,9 @@ const goToProfile = () => {
 
         <!-- Profile at Top -->
         <div v-if="showProfile && profileAtTop" class="app-sidebar__profile" :class="{ 'app-sidebar__profile--collapsed': collapsed }">
-          <Avatar
-            :image="user?.avatar"
-            :label="userInitials"
-            shape="circle"
+          <AppPersonAvatar
+            :name="displayName"
+            :photo-url="userPhotoUrl"
             size="large"
             style="cursor: pointer"
             @click="toggleProfileMenu"
@@ -263,10 +255,9 @@ const goToProfile = () => {
 
         <!-- Profile at Bottom -->
         <div v-if="showProfile && !profileAtTop" class="app-sidebar__profile app-sidebar__profile--bottom" :class="{ 'app-sidebar__profile--collapsed': collapsed }">
-          <Avatar
-            :image="user?.avatar"
-            :label="userInitials"
-            shape="circle"
+          <AppPersonAvatar
+            :name="displayName"
+            :photo-url="userPhotoUrl"
             :size="collapsed ? 'normal' : 'large'"
             style="cursor: pointer"
             @click="toggleProfileMenu"
@@ -326,10 +317,9 @@ const goToProfile = () => {
 
       <div class="app-sidebar__drawer-content">
         <div v-if="showProfile && profileAtTop" class="app-sidebar__profile">
-          <Avatar
-            :image="user?.avatar"
-            :label="userInitials"
-            shape="circle"
+          <AppPersonAvatar
+            :name="displayName"
+            :photo-url="userPhotoUrl"
             size="large"
             style="cursor: pointer"
             @click="toggleProfileMenu"
@@ -375,10 +365,9 @@ const goToProfile = () => {
         </div>
 
         <div v-if="showProfile && !profileAtTop" class="app-sidebar__profile app-sidebar__profile--bottom">
-          <Avatar
-            :image="user?.avatar"
-            :label="userInitials"
-            shape="circle"
+          <AppPersonAvatar
+            :name="displayName"
+            :photo-url="userPhotoUrl"
             size="large"
             style="cursor: pointer"
             @click="toggleProfileMenu"

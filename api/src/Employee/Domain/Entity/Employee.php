@@ -42,6 +42,9 @@ class Employee
     #[ORM\Column(type: 'uuid', nullable: true)]
     private ?Uuid $userId;
 
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $photoUrl = null;
+
     public function __construct(
         string $prenom,
         string $nom,
@@ -73,6 +76,7 @@ class Employee
     public function getRoleCode(): string { return $this->roleCode; }
     public function getMention(): ?string { return $this->mention; }
     public function getUserId(): ?Uuid { return $this->userId; }
+    public function getPhotoUrl(): ?string { return $this->photoUrl; }
 
     public function setPrenom(string $prenom): void { $this->prenom = $prenom; $this->touch(); }
     public function setNom(string $nom): void { $this->nom = $nom; $this->touch(); }
@@ -82,6 +86,12 @@ class Employee
     public function setRoleCode(string $roleCode): void { $this->roleCode = strtoupper(trim($roleCode)); $this->touch(); }
     public function setMention(?string $mention): void { $this->mention = self::normalizeMention($mention); $this->touch(); }
     public function setUserId(?Uuid $userId): void { $this->userId = $userId; $this->touch(); }
+    public function setPhotoUrl(?string $photoUrl): void
+    {
+        $trimmed = null === $photoUrl ? null : trim($photoUrl);
+        $this->photoUrl = (null === $trimmed || '' === $trimmed) ? null : $trimmed;
+        $this->touch();
+    }
 
     private static function normalizeMention(?string $mention): ?string
     {

@@ -14,11 +14,13 @@ import Column from 'primevue/column'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
+import AppPersonAvatar from '@/domains/shared/components/AppPersonAvatar.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { getEmployee } from '@/domains/employee/services/employeeService'
 import { listTasks } from '@/domains/task/services/taskService'
 import { listSites } from '@/domains/site/services/siteService'
 import { taskStatusLabel, taskStatusSeverity, formatDateFr } from '@/domains/shared/utils/entLabels'
+import { personDisplayName } from '@/domains/shared/utils/personDisplay'
 
 const route = useRoute()
 const router = useRouter()
@@ -77,10 +79,17 @@ onMounted(load)
     <Card v-else-if="employee" class="dashboard-panel">
       <template #title>
         <div class="detail-header">
-          <div>
-            <h1 class="detail-header__title">{{ employee.name || `${employee.prenom} ${employee.nom}` }}</h1>
-            <small v-if="employee.mention" class="detail-header__mention">{{ employee.mention }}</small>
-            <Tag :value="employee.isEnabled ? 'Actif' : 'Inactif'" />
+          <div class="detail-header__identity">
+            <AppPersonAvatar
+              :name="personDisplayName(employee)"
+              :photo-url="employee.photoUrl"
+              size="large"
+            />
+            <div>
+              <h1 class="detail-header__title">{{ personDisplayName(employee) }}</h1>
+              <small v-if="employee.mention" class="detail-header__mention">{{ employee.mention }}</small>
+              <Tag :value="employee.isEnabled ? 'Actif' : 'Inactif'" />
+            </div>
           </div>
           <Button label="Retour" icon="pi pi-arrow-left" text @click="router.push({ name: 'employees' })" />
         </div>
@@ -138,6 +147,13 @@ onMounted(load)
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
+}
+
+.detail-header__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
 }
 
 .detail-header__title {

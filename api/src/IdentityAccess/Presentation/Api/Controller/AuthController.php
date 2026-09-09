@@ -8,7 +8,10 @@ use App\IdentityAccess\Application\Command\Login\LoginHandler;
 use App\IdentityAccess\Application\Query\GetMe\GetMeHandler;
 use App\IdentityAccess\Application\Service\RefreshTokenService;
 use App\IdentityAccess\Domain\Entity\Utilisateur;
+use App\IdentityAccess\Domain\Repository\UtilisateurRepositoryInterface;
+use App\SharedKernel\Application\Service\AvatarUploadService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -61,6 +64,53 @@ final class AuthController extends AbstractController
         ));
 
         return $this->json(['ok' => true], Response::HTTP_OK);
+    }
+
+    #[Route('/me/photo', name: 'api_me_photo_upload', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function uploadMyPhoto(
+        Request $request,
+        UtilisateurRepositoryInterface $utilisateurRepository,
+        AvatarUploadService $avatarUploadService,
+        GetMeHandler $getMeHandler,
+    ): JsonResponse {
+        /** @var Utilisateur $user */
+        $user = $this->getUser();
+
+        $file = $request->files->get('file');
+        if (!$file instanceof UploadedFile) {
+            return $this->json(['error' => 'Fichier image requis (champ file).'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $photoUrl = $avatarUploadService->upload(AvatarUploadService::TYPE_UTILISATEURS, $user->getId(), $file);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        } catch (\RuntimeException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $user->setPhotoUrl($photoUrl);
+        $utilisateurRepository->save($user);
+
+        return $this->json($getMeHandler->handle($user));
+    }
+
+    #[Route('/me/photo', name: 'api_me_photo_delete', methods: ['DELETE'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function deleteMyPhoto(
+        UtilisateurRepositoryInterface $utilisateurRepository,
+        AvatarUploadService $avatarUploadService,
+        GetMeHandler $getMeHandler,
+    ): JsonResponse {
+        /** @var Utilisateur $user */
+        $user = $this->getUser();
+
+        $avatarUploadService->clear(AvatarUploadService::TYPE_UTILISATEURS, $user->getId());
+        $user->setPhotoUrl(null);
+        $utilisateurRepository->save($user);
+
+        return $this->json($getMeHandler->handle($user));
     }
 
     #[Route('/token/refresh', name: 'api_token_refresh', methods: ['POST'])]

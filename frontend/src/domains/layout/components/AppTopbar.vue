@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 
-import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
@@ -13,6 +12,7 @@ import Popover from 'primevue/popover'
 
 import AppTopbarDateClock from '@/domains/layout/components/AppTopbarDateClock.vue'
 import UploadStatusCard from '@/domains/shared/uploads/UploadStatusCard.vue'
+import AppPersonAvatar from '@/domains/shared/components/AppPersonAvatar.vue'
 import { useBreakpoint } from '@/domains/layout/composables/useBreakpoint'
 import { useLayoutStore } from '@/domains/layout/stores/layout'
 import { useAppBusyStore } from '@/domains/layout/stores/appBusy'
@@ -68,14 +68,7 @@ const { isMobile, isCompact } = useBreakpoint()
 const profileMenu = ref()
 const mobileActionsMenu = ref()
 
-const userInitials = computed(() => {
-  return props.displayName
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((value) => value[0]?.toUpperCase())
-    .join('')
-})
+const userPhotoUrl = computed(() => props.user?.avatar || props.user?.photoUrl || null)
 
 const showProfile = computed(() => props.showProfileActions && topbarProfilePosition.value !== 'hidden')
 const showBrandLogo = computed(() => topbarLogoVisibility.value !== 'hidden')
@@ -161,10 +154,9 @@ const goToProfile = () => {
 
         <!-- Profile at Start -->
         <div v-if="showProfile && !profileAtEnd && !isMobile" class="app-topbar__profile app-topbar__profile--start">
-          <Avatar
-            :image="user?.avatar"
-            :label="userInitials"
-            shape="circle"
+          <AppPersonAvatar
+            :name="displayName"
+            :photo-url="userPhotoUrl"
             style="cursor: pointer"
             @click="toggleProfileMenu"
           />
@@ -225,10 +217,9 @@ const goToProfile = () => {
 
         <!-- Profile at End -->
         <div v-if="showProfile && profileAtEnd && !isMobile" class="app-topbar__profile app-topbar__profile--end">
-          <Avatar
-            :image="user?.avatar"
-            :label="userInitials"
-            shape="circle"
+          <AppPersonAvatar
+            :name="displayName"
+            :photo-url="userPhotoUrl"
             style="cursor: pointer"
             @click="toggleProfileMenu"
           />

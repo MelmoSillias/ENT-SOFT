@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import Tag from 'primevue/tag'
 import Paginator from 'primevue/paginator'
 import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
+import AppPersonAvatar from '@/domains/shared/components/AppPersonAvatar.vue'
 import { useClientPagination } from '@/domains/shared/composables/useClientPagination'
 
 const props = defineProps({
@@ -32,6 +33,11 @@ const props = defineProps({
   },
   /** (item) => string | null — extra meta line */
   metaOf: {
+    type: Function,
+    default: null,
+  },
+  /** (item) => { name: string, photoUrl?: string|null } | null */
+  avatarOf: {
     type: Function,
     default: null,
   },
@@ -146,6 +152,13 @@ function onPage(event) {
     >
       <div class="app-entity-card__row">
         <span v-if="showIndex" class="app-entity-card__index" aria-hidden="true">{{ rankOf(index) }}</span>
+        <AppPersonAvatar
+          v-if="avatarOf?.(item)"
+          :name="avatarOf(item).name"
+          :photo-url="avatarOf(item).photoUrl"
+          size="normal"
+          class="app-entity-card__avatar"
+        />
         <div style="min-width: 0; flex: 1">
           <p v-if="codeOf?.(item)" class="app-entity-card__code">{{ codeOf(item) }}</p>
           <h3 class="app-entity-card__title">{{ titleOf(item) }}</h3>

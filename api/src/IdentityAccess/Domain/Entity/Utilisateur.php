@@ -41,6 +41,9 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(options: ['default' => true])]
     private bool $isActive = true;
 
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $photoUrl = null;
+
     public function __construct(
         string $prenom,
         string $nom,
@@ -94,6 +97,11 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->isActive;
     }
 
+    public function getPhotoUrl(): ?string
+    {
+        return $this->photoUrl;
+    }
+
     public function setPrenom(string $prenom): void
     {
         $this->prenom = $prenom;
@@ -133,6 +141,13 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     public function setIsActive(bool $isActive): void
     {
         $this->isActive = $isActive;
+        $this->touch();
+    }
+
+    public function setPhotoUrl(?string $photoUrl): void
+    {
+        $trimmed = null === $photoUrl ? null : trim($photoUrl);
+        $this->photoUrl = (null === $trimmed || '' === $trimmed) ? null : $trimmed;
         $this->touch();
     }
 

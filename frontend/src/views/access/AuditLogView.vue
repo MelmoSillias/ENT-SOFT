@@ -13,10 +13,12 @@ import AppTableSettingsPopover from '@/domains/shared/components/AppTableSetting
 import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
+import AppPersonNameCell from '@/domains/shared/components/AppPersonNameCell.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { sortByField } from '@/domains/shared/utils/sortByField'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import { personDisplayName } from '@/domains/shared/utils/personDisplay'
 
 const toast = useAppToast()
 const { isAppMobile } = useAppMobileLayout()
@@ -184,7 +186,12 @@ function userLabel(userId) {
 function userDisplayName(userId) {
   const user = users.value.find((u) => u.id === userId)
   if (!user) return 'Utilisateur inconnu'
-  return [user.prenom, user.nom].filter(Boolean).join(' ') || user.login
+  return personDisplayName(user, user.login)
+}
+
+function userPhotoUrl(userId, fallback = null) {
+  const user = users.value.find((u) => u.id === userId)
+  return user?.photoUrl || fallback || null
 }
 
 const actionOptions = computed(() =>
@@ -381,6 +388,10 @@ function onRowContextMenu(event) {
             :subtitle-of="(item) => item.description || null"
             :meta-of="(item) => `${formatDateTime(item.date_action)} · ${userLabel(item.utilisateur_id)}`"
             :status-of="(item) => ({ value: formatActionLabel(item.action), severity: actionSeverity(item.action) })"
+            :avatar-of="(item) => ({
+              name: userDisplayName(item.utilisateur_id),
+              photoUrl: userPhotoUrl(item.utilisateur_id, item.userPhotoUrl),
+            })"
             :actions-of="buildMenuItems"
             :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
             data-key="id"
@@ -421,12 +432,13 @@ function onRowContextMenu(event) {
                 />
               </template>
             </Column>
-            <Column v-if="isColVisible('utilisateur')" header="Utilisateur" style="width: 10rem">
+            <Column v-if="isColVisible('utilisateur')" header="Utilisateur" style="width: 12rem">
               <template #body="{ data }">
-                <div class="audit-log__user-cell">
-                  <span class="audit-log__user-login">{{ userLabel(data.utilisateur_id) }}</span>
-                  <span class="audit-log__user-name">{{ userDisplayName(data.utilisateur_id) }}</span>
-                </div>
+                <AppPersonNameCell
+                  :name="userDisplayName(data.utilisateur_id)"
+                  :photo-url="userPhotoUrl(data.utilisateur_id, data.userPhotoUrl)"
+                  :subtitle="userLabel(data.utilisateur_id)"
+                />
               </template>
             </Column>
             <Column v-if="isColVisible('description')" field="description" header="Description" sortable>

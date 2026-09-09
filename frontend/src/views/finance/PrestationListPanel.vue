@@ -27,6 +27,7 @@ import { listSites } from '@/domains/site/services/siteService'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import AppPersonNameCell from '@/domains/shared/components/AppPersonNameCell.vue'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
 import { toApiDate, parseApiDate, periodToApiParams } from '@/domains/shared/utils/dateUtils'
@@ -448,6 +449,7 @@ const { run: runReset } = useAsyncAction(async (item) => {
         :subtitle-of="(item) => item.prestataireName || null"
         :meta-of="(item) => `${formatDateFr(item.date)} · ${formatMontant(item.amount, DEVISE_APP)} · ${formatMontant(item.paidAmount ?? 0, DEVISE_APP)} payé${item.siteId && siteMap[item.siteId] ? ` · ${siteMap[item.siteId]}` : ''}`"
         :status-of="(item) => ({ value: PAYMENT_STATUS_LABEL[item.paymentStatus] || item.paymentStatus, severity: PAYMENT_STATUS_SEVERITY[item.paymentStatus] })"
+        :avatar-of="(item) => item.prestataireName ? { name: item.prestataireName, photoUrl: item.prestatairePhotoUrl } : null"
         :actions-of="buildMenuItems"
         :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
         @select="openPrestataire"
@@ -480,7 +482,10 @@ const { run: runReset } = useAsyncAction(async (item) => {
         <Column v-if="isColVisible('prestataire')" field="prestataireName" header="Prestataire" sortable>
           <template #body="{ data }">
             <button type="button" class="linkish" @click="openPrestataire(data)">
-              {{ data.prestataireName || '—' }}
+              <AppPersonNameCell
+                :name="data.prestataireName || '—'"
+                :photo-url="data.prestatairePhotoUrl"
+              />
             </button>
           </template>
         </Column>

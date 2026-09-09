@@ -54,13 +54,23 @@ final class AuditLogController extends AbstractController
             excludeUtilisateurId: $excludeUtilisateurId,
         );
 
-        $data = array_map(static fn ($log) => [
-            'id' => (string) $log->getId(),
-            'action' => $log->getAction(),
-            'description' => $log->getDescription(),
-            'utilisateur_id' => (string) $log->getUtilisateurId(),
-            'date_action' => $log->getDateAction()->format(\DateTimeInterface::ATOM),
-        ], $logs);
+        $usersById = [];
+        $data = array_map(function ($log) use (&$usersById) {
+            $userId = (string) $log->getUtilisateurId();
+            if (!\array_key_exists($userId, $usersById)) {
+                $usersById[$userId] = $this->utilisateurRepository->findById($log->getUtilisateurId());
+            }
+            $user = $usersById[$userId];
+
+            return [
+                'id' => (string) $log->getId(),
+                'action' => $log->getAction(),
+                'description' => $log->getDescription(),
+                'utilisateur_id' => $userId,
+                'userPhotoUrl' => $user?->getPhotoUrl(),
+                'date_action' => $log->getDateAction()->format(\DateTimeInterface::ATOM),
+            ];
+        }, $logs);
 
         return $this->json([
             'data' => $data,

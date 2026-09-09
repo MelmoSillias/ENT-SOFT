@@ -15,6 +15,7 @@ final readonly class UserResponseDto
         public string $role,
         public bool $isActive,
         public bool $isEnabled,
+        public ?string $photoUrl,
         public string $createdAt,
         public string $updatedAt,
     ) {
@@ -31,6 +32,7 @@ final readonly class UserResponseDto
             role: $user->getRoleCode(),
             isActive: $user->isActive(),
             isEnabled: $user->isEnabled(),
+            photoUrl: $user->getPhotoUrl(),
             createdAt: $user->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $user->getUpdatedAt()->format(\DateTimeInterface::ATOM),
         );
@@ -48,6 +50,7 @@ final readonly class UserResponseDto
             'role' => $this->role,
             'isActive' => $this->isActive,
             'isEnabled' => $this->isEnabled,
+            'photoUrl' => $this->photoUrl,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];

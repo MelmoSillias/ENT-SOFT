@@ -41,6 +41,10 @@ import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTa
 import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import AppPersonNameCell from '@/domains/shared/components/AppPersonNameCell.vue'
+import AppPhotoUploadField from '@/domains/shared/components/AppPhotoUploadField.vue'
+import { deleteUserPhoto, uploadUserPhoto } from '@/domains/shared/services/photoUploadService'
+import { personDisplayName } from '@/domains/shared/utils/personDisplay'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
 const toast = useAppToast()
@@ -49,9 +53,8 @@ const { hasPermission } = usePermissions()
 const { isAppMobile } = useAppMobileLayout()
 
 const USER_COLUMNS = [
+  { key: 'name', label: 'Nom', defaultVisible: true },
   { key: 'login', label: 'Login', defaultVisible: true },
-  { key: 'nom', label: 'Nom', defaultVisible: true },
-  { key: 'prenom', label: 'Prénom', defaultVisible: true },
   { key: 'role', label: 'Rôle', defaultVisible: true },
   { key: 'isActive', label: 'Actif', defaultVisible: true },
 ]
@@ -68,7 +71,7 @@ const {
   isColVisible,
   toggleCol,
 } = useTableSettings('table_users', USER_COLUMNS, {
-  defaultSortField: 'login',
+  defaultSortField: 'nom',
 })
 
 const activeTab = ref('0')
@@ -129,9 +132,13 @@ const emptyForm = () => ({
   password: '',
   role: 'AGENT',
   isActive: true,
+  photoUrl: null,
 })
 
 const form = ref(emptyForm())
+const pendingPhotoFile = ref(null)
+const photoError = ref(null)
+const dialogPhotoUrl = ref(null)
 
 const filterPeriod = ref(null)
 
@@ -222,6 +229,9 @@ const { errors: fieldErrors, validate, resetErrors } = useFormFieldErrors(() =>
 function openCreate() {
   editingId.value = null
   form.value = emptyForm()
+  pendingPhotoFile.value = null
+  photoError.value = null
+  dialogPhotoUrl.value = null
   resetErrors()
   dialog.value = true
 }
@@ -236,7 +246,11 @@ function openEdit(user) {
     password: '',
     role: user.role,
     isActive: user.isActive !== false,
+    photoUrl: user.photoUrl ?? null,
   }
+  pendingPhotoFile.value = null
+  photoError.value = null
+  dialogPhotoUrl.value = user.photoUrl ?? null
   resetErrors()
   dialog.value = true
 }
@@ -248,16 +262,69 @@ const { pending: saving, run: saveUser } = useAsyncAction(async () => {
     ...form.value,
     telephone: sanitizePhoneInput(form.value.telephone),
   }
+  delete payload.photoUrl
+  let saved
   if (editingId.value) {
     if (!payload.password) delete payload.password
-    await api.put(`/users/${editingId.value}`, payload)
+    const { data } = await api.put(`/users/${editingId.value}`, payload)
+    saved = data
   } else {
-    await api.post('/users', payload)
+    const { data } = await api.post('/users', payload)
+    saved = data
   }
+
+  const id = saved?.id || editingId.value
+  if (id && pendingPhotoFile.value) {
+    await uploadUserPhoto(id, pendingPhotoFile.value)
+    pendingPhotoFile.value = null
+  }
+
   dialog.value = false
   resetErrors()
   await load()
 })
+
+const { pending: uploadingPhoto, run: runDialogUploadPhoto } = useAsyncAction(async (file) => {
+  photoError.value = null
+  if (!editingId.value) {
+    pendingPhotoFile.value = file
+    return
+  }
+  try {
+    const updated = await uploadUserPhoto(editingId.value, file)
+    dialogPhotoUrl.value = updated.photoUrl
+    form.value.photoUrl = updated.photoUrl
+    const idx = items.value.findIndex((e) => e.id === updated.id)
+    if (idx >= 0) items.value[idx] = updated
+    toast.add({ severity: 'success', summary: 'Photo', detail: 'Photo mise à jour.' })
+  } catch (e) {
+    photoError.value = e.response?.data?.error || 'Impossible d\'envoyer la photo.'
+  }
+})
+
+const { pending: removingPhoto, run: runDialogRemovePhoto } = useAsyncAction(async () => {
+  photoError.value = null
+  if (!editingId.value) {
+    pendingPhotoFile.value = null
+    dialogPhotoUrl.value = null
+    return
+  }
+  try {
+    const updated = await deleteUserPhoto(editingId.value)
+    dialogPhotoUrl.value = null
+    form.value.photoUrl = null
+    const idx = items.value.findIndex((e) => e.id === updated.id)
+    if (idx >= 0) items.value[idx] = updated
+    toast.add({ severity: 'success', summary: 'Photo', detail: 'Photo supprimée.' })
+  } catch (e) {
+    photoError.value = e.response?.data?.error || 'Impossible de supprimer la photo.'
+  }
+})
+
+function onPendingPhoto(file) {
+  pendingPhotoFile.value = file
+  photoError.value = null
+}
 
 function openResetPassword(user) {
   resetUser.value = user
@@ -423,12 +490,13 @@ function onRowContextMenu(event) {
               :rows="tableRows"
               :show-index="showIndex"
               :code-of="(item) => item.login"
-              :title-of="(item) => [item.prenom, item.nom].filter(Boolean).join(' ') || item.login"
+              :title-of="(item) => personDisplayName(item, item.login)"
               :subtitle-of="(item) => item.role || null"
               :status-of="(item) => ({
                 value: item.isActive !== false ? 'Actif' : 'Inactif',
                 severity: item.isActive !== false ? 'success' : 'secondary',
               })"
+              :avatar-of="(item) => ({ name: personDisplayName(item, item.login), photoUrl: item.photoUrl })"
               :actions-of="userActions"
               :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
               @select="openEdit"
@@ -446,9 +514,16 @@ function onRowContextMenu(event) {
               <Column v-if="showIndex" header="#" style="width: 3.5rem">
                 <template #body="{ index }">{{ index + 1 }}</template>
               </Column>
+              <Column v-if="isColVisible('name')" header="Nom" sortable field="nom">
+                <template #body="{ data }">
+                  <AppPersonNameCell
+                    :name="personDisplayName(data, data.login)"
+                    :photo-url="data.photoUrl"
+                    :subtitle="data.login"
+                  />
+                </template>
+              </Column>
               <Column v-if="isColVisible('login')" field="login" header="Login" sortable />
-              <Column v-if="isColVisible('nom')" field="nom" header="Nom" sortable />
-              <Column v-if="isColVisible('prenom')" field="prenom" header="Prénom" sortable />
               <Column v-if="isColVisible('role')" field="role" header="Rôle" sortable />
               <Column v-if="isColVisible('isActive')" field="isActive" header="Actif" sortable>
                 <template #body="{ data }">{{ data.isActive ? 'Oui' : 'Non' }}</template>
@@ -476,6 +551,17 @@ function onRowContextMenu(event) {
     />
 
     <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(480px, 95vw)">
+      <AppPhotoUploadField
+        :model-value="dialogPhotoUrl"
+        :person-name="personDisplayName(form, form.login)"
+        :immediate="Boolean(editingId)"
+        :uploading="uploadingPhoto"
+        :removing="removingPhoto"
+        :error="photoError"
+        @upload="runDialogUploadPhoto"
+        @pending-file="onPendingPhoto"
+        @remove="runDialogRemovePhoto"
+      />
       <div class="field">
         <label>Prénom <span class="required">*</span></label>
         <InputText v-model="form.prenom" :invalid="Boolean(fieldErrors.prenom)" fluid />

@@ -31,6 +31,9 @@ class Prestataire
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $address;
 
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $photoUrl = null;
+
     public function __construct(
         string $prenom,
         string $nom,
@@ -53,10 +56,17 @@ class Prestataire
     public function getEmail(): string { return $this->email; }
     public function getPhone(): string { return $this->phone; }
     public function getAddress(): ?string { return $this->address; }
+    public function getPhotoUrl(): ?string { return $this->photoUrl; }
 
     public function setPrenom(string $prenom): void { $this->prenom = $prenom; $this->touch(); }
     public function setNom(string $nom): void { $this->nom = $nom; $this->touch(); }
     public function setEmail(string $email): void { $this->email = $email; $this->touch(); }
     public function setPhone(string $phone): void { $this->phone = $phone; $this->touch(); }
     public function setAddress(?string $address): void { $this->address = $address; $this->touch(); }
+    public function setPhotoUrl(?string $photoUrl): void
+    {
+        $trimmed = null === $photoUrl ? null : trim($photoUrl);
+        $this->photoUrl = (null === $trimmed || '' === $trimmed) ? null : $trimmed;
+        $this->touch();
+    }
 }

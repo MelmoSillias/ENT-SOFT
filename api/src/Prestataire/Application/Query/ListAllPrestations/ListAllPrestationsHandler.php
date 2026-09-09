@@ -19,8 +19,11 @@ final class ListAllPrestationsHandler
     public function handle(ListAllPrestationsQuery $query): array
     {
         $nameById = [];
+        $photoById = [];
         foreach ($this->prestataireRepository->findAllEnabled() as $prestataire) {
-            $nameById[(string) $prestataire->getId()] = $prestataire->getFullName();
+            $id = (string) $prestataire->getId();
+            $nameById[$id] = $prestataire->getFullName();
+            $photoById[$id] = $prestataire->getPhotoUrl();
         }
 
         $result = [];
@@ -31,6 +34,7 @@ final class ListAllPrestationsHandler
         foreach ($prestations as $prestation) {
             $row = $this->assembler->toPrestationDto($prestation)->toArray();
             $row['prestataireName'] = $nameById[$row['prestataireId']] ?? null;
+            $row['prestatairePhotoUrl'] = $photoById[$row['prestataireId']] ?? null;
             $result[] = $row;
         }
 

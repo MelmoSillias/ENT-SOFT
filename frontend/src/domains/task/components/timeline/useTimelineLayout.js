@@ -139,15 +139,15 @@ export function useTimelineLayout(tasks, resources, options = {}) {
       byResource.get(key).push({ task, ...pos })
     }
 
-    const buildRow = (id, label, unassigned = false) => {
+    const buildRow = (id, label, unassigned = false, photoUrl = null) => {
       const { events, laneCount } = assignLanes(byResource.get(id) ?? [])
-      return { id, label, unassigned, events, laneCount }
+      return { id, label, unassigned, photoUrl, events, laneCount }
     }
 
     const list = []
-    const unassignedRow = buildRow(UNASSIGNED_ID, 'Non assigné', true)
+    const unassignedRow = buildRow(UNASSIGNED_ID, 'Non assigné', true, null)
     if (unassignedRow.events.length) list.push(unassignedRow)
-    for (const r of resources.value) list.push(buildRow(r.id, r.label))
+    for (const r of resources.value) list.push(buildRow(r.id, r.label, false, r.photoUrl || null))
     return list
   })
 

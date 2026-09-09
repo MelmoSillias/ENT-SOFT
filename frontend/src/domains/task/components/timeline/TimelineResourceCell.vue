@@ -1,29 +1,23 @@
 <script setup>
 import { computed } from 'vue'
-import Avatar from 'primevue/avatar'
+import AppPersonAvatar from '@/domains/shared/components/AppPersonAvatar.vue'
 
 const props = defineProps({
   label: { type: String, required: true },
+  photoUrl: { type: String, default: null },
   unassigned: { type: Boolean, default: false },
   count: { type: Number, default: 0 },
   compact: { type: Boolean, default: false },
 })
 
-const initials = computed(() =>
-  props.label
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join(''),
-)
+const displayName = computed(() => (props.unassigned ? '?' : props.label))
 </script>
 
 <template>
   <div class="tl-resource tl-sticky-left" :class="{ 'tl-resource--unassigned': unassigned }" :title="label">
-    <Avatar
-      :label="unassigned ? '?' : initials"
-      shape="circle"
+    <AppPersonAvatar
+      :name="displayName"
+      :photo-url="unassigned ? null : photoUrl"
       size="small"
       class="tl-resource__avatar"
     />

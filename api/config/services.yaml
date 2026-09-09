@@ -69,6 +69,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    App\SharedKernel\Application\Service\AvatarUploadService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     App\Client\Domain\Repository\ClientRepositoryInterface:
         alias: App\Client\Infrastructure\Persistence\Doctrine\DoctrineClientRepository
 

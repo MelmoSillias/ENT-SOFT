@@ -22,6 +22,10 @@ import { listEmployees, createEmployee, updateEmployee, deleteEmployee } from '@
 import { listRoles } from '@/domains/access/services/roleService'
 import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
+import AppPersonNameCell from '@/domains/shared/components/AppPersonNameCell.vue'
+import AppPhotoUploadField from '@/domains/shared/components/AppPhotoUploadField.vue'
+import { deleteEmployeePhoto, uploadEmployeePhoto } from '@/domains/shared/services/photoUploadService'
+import { personDisplayName } from '@/domains/shared/utils/personDisplay'
 import { hasRequiredText, requiredMessage, hasValidPhone, sanitizePhoneInput } from '@/domains/shared/utils/formValidation'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
@@ -72,6 +76,9 @@ const loading = ref(true)
 const error = ref(null)
 const reloading = ref(false)
 const dialog = ref(false)
+const photoDialog = ref(false)
+const photoTarget = ref(null)
+const photoError = ref(null)
 const editingId = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
@@ -180,10 +187,47 @@ function buildMenuItems(item) {
   const menu = [
     { label: 'Voir le détail', icon: 'pi pi-eye', command: () => router.push({ name: 'employee-detail', params: { id: item.id } }) },
   ]
-  if (hasPermission('employee.employees.update')) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
+  if (hasPermission('employee.employees.update')) {
+    menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
+    menu.push({ label: 'Changer la photo', icon: 'pi pi-camera', command: () => openPhotoDialog(item) })
+  }
   if (hasPermission('employee.employees.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', command: () => askDelete(item) })
   return menu
 }
+
+function openPhotoDialog(item) {
+  photoTarget.value = { ...item }
+  photoError.value = null
+  photoDialog.value = true
+}
+
+const { pending: uploadingPhoto, run: runUploadPhoto } = useAsyncAction(async (file) => {
+  if (!photoTarget.value?.id) return
+  photoError.value = null
+  try {
+    const updated = await uploadEmployeePhoto(photoTarget.value.id, file)
+    photoTarget.value = updated
+    const idx = items.value.findIndex((e) => e.id === updated.id)
+    if (idx >= 0) items.value[idx] = updated
+    toast.add({ severity: 'success', summary: 'Photo', detail: 'Photo mise à jour.' })
+  } catch (e) {
+    photoError.value = e.response?.data?.error || 'Impossible d\'envoyer la photo.'
+  }
+})
+
+const { pending: removingPhoto, run: runRemovePhoto } = useAsyncAction(async () => {
+  if (!photoTarget.value?.id) return
+  photoError.value = null
+  try {
+    const updated = await deleteEmployeePhoto(photoTarget.value.id)
+    photoTarget.value = updated
+    const idx = items.value.findIndex((e) => e.id === updated.id)
+    if (idx >= 0) items.value[idx] = updated
+    toast.add({ severity: 'success', summary: 'Photo', detail: 'Photo supprimée.' })
+  } catch (e) {
+    photoError.value = e.response?.data?.error || 'Impossible de supprimer la photo.'
+  }
+})
 
 function toggleMenu(event, item) {
   menuModel.value = buildMenuItems(item)
@@ -282,10 +326,11 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :items="filteredItems"
           :rows="tableRows"
           :show-index="showIndex"
-          :title-of="(item) => item.name || `${item.prenom} ${item.nom}`"
+          :title-of="(item) => personDisplayName(item)"
           :subtitle-of="(item) => item.mention || item.email || null"
           :meta-of="(item) => roleLabel(item.roleCode || item.function)"
           :status-of="(item) => ({ value: item.isEnabled ? 'Actif' : 'Inactif', severity: item.isEnabled ? 'success' : 'secondary' })"
+          :avatar-of="(item) => ({ name: personDisplayName(item), photoUrl: item.photoUrl })"
           :actions-of="buildMenuItems"
           :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
           @select="(item) => router.push({ name: 'employee-detail', params: { id: item.id } })"
@@ -305,10 +350,11 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           </Column>
           <Column v-if="isColVisible('name')" header="Nom" sortable field="nom">
             <template #body="{ data }">
-              <div class="employee-name-cell">
-                <span>{{ data.name || `${data.prenom} ${data.nom}` }}</span>
-                <small v-if="data.mention" class="employee-name-cell__mention">{{ data.mention }}</small>
-              </div>
+              <AppPersonNameCell
+                :name="personDisplayName(data)"
+                :photo-url="data.photoUrl"
+                :subtitle="data.mention || null"
+              />
             </template>
           </Column>
           <Column v-if="isColVisible('email')" field="email" header="Email" sortable />
@@ -346,17 +392,25 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       <Button :label="editingId ? 'Enregistrer' : 'Créer'" icon="pi pi-check" :loading="saving" @click="saveItem" />
     </template>
   </Dialog>
-</template>
 
-<style scoped>
-.employee-name-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  line-height: 1.25;
-}
-.employee-name-cell__mention {
-  color: var(--p-text-muted-color, var(--layout-text-muted));
-  font-size: 0.75rem;
-}
-</style>
+  <Dialog
+    v-model:visible="photoDialog"
+    header="Changer la photo"
+    modal
+    style="width: min(420px, 95vw)"
+  >
+    <AppPhotoUploadField
+      v-if="photoTarget"
+      :model-value="photoTarget.photoUrl"
+      :person-name="personDisplayName(photoTarget)"
+      :uploading="uploadingPhoto"
+      :removing="removingPhoto"
+      :error="photoError"
+      @upload="runUploadPhoto"
+      @remove="runRemovePhoto"
+    />
+    <template #footer>
+      <Button label="Fermer" severity="secondary" text @click="photoDialog = false" />
+    </template>
+  </Dialog>
+</template>

@@ -23,6 +23,8 @@ final class GetMeHandler
             'telephone' => $user->getTelephone(),
             'role' => $user->getRoleCode(),
             'isActive' => $user->isActive(),
+            'avatar' => $user->getPhotoUrl(),
+            'photoUrl' => $user->getPhotoUrl(),
             'permissions' => $this->permissionResolver->resolvePermissions($user),
         ];
     }

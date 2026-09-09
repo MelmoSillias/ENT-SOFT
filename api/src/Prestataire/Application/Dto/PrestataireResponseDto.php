@@ -17,6 +17,7 @@ final readonly class PrestataireResponseDto
         public bool $isEnabled,
         public int $openPrestationsCount,
         public float $unpaidCompletedReliquat,
+        public ?string $photoUrl,
         public string $createdAt,
         public string $updatedAt,
     ) {
@@ -38,6 +39,7 @@ final readonly class PrestataireResponseDto
             isEnabled: $prestataire->isEnabled(),
             openPrestationsCount: $openPrestationsCount,
             unpaidCompletedReliquat: $unpaidCompletedReliquat,
+            photoUrl: $prestataire->getPhotoUrl(),
             createdAt: $prestataire->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $prestataire->getUpdatedAt()->format(\DateTimeInterface::ATOM),
         );
@@ -57,6 +59,7 @@ final readonly class PrestataireResponseDto
             'isEnabled' => $this->isEnabled,
             'openPrestationsCount' => $this->openPrestationsCount,
             'unpaidCompletedReliquat' => $this->unpaidCompletedReliquat,
+            'photoUrl' => $this->photoUrl,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,
         ];

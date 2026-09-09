@@ -33,6 +33,7 @@ import { listEmployees } from '@/domains/employee/services/employeeService'
 import { taskStatusLabel, taskStatusSeverity, formatDateFr, TASK_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
 import { toApiDate, parseApiDate, toApiDateTime, parseApiDateTime, periodToApiParams } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
+import AppPersonNameCell from '@/domains/shared/components/AppPersonNameCell.vue'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
@@ -50,6 +51,7 @@ const siteOptions = ref([])
 const employeeOptions = ref([])
 const siteMap = ref({})
 const employeeMap = ref({})
+const employeePhotoMap = ref({})
 const searchTerm = ref('')
 const filterSiteId = ref(null)
 const filterEmployeeId = ref(null)
@@ -125,9 +127,10 @@ const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFiel
 async function loadRefs() {
   const [sites, employees] = await Promise.all([listSites(), listEmployees()])
   siteOptions.value = sites.map((s) => ({ label: `${s.code} — ${s.title}`, value: s.id }))
-  employeeOptions.value = employees.map((e) => ({ label: e.name, value: e.id }))
+  employeeOptions.value = employees.map((e) => ({ label: e.name, value: e.id, photoUrl: e.photoUrl || null }))
   siteMap.value = Object.fromEntries(sites.map((s) => [s.id, s.title]))
   employeeMap.value = Object.fromEntries(employees.map((e) => [e.id, e.name]))
+  employeePhotoMap.value = Object.fromEntries(employees.map((e) => [e.id, e.photoUrl || null]))
 }
 
 async function fetchItems() {
@@ -226,7 +229,9 @@ const calendarOptions = computed(() => ({
   },
 }))
 
-const timelineResources = computed(() => employeeOptions.value.map((e) => ({ id: e.value, label: e.label })))
+const timelineResources = computed(() =>
+  employeeOptions.value.map((e) => ({ id: e.value, label: e.label, photoUrl: e.photoUrl || null })),
+)
 
 function onTimelineCreate({ resourceId, start }) {
   if (!canCreate.value) return
@@ -431,6 +436,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               :subtitle-of="(item) => siteMap[item.siteId] || null"
               :meta-of="(item) => [employeeMap[item.employeeId], formatDateFr(item.dateDue)].filter(Boolean).join(' · ') || null"
               :status-of="(item) => ({ value: taskStatusLabel(item.status), severity: taskStatusSeverity(item.status) })"
+              :avatar-of="(item) => item.employeeId && employeeMap[item.employeeId]
+                ? { name: employeeMap[item.employeeId], photoUrl: employeePhotoMap[item.employeeId] }
+                : null"
               :actions-of="buildMenuItems"
               :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
               @select="openEdit"
@@ -453,7 +461,14 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
                 <template #body="{ data }">{{ siteMap[data.siteId] || '—' }}</template>
               </Column>
               <Column v-if="isColVisible('employee')" header="Employé">
-                <template #body="{ data }">{{ employeeMap[data.employeeId] || '—' }}</template>
+                <template #body="{ data }">
+                  <AppPersonNameCell
+                    v-if="data.employeeId && employeeMap[data.employeeId]"
+                    :name="employeeMap[data.employeeId]"
+                    :photo-url="employeePhotoMap[data.employeeId]"
+                  />
+                  <span v-else>—</span>
+                </template>
               </Column>
               <Column v-if="isColVisible('dateDue')" field="dateDue" header="Échéance" sortable>
                 <template #body="{ data }">{{ formatDateFr(data.dateDue) }}</template>

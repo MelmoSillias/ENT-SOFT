@@ -28,6 +28,7 @@ function onTrackClick(event) {
   <div class="tl-row" role="row">
     <TimelineResourceCell
       :label="row.label"
+      :photo-url="row.photoUrl"
       :unassigned="row.unassigned"
       :count="row.events.length"
       :compact="compact"

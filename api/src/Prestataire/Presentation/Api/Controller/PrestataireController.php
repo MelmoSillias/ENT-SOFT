@@ -34,12 +34,16 @@ use App\Prestataire\Application\Query\ListPrestataires\ListPrestatairesHandler;
 use App\Prestataire\Application\Query\ListPrestataires\ListPrestatairesQuery;
 use App\Prestataire\Application\Query\ListPrestationsByPrestataire\ListPrestationsByPrestataireHandler;
 use App\Prestataire\Application\Query\ListPrestationsByPrestataire\ListPrestationsByPrestataireQuery;
+use App\Prestataire\Domain\Repository\PrestataireRepositoryInterface;
+use App\SharedKernel\Application\Service\AvatarUploadService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/prestataires')]
 final class PrestataireController extends AbstractController
@@ -205,6 +209,59 @@ final class PrestataireController extends AbstractController
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
+    }
+
+    #[Route('/{id}/photo', name: 'api_prestataires_photo_upload', methods: ['POST'], priority: 15)]
+    #[IsGranted('employee.prestataires.update')]
+    public function uploadPhoto(
+        string $id,
+        Request $request,
+        PrestataireRepositoryInterface $prestataireRepository,
+        AvatarUploadService $avatarUploadService,
+        GetPrestataireHandler $getPrestataireHandler,
+    ): JsonResponse {
+        $prestataire = $prestataireRepository->findById(Uuid::fromString($id));
+        if (null === $prestataire || !$prestataire->isEnabled()) {
+            return $this->json(['error' => 'Prestataire introuvable'], Response::HTTP_NOT_FOUND);
+        }
+
+        $file = $request->files->get('file');
+        if (!$file instanceof UploadedFile) {
+            return $this->json(['error' => 'Fichier image requis (champ file).'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $photoUrl = $avatarUploadService->upload(AvatarUploadService::TYPE_PRESTATAIRES, $prestataire->getId(), $file);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        } catch (\RuntimeException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $prestataire->setPhotoUrl($photoUrl);
+        $prestataireRepository->save($prestataire);
+
+        return $this->json($getPrestataireHandler->handle(new GetPrestataireQuery($id))->toArray());
+    }
+
+    #[Route('/{id}/photo', name: 'api_prestataires_photo_delete', methods: ['DELETE'], priority: 15)]
+    #[IsGranted('employee.prestataires.update')]
+    public function deletePhoto(
+        string $id,
+        PrestataireRepositoryInterface $prestataireRepository,
+        AvatarUploadService $avatarUploadService,
+        GetPrestataireHandler $getPrestataireHandler,
+    ): JsonResponse {
+        $prestataire = $prestataireRepository->findById(Uuid::fromString($id));
+        if (null === $prestataire || !$prestataire->isEnabled()) {
+            return $this->json(['error' => 'Prestataire introuvable'], Response::HTTP_NOT_FOUND);
+        }
+
+        $avatarUploadService->clear(AvatarUploadService::TYPE_PRESTATAIRES, $prestataire->getId());
+        $prestataire->setPhotoUrl(null);
+        $prestataireRepository->save($prestataire);
+
+        return $this->json($getPrestataireHandler->handle(new GetPrestataireQuery($id))->toArray());
     }
 
     #[Route('/{id}', name: 'api_prestataires_get', methods: ['GET'])]

@@ -12,12 +12,16 @@ use App\IdentityAccess\Application\Query\GetUser\GetUserHandler;
 use App\IdentityAccess\Application\Query\GetUser\GetUserQuery;
 use App\IdentityAccess\Application\Query\ListUsers\ListUsersHandler;
 use App\IdentityAccess\Application\Query\ListUsers\ListUsersQuery;
+use App\IdentityAccess\Domain\Repository\UtilisateurRepositoryInterface;
+use App\SharedKernel\Application\Service\AvatarUploadService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/users')]
 final class UserController extends AbstractController
@@ -48,6 +52,59 @@ final class UserController extends AbstractController
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
+    }
+
+    #[Route('/{id}/photo', name: 'api_users_photo_upload', methods: ['POST'], priority: 10)]
+    #[IsGranted('ROLE_ADMIN')]
+    public function uploadPhoto(
+        string $id,
+        Request $request,
+        UtilisateurRepositoryInterface $utilisateurRepository,
+        AvatarUploadService $avatarUploadService,
+        GetUserHandler $getUserHandler,
+    ): JsonResponse {
+        $utilisateur = $utilisateurRepository->findById(Uuid::fromString($id));
+        if (null === $utilisateur || !$utilisateur->isEnabled()) {
+            return $this->json(['error' => 'Utilisateur introuvable'], Response::HTTP_NOT_FOUND);
+        }
+
+        $file = $request->files->get('file');
+        if (!$file instanceof UploadedFile) {
+            return $this->json(['error' => 'Fichier image requis (champ file).'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $photoUrl = $avatarUploadService->upload(AvatarUploadService::TYPE_UTILISATEURS, $utilisateur->getId(), $file);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        } catch (\RuntimeException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $utilisateur->setPhotoUrl($photoUrl);
+        $utilisateurRepository->save($utilisateur);
+
+        return $this->json($getUserHandler->handle(new GetUserQuery($id))->toArray());
+    }
+
+    #[Route('/{id}/photo', name: 'api_users_photo_delete', methods: ['DELETE'], priority: 10)]
+    #[IsGranted('ROLE_ADMIN')]
+    public function deletePhoto(
+        string $id,
+        UtilisateurRepositoryInterface $utilisateurRepository,
+        AvatarUploadService $avatarUploadService,
+        GetUserHandler $getUserHandler,
+    ): JsonResponse {
+        $utilisateur = $utilisateurRepository->findById(Uuid::fromString($id));
+        if (null === $utilisateur || !$utilisateur->isEnabled()) {
+            return $this->json(['error' => 'Utilisateur introuvable'], Response::HTTP_NOT_FOUND);
+        }
+
+        $avatarUploadService->clear(AvatarUploadService::TYPE_UTILISATEURS, $utilisateur->getId());
+        $utilisateur->setPhotoUrl(null);
+        $utilisateurRepository->save($utilisateur);
+
+        return $this->json($getUserHandler->handle(new GetUserQuery($id))->toArray());
     }
 
     #[Route('/{id}', name: 'api_users_get', methods: ['GET'])]

@@ -1,7 +1,6 @@
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import Avatar from 'primevue/avatar'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Message from 'primevue/message'
@@ -9,11 +8,16 @@ import Password from 'primevue/password'
 import Tag from 'primevue/tag'
 
 import { useAuthStore } from '@/domains/auth/stores/auth'
+import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
+import AppPersonAvatar from '@/domains/shared/components/AppPersonAvatar.vue'
+import AppPhotoUploadField from '@/domains/shared/components/AppPhotoUploadField.vue'
+import { deleteMyPhoto, uploadMyPhoto } from '@/domains/shared/services/photoUploadService'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { getChangePasswordFormErrors } from '@/domains/shared/utils/formValidation'
+import { personDisplayName } from '@/domains/shared/utils/personDisplay'
 
 const auth = useAuthStore()
 const { user } = storeToRefs(auth)
@@ -32,27 +36,14 @@ const passwordForm = reactive({
 })
 
 const generalError = reactive({ message: '' })
+const photoError = ref(null)
 
 const { errors: fieldErrors, validate, resetErrors } = useFormFieldErrors(() =>
   getChangePasswordFormErrors(passwordForm),
 )
 
-const displayName = computed(() => {
-  const prenom = user.value?.prenom?.trim() ?? ''
-  const nom = user.value?.nom?.trim() ?? ''
-  const full = `${prenom} ${nom}`.trim()
-  return full || user.value?.login || 'Utilisateur'
-})
-
-const userInitials = computed(() =>
-  displayName.value
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join(''),
-)
-
+const displayName = computed(() => personDisplayName(user.value, 'Utilisateur'))
+const photoUrl = computed(() => user.value?.avatar || user.value?.photoUrl || null)
 const roleLabel = computed(() => ROLE_LABELS[user.value?.role] || user.value?.role || '—')
 
 const roleSeverity = computed(() => {
@@ -65,6 +56,14 @@ const roleSeverity = computed(() => {
       return 'info'
   }
 })
+
+const infoItems = computed(() => [
+  { key: 'prenom', label: 'Prénom', icon: 'pi pi-user', value: user.value?.prenom },
+  { key: 'nom', label: 'Nom', icon: 'pi pi-id-card', value: user.value?.nom },
+  { key: 'telephone', label: 'Téléphone', icon: 'pi pi-phone', value: user.value?.telephone },
+  { key: 'login', label: 'Identifiant', icon: 'pi pi-at', value: user.value?.login },
+  { key: 'role', label: 'Rôle', icon: 'pi pi-shield', value: roleLabel.value, full: true },
+])
 
 function resetPasswordForm() {
   passwordForm.currentPassword = ''
@@ -92,6 +91,28 @@ const { pending: saving, run: submitPasswordChange } = useAsyncAction(async () =
     generalError.message = e.response?.data?.error || 'Impossible de changer le mot de passe.'
   }
 })
+
+const { pending: uploadingPhoto, run: runUploadPhoto } = useAsyncAction(async (file) => {
+  photoError.value = null
+  try {
+    const data = await uploadMyPhoto(file)
+    auth.applyMe(data)
+    toast.add({ severity: 'success', summary: 'Photo', detail: 'Photo de profil mise à jour.' })
+  } catch (e) {
+    photoError.value = e.response?.data?.error || 'Impossible d\'envoyer la photo.'
+  }
+})
+
+const { pending: removingPhoto, run: runRemovePhoto } = useAsyncAction(async () => {
+  photoError.value = null
+  try {
+    const data = await deleteMyPhoto()
+    auth.applyMe(data)
+    toast.add({ severity: 'success', summary: 'Photo', detail: 'Photo de profil supprimée.' })
+  } catch (e) {
+    photoError.value = e.response?.data?.error || 'Impossible de supprimer la photo.'
+  }
+})
 </script>
 
 <template>
@@ -101,10 +122,10 @@ const { pending: saving, run: submitPasswordChange } = useAsyncAction(async () =
         <template #title>Mon profil</template>
         <template #content>
           <div class="profile-page__hero">
-            <Avatar
-              :label="userInitials"
-              shape="circle"
-              size="large"
+            <AppPersonAvatar
+              :name="displayName"
+              :photo-url="photoUrl"
+              size="xlarge"
               class="profile-page__avatar"
             />
             <div class="profile-page__hero-copy">
@@ -120,28 +141,18 @@ const { pending: saving, run: submitPasswordChange } = useAsyncAction(async () =
             </div>
           </div>
 
-          <dl class="profile-page__details">
-            <div class="profile-page__detail">
-              <dt>Prénom</dt>
-              <dd>{{ user?.prenom || '—' }}</dd>
-            </div>
-            <div class="profile-page__detail">
-              <dt>Nom</dt>
-              <dd>{{ user?.nom || '—' }}</dd>
-            </div>
-            <div class="profile-page__detail">
-              <dt>Téléphone</dt>
-              <dd>{{ user?.telephone || '—' }}</dd>
-            </div>
-            <div class="profile-page__detail">
-              <dt>Identifiant</dt>
-              <dd>{{ user?.login || '—' }}</dd>
-            </div>
-            <div class="profile-page__detail">
-              <dt>Rôle</dt>
-              <dd>{{ roleLabel }}</dd>
-            </div>
-          </dl>
+          <AppPhotoUploadField
+            :model-value="photoUrl"
+            :person-name="displayName"
+            label="Photo de profil"
+            :uploading="uploadingPhoto"
+            :removing="removingPhoto"
+            :error="photoError"
+            @upload="runUploadPhoto"
+            @remove="runRemovePhoto"
+          />
+
+          <AppDetailInfoList :items="infoItems" class="profile-page__details" />
         </template>
       </Card>
 
@@ -239,14 +250,11 @@ const { pending: saving, run: submitPasswordChange } = useAsyncAction(async () =
   display: flex;
   gap: 1rem;
   align-items: center;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.15rem;
 }
 
 .profile-page__avatar {
   flex-shrink: 0;
-  background: color-mix(in srgb, var(--p-primary-color, #0ea5e9) 18%, transparent);
-  color: var(--p-primary-color, #0284c7);
-  font-weight: 700;
 }
 
 .profile-page__name {
@@ -269,31 +277,7 @@ const { pending: saving, run: submitPasswordChange } = useAsyncAction(async () =
 }
 
 .profile-page__details {
-  display: grid;
-  gap: 0.75rem;
-  margin: 0;
-}
-
-.profile-page__detail {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.7rem 0.85rem;
-  border-radius: 0.65rem;
-  background: color-mix(in srgb, var(--layout-surface-muted, #f8fafc) 88%, transparent);
-}
-
-.profile-page__detail dt {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--layout-text-muted, #64748b);
-}
-
-.profile-page__detail dd {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
+  margin-top: 1.15rem;
 }
 
 .profile-page__password-form {
