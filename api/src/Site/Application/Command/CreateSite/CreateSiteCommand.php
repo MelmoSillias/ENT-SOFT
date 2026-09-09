@@ -9,6 +9,8 @@ final readonly class CreateSiteCommand
         public string $title,
         public ?string $description = null,
         public ?string $clientId = null,
+        public ?float $latitude = null,
+        public ?float $longitude = null,
     ) {
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Site\Application\Command\UpdateSite;
 
+use App\Geo\Domain\ValueObject\GeoPoint;
 use App\Site\Application\Dto\SiteResponseDto;
 use App\Site\Domain\Exception\SiteNotFoundException;
 use App\Site\Domain\Repository\SiteRepositoryInterface;
@@ -32,6 +33,10 @@ final class UpdateSiteHandler
             $site->setClientId($command->clientId !== null && $command->clientId !== ''
                 ? Uuid::fromString($command->clientId)
                 : null);
+        }
+        if ($command->hasLocation) {
+            $point = GeoPoint::tryFrom($command->latitude, $command->longitude);
+            $site->setLocation($point?->latitude, $point?->longitude);
         }
 
         $this->siteRepository->save($site);

@@ -9,8 +9,11 @@ final readonly class UpdateSiteCommand
         public ?string $title = null,
         public ?string $description = null,
         public ?string $clientId = null,
+        public ?float $latitude = null,
+        public ?float $longitude = null,
         public bool $hasDescription = false,
         public bool $hasClientId = false,
+        public bool $hasLocation = false,
     ) {
     }
 }

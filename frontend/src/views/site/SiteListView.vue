@@ -6,16 +6,19 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
+import SelectButton from 'primevue/selectbutton'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
 import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { sortByField } from '@/domains/shared/utils/sortByField'
 import SiteFormFields from '@/domains/site/components/SiteFormFields.vue'
+import SiteMapPanel from '@/domains/site/components/SiteMapPanel.vue'
 import { listSites, createSite, updateSite, deleteSite } from '@/domains/site/services/siteService'
 import { listClients } from '@/domains/client/services/clientService'
 import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
@@ -36,6 +39,7 @@ const SITE_COLUMNS = [
   { key: 'code', label: 'Code', defaultVisible: true },
   { key: 'title', label: 'Titre', defaultVisible: true },
   { key: 'client', label: 'Client', defaultVisible: true, sortable: false },
+  { key: 'location', label: 'Position', defaultVisible: true, sortable: false },
 ]
 
 const {
@@ -66,19 +70,51 @@ const actionItem = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
 const rowContextMenu = ref()
+const viewMode = ref('list')
+
+const viewModeOptions = [
+  { label: 'Liste', value: 'list', icon: 'pi pi-list' },
+  { label: 'Carte', value: 'map', icon: 'pi pi-map' },
+]
+
+const mobileViewTabs = [
+  { value: 'list', label: 'Liste', shortLabel: 'Liste' },
+  { value: 'map', label: 'Carte', shortLabel: 'Carte' },
+]
 
 const canCreate = computed(() => hasPermission('site.sites.create'))
 
 function emptyForm() {
-  return { code: '', title: '', description: '', clientId: null }
+  return { code: '', title: '', description: '', clientId: null, latitude: null, longitude: null }
 }
 
 const form = ref(emptyForm())
+
+function validateLocationPair() {
+  const lat = form.value.latitude
+  const lng = form.value.longitude
+  const hasLat = lat !== null && lat !== undefined && lat !== ''
+  const hasLng = lng !== null && lng !== undefined && lng !== ''
+  if (!hasLat && !hasLng) return {}
+  if (hasLat !== hasLng) {
+    return { location: 'Latitude et longitude doivent être renseignées ensemble.' }
+  }
+  const latN = Number(lat)
+  const lngN = Number(lng)
+  if (!Number.isFinite(latN) || latN < -90 || latN > 90) {
+    return { latitude: 'Latitude invalide (−90 à 90).' }
+  }
+  if (!Number.isFinite(lngN) || lngN < -180 || lngN > 180) {
+    return { longitude: 'Longitude invalide (−180 à 180).' }
+  }
+  return {}
+}
 
 const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFieldErrors(() => {
   const errs = {}
   if (!editingId.value && !hasRequiredText(form.value.code)) errs.code = requiredMessage('Code')
   if (!hasRequiredText(form.value.title)) errs.title = requiredMessage('Titre')
+  Object.assign(errs, validateLocationPair())
   return errs
 })
 
@@ -144,9 +180,21 @@ function openCreate() {
 
 function openEdit(item) {
   editingId.value = item.id
-  form.value = { code: item.code, title: item.title ?? '', description: item.description ?? '', clientId: item.clientId }
+  form.value = {
+    code: item.code,
+    title: item.title ?? '',
+    description: item.description ?? '',
+    clientId: item.clientId,
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
+  }
   resetErrors()
   dialog.value = true
+}
+
+function locationLabel(item) {
+  if (!Number.isFinite(item.latitude) || !Number.isFinite(item.longitude)) return '—'
+  return `${Number(item.latitude).toFixed(5)}, ${Number(item.longitude).toFixed(5)}`
 }
 
 function buildMenuItems(item) {
@@ -193,6 +241,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     title: form.value.title.trim(),
     description: form.value.description || null,
     clientId: form.value.clientId || null,
+    latitude: form.value.latitude ?? null,
+    longitude: form.value.longitude ?? null,
   }
   if (!editingId.value) {
     payload.code = form.value.code.trim()
@@ -228,6 +278,19 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           @reload="reload"
         >
           <template #actions>
+            <SelectButton
+              v-if="!isAppMobile"
+              v-model="viewMode"
+              :options="viewModeOptions"
+              option-label="label"
+              option-value="value"
+              :allow-empty="false"
+            >
+              <template #option="{ option }">
+                <i :class="option.icon" />
+                <span class="site-view-label">{{ option.label }}</span>
+              </template>
+            </SelectButton>
             <AppTableSettingsPopover
               v-model:visible-col-keys="visibleColKeys"
               v-model:rows="tableRows"
@@ -248,45 +311,63 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         </AppTablePanelHeader>
       </template>
       <template #content>
-        <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
-          <AppEntityDataView
-            v-if="isAppMobile"
-            :items="filteredItems"
-            :rows="tableRows"
-            :show-index="showIndex"
-            :title-of="(item) => item.title"
-            :code-of="(item) => item.code"
-            :subtitle-of="(item) => clientMap[item.clientId] || item.description || null"
-            :actions-of="buildMenuItems"
-            :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
-            @select="openEdit"
+        <AppMobileSegmentTabs
+          v-if="isAppMobile"
+          v-model="viewMode"
+          :items="mobileViewTabs"
+        />
+
+        <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0 && viewMode === 'list'" @retry="load">
+          <SiteMapPanel
+            v-if="viewMode === 'map' && !loading && !error"
+            :sites="filteredItems"
+            :client-map="clientMap"
+            @edit="openEdit"
           />
-          <DataTable
-            v-else
-            :value="filteredItems"
-            paginator
-            :rows="tableRows"
-            striped-rows
-            :sort-field="sortField || undefined"
-            :sort-order="sortOrder"
-            @row-contextmenu="onRowContextMenu"
-          >
-            <Column v-if="showIndex" header="#" style="width: 3.5rem">
-              <template #body="{ index }">{{ index + 1 }}</template>
-            </Column>
-            <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
-            <Column v-if="isColVisible('title')" field="title" header="Titre" sortable />
-            <Column v-if="isColVisible('client')" header="Client">
-              <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
-            </Column>
-            <Column header="Actions" style="width: 5rem">
-              <template #body="{ data }">
-                <Button v-if="buildMenuItems(data).length" icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
-              </template>
-            </Column>
-          </DataTable>
-          <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
-          <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
+
+          <template v-else-if="viewMode === 'list'">
+            <AppEntityDataView
+              v-if="isAppMobile"
+              :items="filteredItems"
+              :rows="tableRows"
+              :show-index="showIndex"
+              :title-of="(item) => item.title"
+              :code-of="(item) => item.code"
+              :subtitle-of="(item) => clientMap[item.clientId] || item.description || null"
+              :actions-of="buildMenuItems"
+              :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
+              @select="openEdit"
+            />
+            <DataTable
+              v-else
+              :value="filteredItems"
+              paginator
+              :rows="tableRows"
+              striped-rows
+              :sort-field="sortField || undefined"
+              :sort-order="sortOrder"
+              @row-contextmenu="onRowContextMenu"
+            >
+              <Column v-if="showIndex" header="#" style="width: 3.5rem">
+                <template #body="{ index }">{{ index + 1 }}</template>
+              </Column>
+              <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
+              <Column v-if="isColVisible('title')" field="title" header="Titre" sortable />
+              <Column v-if="isColVisible('client')" header="Client">
+                <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
+              </Column>
+              <Column v-if="isColVisible('location')" header="Position">
+                <template #body="{ data }">{{ locationLabel(data) }}</template>
+              </Column>
+              <Column header="Actions" style="width: 5rem">
+                <template #body="{ data }">
+                  <Button v-if="buildMenuItems(data).length" icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
+                </template>
+              </Column>
+            </DataTable>
+            <Menu v-if="!isAppMobile" ref="actionMenu" :model="menuModel" popup />
+            <AppRowContextMenu ref="rowContextMenu" :actions-of="buildMenuItems" />
+          </template>
         </AppTableState>
       </template>
     </Card>
@@ -297,7 +378,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       @click="openCreate"
     />
 
-    <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(640px, 95vw)">
+    <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(720px, 95vw)">
       <SiteFormFields
         v-model="form"
         :errors="fieldErrors"
@@ -312,3 +393,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     </Dialog>
   </section>
 </template>
+
+<style scoped>
+.site-view-label {
+  margin-left: 0.35rem;
+}
+</style>

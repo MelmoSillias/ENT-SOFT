@@ -1,6 +1,8 @@
 # yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
 
 parameters:
+    env(ORS_API_KEY): ''
+    env(ORS_API_URL): 'https://api.openrouteservice.org'
 
 services:
     _defaults:
@@ -78,6 +80,12 @@ services:
 
     App\Site\Domain\Repository\SiteRepositoryInterface:
         alias: App\Site\Infrastructure\Persistence\Doctrine\DoctrineSiteRepository
+
+    App\Geo\Application\Port\GeocodingClientInterface:
+        alias: App\Geo\Infrastructure\Http\OpenRouteServiceClient
+
+    App\Geo\Application\Port\RoutingClientInterface:
+        alias: App\Geo\Infrastructure\Http\OpenRouteServiceClient
 
     App\Project\Domain\Repository\ProjectRepositoryInterface:
         alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectRepository

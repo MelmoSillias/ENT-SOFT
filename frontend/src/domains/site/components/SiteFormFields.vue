@@ -3,6 +3,9 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
+import AppMapMarkerPicker from '@/domains/shared/maps/components/AppMapMarkerPicker.vue'
+import { usePermissions } from '@/domains/auth/composables/usePermissions'
+import { computed } from 'vue'
 
 const form = defineModel({ type: Object, required: true })
 
@@ -14,6 +17,9 @@ defineProps({
   /** When true (create mode), code is editable and required. */
   requireCode: { type: Boolean, default: false },
 })
+
+const { hasPermission } = usePermissions()
+const canGeocode = computed(() => hasPermission('geo.use'))
 </script>
 
 <template>
@@ -51,6 +57,15 @@ defineProps({
         filter
         fluid
       />
+    </div>
+    <div class="field ent-form-grid__full">
+      <label>Position</label>
+      <AppMapMarkerPicker
+        v-model:latitude="form.latitude"
+        v-model:longitude="form.longitude"
+        :enable-geocode="canGeocode"
+      />
+      <AppFieldError :message="errors.latitude || errors.longitude || errors.location" />
     </div>
   </div>
 </template>

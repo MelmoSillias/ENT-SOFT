@@ -2,6 +2,7 @@
 
 namespace App\Site\Application\Command\CreateSite;
 
+use App\Geo\Domain\ValueObject\GeoPoint;
 use App\Site\Application\Dto\SiteResponseDto;
 use App\Site\Domain\Entity\Site;
 use App\Site\Domain\Repository\SiteRepositoryInterface;
@@ -19,6 +20,7 @@ final class CreateSiteHandler
     {
         $title = FieldValidator::requireNonEmpty($command->title, 'Titre');
         $code = FieldValidator::requireNonEmpty($command->code, 'Code');
+        $point = GeoPoint::tryFrom($command->latitude, $command->longitude);
 
         $existing = $this->siteRepository->findByCode($code);
         if (null !== $existing) {
@@ -34,6 +36,8 @@ final class CreateSiteHandler
             $title,
             $command->description,
             $command->clientId !== null ? Uuid::fromString($command->clientId) : null,
+            $point?->latitude,
+            $point?->longitude,
         );
         $this->siteRepository->save($site);
 

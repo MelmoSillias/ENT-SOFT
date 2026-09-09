@@ -43,6 +43,8 @@ final class SiteController extends AbstractController
             title: $data['title'] ?? '',
             description: $data['description'] ?? null,
             clientId: $data['clientId'] ?? null,
+            latitude: array_key_exists('latitude', $data) ? self::nullableFloat($data['latitude']) : null,
+            longitude: array_key_exists('longitude', $data) ? self::nullableFloat($data['longitude']) : null,
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -60,13 +62,17 @@ final class SiteController extends AbstractController
     public function update(string $id, Request $request, UpdateSiteHandler $handler): JsonResponse
     {
         $data = $request->toArray();
+        $hasLocation = array_key_exists('latitude', $data) || array_key_exists('longitude', $data);
         $result = $handler->handle(new UpdateSiteCommand(
             id: $id,
             title: $data['title'] ?? null,
             description: array_key_exists('description', $data) ? $data['description'] : null,
             clientId: array_key_exists('clientId', $data) ? $data['clientId'] : null,
+            latitude: array_key_exists('latitude', $data) ? self::nullableFloat($data['latitude']) : null,
+            longitude: array_key_exists('longitude', $data) ? self::nullableFloat($data['longitude']) : null,
             hasDescription: array_key_exists('description', $data),
             hasClientId: array_key_exists('clientId', $data),
+            hasLocation: $hasLocation,
         ));
 
         return $this->json($result->toArray());
@@ -77,5 +83,14 @@ final class SiteController extends AbstractController
     public function delete(string $id, DeleteSiteHandler $handler): JsonResponse
     {
         return $this->json($handler->handle(new DeleteSiteCommand($id))->toArray());
+    }
+
+    private static function nullableFloat(mixed $value): ?float
+    {
+        if (null === $value || '' === $value) {
+            return null;
+        }
+
+        return (float) $value;
     }
 }
