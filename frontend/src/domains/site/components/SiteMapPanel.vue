@@ -88,7 +88,13 @@ function invalidateMap() {
   nextTick(() => {
     requestAnimationFrame(() => {
       try {
-        mapRef.value?.getMap?.()?.invalidateSize?.()
+        const api = mapRef.value
+        if (!api || typeof api.getMap !== 'function') return
+
+        const leafletMap = api.getMap()
+        if (!leafletMap || typeof leafletMap.invalidateSize !== 'function') return
+
+        leafletMap.invalidateSize()
       } catch {
         /* ignore */
       }
@@ -96,17 +102,27 @@ function invalidateMap() {
   })
 }
 
-function fitToSites(map = mapRef.value?.getMap?.()) {
+function fitToSites(map) {
+  let leafletMap = map
+  if (!leafletMap) {
+    const api = mapRef.value
+    leafletMap = api && typeof api.getMap === 'function' ? api.getMap() : null
+  }
+
   const points = sitesWithCoords.value.map((s) => ({ lat: s.latitude, lng: s.longitude }))
   if (myPosition.value) points.push(myPosition.value)
   if (pickedPoint.value) points.push(pickedPoint.value)
   if (routeCoords.value.length) {
-    fitMapToPoints(map, routeCoords.value, { maxZoom: 15 })
+    fitMapToPoints(leafletMap, routeCoords.value, { maxZoom: 15 })
     return
   }
-  fitMapToPoints(map, points.length ? points : [{ lat: DEFAULT_MAP_CENTER[0], lng: DEFAULT_MAP_CENTER[1] }], {
+  fitMapToPoints(
+    leafletMap,
+    points.length ? points : [{ lat: DEFAULT_MAP_CENTER[0], lng: DEFAULT_MAP_CENTER[1] }],
+    {
     maxZoom: points.length ? 14 : DEFAULT_MAP_ZOOM,
-  })
+    },
+  )
 }
 
 watch(
