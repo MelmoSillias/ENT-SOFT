@@ -6,7 +6,10 @@ export async function geocodeSearch(q, limit = 5) {
 }
 
 export async function reverseGeocode(lat, lng) {
-  const { data } = await api.get('/geo/reverse', { params: { lat, lng } })
+  const { data } = await api.get('/geo/reverse', {
+    params: { lat, lng },
+    skipForbiddenToast: true,
+  })
   return data.item ?? null
 }
 

@@ -6,7 +6,7 @@ use App\IdentityAccess\Domain\Entity\Utilisateur;
 
 final class AccessTokenService
 {
-    private const TTL_SECONDS = 3600;
+    private const TTL_SECONDS = 900;
 
     public function __construct(
         private readonly string $appSecret,

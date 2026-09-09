@@ -89,6 +89,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  optimizeDeps: {
+    include: ['leaflet', 'leaflet/dist/leaflet-src.esm', '@vue-leaflet/vue-leaflet'],
+  },
   server: {
     port: 5151,
     proxy: {

@@ -16,7 +16,7 @@ const longitude = defineModel('longitude', { default: null })
 const props = defineProps({
   height: { type: String, default: '260px' },
   disabled: { type: Boolean, default: false },
-  /** Enable address search (requires geo.use + ORS). */
+  /** Enable address search (requires geo.use + ORS/Nominatim). */
   enableGeocode: { type: Boolean, default: true },
 })
 
@@ -28,6 +28,9 @@ const reverseBusy = ref(false)
 const geocodeBusy = ref(false)
 const { locating, error: geoError, locate } = useGeolocation()
 
+let reverseTimer = null
+let reverseSeq = 0
+
 const hasPoint = computed(
   () => Number.isFinite(latitude.value) && Number.isFinite(longitude.value),
 )
@@ -38,12 +41,14 @@ const mapCenter = computed(() =>
 
 const mapZoom = computed(() => (hasPoint.value ? 15 : DEFAULT_MAP_ZOOM))
 
+const mapCursor = computed(() => (props.disabled ? 'grab' : 'crosshair'))
+
 function setPoint(lat, lng, { reverse = true } = {}) {
   if (props.disabled) return
   latitude.value = Number(lat)
   longitude.value = Number(lng)
   if (reverse && props.enableGeocode) {
-    void refreshReverse()
+    scheduleReverse()
   }
 }
 
@@ -57,12 +62,12 @@ function onMarkerDrag({ lat, lng }) {
 
 function onLatInput(value) {
   latitude.value = value
-  if (hasPoint.value && props.enableGeocode) void refreshReverse()
+  if (hasPoint.value && props.enableGeocode) scheduleReverse()
 }
 
 function onLngInput(value) {
   longitude.value = value
-  if (hasPoint.value && props.enableGeocode) void refreshReverse()
+  if (hasPoint.value && props.enableGeocode) scheduleReverse()
 }
 
 function clearPoint() {
@@ -71,6 +76,10 @@ function clearPoint() {
   longitude.value = null
   addressLabel.value = ''
   geocodeQuery.value = null
+  if (reverseTimer) {
+    clearTimeout(reverseTimer)
+    reverseTimer = null
+  }
 }
 
 async function useMyLocation() {
@@ -81,16 +90,27 @@ async function useMyLocation() {
   fitMapToPoints(map, [point], { maxZoom: 16 })
 }
 
+function scheduleReverse() {
+  if (reverseTimer) clearTimeout(reverseTimer)
+  reverseTimer = setTimeout(() => {
+    reverseTimer = null
+    void refreshReverse()
+  }, 450)
+}
+
 async function refreshReverse() {
   if (!hasPoint.value || !props.enableGeocode) return
+  const seq = ++reverseSeq
   reverseBusy.value = true
   try {
     const item = await reverseGeocode(latitude.value, longitude.value)
+    if (seq !== reverseSeq) return
     addressLabel.value = item?.label || ''
   } catch {
+    if (seq !== reverseSeq) return
     addressLabel.value = ''
   } finally {
-    reverseBusy.value = false
+    if (seq === reverseSeq) reverseBusy.value = false
   }
 }
 
@@ -153,6 +173,7 @@ watch(
       :center="mapCenter"
       :zoom="mapZoom"
       :height="height"
+      :cursor="mapCursor"
       @click="onMapClick"
     >
       <AppMapMarker

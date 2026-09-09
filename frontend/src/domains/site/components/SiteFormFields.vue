@@ -1,11 +1,14 @@
 <script setup>
+import { computed, defineAsyncComponent } from 'vue'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
-import AppMapMarkerPicker from '@/domains/shared/maps/components/AppMapMarkerPicker.vue'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
-import { computed } from 'vue'
+
+const AppMapMarkerPicker = defineAsyncComponent(() =>
+  import('@/domains/shared/maps/components/AppMapMarkerPicker.vue'),
+)
 
 const form = defineModel({ type: Object, required: true })
 

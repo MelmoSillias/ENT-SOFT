@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Select from 'primevue/select'
 import AppMap from '@/domains/shared/maps/components/AppMap.vue'
@@ -14,8 +14,7 @@ import {
   formatDistance,
   formatDuration,
   googleMapsDirectionsUrl,
-  googleMapsUrl,
-  openStreetMapUrl,
+  openWithMapsUrl,
 } from '@/domains/shared/maps/mapDefaults'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
@@ -26,11 +25,14 @@ const props = defineProps({
   clientMap: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['edit'])
+const emit = defineEmits(['edit', 'create-at', 'assign-location'])
 
 const toast = useAppToast()
 const { hasPermission } = usePermissions()
 const canRoute = computed(() => hasPermission('geo.use'))
+const canCreate = computed(() => hasPermission('site.sites.create'))
+const canUpdate = computed(() => hasPermission('site.sites.update'))
+const canPlaceSite = computed(() => canCreate.value || canUpdate.value)
 
 const mapRef = ref(null)
 const selectedId = ref(null)
@@ -41,6 +43,10 @@ const routeDuration = ref(null)
 const routeLoading = ref(false)
 const profile = ref('driving-car')
 const myPosition = ref(null)
+const expanded = ref(false)
+const pickMode = ref(false)
+const pickedPoint = ref(null)
+const assignSiteId = ref(null)
 
 const { locating, locate } = useGeolocation()
 
@@ -60,17 +66,40 @@ const sitesWithoutCoordsCount = computed(
   () => (props.sites || []).length - sitesWithCoords.value.length,
 )
 
+const siteAssignOptions = computed(() =>
+  (props.sites || []).map((s) => ({
+    label: `${s.code} — ${s.title}`,
+    value: s.id,
+  })),
+)
+
 const selectedSite = computed(() =>
   sitesWithCoords.value.find((s) => s.id === selectedId.value) || null,
 )
+
+const mapCursor = computed(() => (pickMode.value ? 'crosshair' : 'grab'))
+const mapHeight = computed(() => (expanded.value ? '100%' : '420px'))
 
 function onMapReady(map) {
   fitToSites(map)
 }
 
+function invalidateMap() {
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      try {
+        mapRef.value?.getMap?.()?.invalidateSize?.()
+      } catch {
+        /* ignore */
+      }
+    })
+  })
+}
+
 function fitToSites(map = mapRef.value?.getMap?.()) {
   const points = sitesWithCoords.value.map((s) => ({ lat: s.latitude, lng: s.longitude }))
   if (myPosition.value) points.push(myPosition.value)
+  if (pickedPoint.value) points.push(pickedPoint.value)
   if (routeCoords.value.length) {
     fitMapToPoints(map, routeCoords.value, { maxZoom: 15 })
     return
@@ -85,8 +114,105 @@ watch(
   () => fitToSites(),
 )
 
+watch(expanded, (isExpanded) => {
+  invalidateMap()
+  document.body.style.overflow = isExpanded ? 'hidden' : ''
+})
+
+function onKeydown(event) {
+  if (event.key === 'Escape' && expanded.value) {
+    expanded.value = false
+  }
+  if (event.key === 'Escape' && pickMode.value) {
+    pickMode.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  document.body.style.overflow = ''
+})
+
 function selectSite(site) {
   selectedId.value = site.id
+  if (pickMode.value) return
+}
+
+function toggleExpanded() {
+  expanded.value = !expanded.value
+}
+
+function togglePickMode() {
+  if (!canPlaceSite.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Sites',
+      detail: 'Permission création ou modification de site requise.',
+    })
+    return
+  }
+  pickMode.value = !pickMode.value
+  if (!pickMode.value) return
+  pickedPoint.value = null
+  assignSiteId.value = null
+  toast.add({
+    severity: 'info',
+    summary: 'Placer un site',
+    detail: 'Cliquez sur la carte pour choisir un point.',
+    life: 3500,
+  })
+}
+
+function onMapClick({ lat, lng }) {
+  if (!pickMode.value) return
+  pickedPoint.value = { lat, lng }
+  pickMode.value = false
+  assignSiteId.value = null
+}
+
+function clearPickedPoint() {
+  pickedPoint.value = null
+  assignSiteId.value = null
+}
+
+function openCreateAtPicked() {
+  if (!pickedPoint.value || !canCreate.value) return
+  emit('create-at', { ...pickedPoint.value })
+}
+
+async function assignPickedToSite() {
+  if (!pickedPoint.value || !assignSiteId.value || !canUpdate.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Affecter',
+      detail: 'Sélectionnez un site existant.',
+    })
+    return
+  }
+  const payload = {
+    siteId: assignSiteId.value,
+    lat: pickedPoint.value.lat,
+    lng: pickedPoint.value.lng,
+  }
+  clearPickedPoint()
+  emit('assign-location', payload)
+}
+
+function openWithMaps(lat, lng) {
+  window.open(openWithMapsUrl(lat, lng), '_blank', 'noopener,noreferrer')
+}
+
+function openSelectedWithMaps() {
+  const site = selectedSite.value
+  if (!site) {
+    toast.add({ severity: 'warn', summary: 'Maps', detail: 'Sélectionnez un site sur la carte.' })
+    return
+  }
+  openWithMaps(site.latitude, site.longitude)
 }
 
 async function captureMyPosition() {
@@ -161,16 +287,6 @@ async function computeRoute(from, to) {
   }
 }
 
-function openExternal(site, kind) {
-  const lat = site.latitude
-  const lng = site.longitude
-  const url =
-    kind === 'osm'
-      ? openStreetMapUrl(lat, lng)
-      : googleMapsUrl(lat, lng)
-  window.open(url, '_blank', 'noopener,noreferrer')
-}
-
 function openGoogleDirections(site) {
   const to = { lat: site.latitude, lng: site.longitude }
   const from = myPosition.value || to
@@ -179,15 +295,28 @@ function openGoogleDirections(site) {
 </script>
 
 <template>
-  <div class="site-map-panel">
+  <div class="site-map-panel" :class="{ 'site-map-panel--expanded': expanded }">
     <div class="site-map-panel__toolbar">
       <div class="site-map-panel__stats">
         <span>{{ sitesWithCoords.length }} site(s) géolocalisé(s)</span>
         <span v-if="sitesWithoutCoordsCount" class="muted">
           · {{ sitesWithoutCoordsCount }} sans position
         </span>
+        <span v-if="pickMode" class="site-map-panel__pick-hint">
+          · Cliquez sur la carte…
+        </span>
       </div>
       <div class="site-map-panel__actions">
+        <Button
+          v-if="canPlaceSite"
+          type="button"
+          :label="pickMode ? 'Annuler placement' : 'Placer un site'"
+          :icon="pickMode ? 'pi pi-times' : 'pi pi-plus'"
+          size="small"
+          :severity="pickMode ? 'warn' : 'secondary'"
+          :outlined="!pickMode"
+          @click="togglePickMode"
+        />
         <Button
           type="button"
           label="Ma position"
@@ -208,6 +337,16 @@ function openGoogleDirections(site) {
           @click="fitToSites()"
         />
         <Button
+          v-if="selectedSite"
+          type="button"
+          label="Ouvrir avec Maps"
+          icon="pi pi-external-link"
+          size="small"
+          severity="secondary"
+          outlined
+          @click="openSelectedWithMaps"
+        />
+        <Button
           v-if="routeCoords.length"
           type="button"
           label="Effacer trajet"
@@ -216,6 +355,15 @@ function openGoogleDirections(site) {
           severity="secondary"
           text
           @click="clearRoute"
+        />
+        <Button
+          type="button"
+          :label="expanded ? 'Réduire' : 'Agrandir'"
+          :icon="expanded ? 'pi pi-window-minimize' : 'pi pi-window-maximize'"
+          size="small"
+          severity="secondary"
+          text
+          @click="toggleExpanded"
         />
       </div>
     </div>
@@ -254,13 +402,73 @@ function openGoogleDirections(site) {
       <span><i class="pi pi-clock" /> {{ formatDuration(routeDuration) }}</span>
     </div>
 
+    <div v-if="pickedPoint" class="site-map-panel__picked">
+      <div class="site-map-panel__picked-info">
+        <strong>Point sélectionné</strong>
+        <span class="muted">
+          {{ pickedPoint.lat.toFixed(5) }}, {{ pickedPoint.lng.toFixed(5) }}
+        </span>
+      </div>
+      <div class="site-map-panel__picked-actions">
+        <Button
+          type="button"
+          label="Ouvrir avec Maps"
+          icon="pi pi-external-link"
+          size="small"
+          severity="secondary"
+          outlined
+          @click="openWithMaps(pickedPoint.lat, pickedPoint.lng)"
+        />
+        <Button
+          v-if="canCreate"
+          type="button"
+          label="Nouveau site"
+          icon="pi pi-plus"
+          size="small"
+          @click="openCreateAtPicked"
+        />
+        <Select
+          v-if="canUpdate"
+          v-model="assignSiteId"
+          :options="siteAssignOptions"
+          option-label="label"
+          option-value="value"
+          placeholder="Site existant…"
+          filter
+          show-clear
+          class="site-map-panel__assign"
+        />
+        <Button
+          v-if="canUpdate"
+          type="button"
+          label="Affecter"
+          icon="pi pi-check"
+          size="small"
+          :disabled="!assignSiteId"
+          @click="assignPickedToSite"
+        />
+        <Button
+          type="button"
+          label="Effacer"
+          icon="pi pi-times"
+          size="small"
+          severity="secondary"
+          text
+          @click="clearPickedPoint"
+        />
+      </div>
+    </div>
+
     <div class="site-map-panel__map-wrap">
       <AppMap
         ref="mapRef"
         :center="DEFAULT_MAP_CENTER"
         :zoom="DEFAULT_MAP_ZOOM"
-        height="420px"
+        :height="mapHeight"
+        :fill="expanded"
+        :cursor="mapCursor"
         @ready="onMapReady"
+        @click="onMapClick"
       >
         <AppMapMarker
           v-for="site in sitesWithCoords"
@@ -283,8 +491,13 @@ function openGoogleDirections(site) {
                 :loading="routeLoading"
                 @click="routeFromMyPosition(site)"
               />
-              <Button type="button" label="Google" size="small" text @click="openExternal(site, 'google')" />
-              <Button type="button" label="OSM" size="small" text @click="openExternal(site, 'osm')" />
+              <Button
+                type="button"
+                label="Ouvrir avec Maps"
+                size="small"
+                text
+                @click="openWithMaps(site.latitude, site.longitude)"
+              />
               <Button type="button" label="Trajet Google" size="small" text @click="openGoogleDirections(site)" />
             </div>
           </div>
@@ -298,12 +511,21 @@ function openGoogleDirections(site) {
           Ma position
         </AppMapMarker>
 
+        <AppMapMarker
+          v-if="pickedPoint"
+          :lat="pickedPoint.lat"
+          :lng="pickedPoint.lng"
+        >
+          Point sélectionné
+        </AppMapMarker>
+
         <AppMapRoute :coordinates="routeCoords" />
       </AppMap>
     </div>
 
-    <p v-if="!sitesWithCoords.length" class="site-map-panel__empty">
-      Aucun site avec coordonnées dans la sélection actuelle. Ajoutez une position via le formulaire.
+    <p v-if="!sitesWithCoords.length && !pickedPoint" class="site-map-panel__empty">
+      Aucun site avec coordonnées dans la sélection actuelle.
+      Utilisez « Placer un site » ou ajoutez une position via le formulaire.
     </p>
   </div>
 </template>
@@ -315,33 +537,66 @@ function openGoogleDirections(site) {
   gap: 0.75rem;
 }
 
+.site-map-panel--expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  padding: 0.85rem 1rem 1rem;
+  background: var(--layout-surface, #fff);
+  box-sizing: border-box;
+}
+
+.site-map-panel--expanded .site-map-panel__map-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.site-map-panel--expanded .site-map-panel__map-wrap :deep(.app-map) {
+  height: 100%;
+  min-height: 0;
+  border-radius: 0.5rem;
+}
+
 .site-map-panel__toolbar,
 .site-map-panel__route-bar,
-.site-map-panel__summary {
+.site-map-panel__summary,
+.site-map-panel__picked {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.75rem;
 }
 
-.site-map-panel__actions {
+.site-map-panel__actions,
+.site-map-panel__picked-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   margin-left: auto;
+  align-items: center;
 }
 
 .site-map-panel__stats {
   font-size: 0.875rem;
 }
 
+.site-map-panel__pick-hint {
+  color: var(--p-orange-500, #f59e0b);
+  font-weight: 500;
+}
+
 .site-map-panel__profile {
   min-width: 8rem;
 }
 
-.site-map-panel__from {
+.site-map-panel__from,
+.site-map-panel__assign {
   min-width: 12rem;
   flex: 1;
+}
+
+.site-map-panel__assign {
+  max-width: 18rem;
 }
 
 .site-map-panel__summary {
@@ -351,6 +606,20 @@ function openGoogleDirections(site) {
 
 .site-map-panel__summary i {
   margin-right: 0.3rem;
+}
+
+.site-map-panel__picked {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--layout-border, #e5e7eb);
+  background: var(--layout-surface-muted, #f8fafc);
+}
+
+.site-map-panel__picked-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.875rem;
 }
 
 .muted {

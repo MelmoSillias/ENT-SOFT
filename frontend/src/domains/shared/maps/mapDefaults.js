@@ -19,8 +19,27 @@ export function googleMapsUrl(lat, lng) {
  * @param {number} lat
  * @param {number} lng
  */
+export function appleMapsUrl(lat, lng) {
+  return `https://maps.apple.com/?ll=${lat},${lng}&q=${lat},${lng}`
+}
+
+/**
+ * @param {number} lat
+ * @param {number} lng
+ */
 export function openStreetMapUrl(lat, lng) {
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`
+}
+
+/**
+ * Prefers Apple Maps on Apple devices, otherwise Google Maps.
+ * @param {number} lat
+ * @param {number} lng
+ */
+export function openWithMapsUrl(lat, lng) {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : ''
+  const isApple = /iPhone|iPad|iPod|Macintosh/i.test(ua)
+  return isApple ? appleMapsUrl(lat, lng) : googleMapsUrl(lat, lng)
 }
 
 /**

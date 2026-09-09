@@ -9,7 +9,7 @@ use App\IdentityAccess\Domain\Repository\UtilisateurRepositoryInterface;
 
 final class RefreshTokenService
 {
-    private const REFRESH_TTL_DAYS = 7;
+    private const REFRESH_TTL_SECONDS = 3600;
 
     public function __construct(
         private readonly AccessTokenService $accessTokenService,
@@ -26,7 +26,7 @@ final class RefreshTokenService
         $this->refreshTokenRepository->save(new RefreshToken(
             $user->getId(),
             hash('sha256', $raw),
-            new \DateTimeImmutable('+' . self::REFRESH_TTL_DAYS . ' days'),
+            new \DateTimeImmutable('+' . self::REFRESH_TTL_SECONDS . ' seconds'),
         ));
 
         return [

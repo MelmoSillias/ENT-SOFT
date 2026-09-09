@@ -161,7 +161,7 @@ final class PermissionCatalog
             ['code' => 'site.sites.create', 'libelle' => 'Créer un site', 'module' => 'site', 'description' => 'Créer un site'],
             ['code' => 'site.sites.update', 'libelle' => 'Modifier un site', 'module' => 'site', 'description' => 'Modifier un site existant'],
             ['code' => 'site.sites.delete', 'libelle' => 'Supprimer un site', 'module' => 'site', 'description' => 'Mettre un site à la corbeille'],
-            ['code' => 'geo.use', 'libelle' => 'Utiliser la géolocalisation', 'module' => 'geo', 'description' => 'Géocodage, reverse et itinéraires (proxy OpenRouteService)'],
+            ['code' => 'geo.use', 'libelle' => 'Utiliser la géolocalisation', 'module' => 'geo', 'description' => 'Géocodage, reverse (ORS ou Nominatim) et itinéraires (ORS)'],
             ['code' => 'project.projects.view', 'libelle' => 'Consulter les projets', 'module' => 'project', 'description' => 'Lister et consulter les projets'],
             ['code' => 'project.projects.create', 'libelle' => 'Créer un projet', 'module' => 'project', 'description' => 'Créer un projet'],
             ['code' => 'project.projects.update', 'libelle' => 'Modifier un projet', 'module' => 'project', 'description' => 'Modifier un projet existant'],

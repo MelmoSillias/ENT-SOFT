@@ -82,7 +82,7 @@ services:
         alias: App\Site\Infrastructure\Persistence\Doctrine\DoctrineSiteRepository
 
     App\Geo\Application\Port\GeocodingClientInterface:
-        alias: App\Geo\Infrastructure\Http\OpenRouteServiceClient
+        alias: App\Geo\Infrastructure\Http\FallbackGeocodingClient
 
     App\Geo\Application\Port\RoutingClientInterface:
         alias: App\Geo\Infrastructure\Http\OpenRouteServiceClient

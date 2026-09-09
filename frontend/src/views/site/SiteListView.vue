@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
@@ -18,7 +18,6 @@ import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLay
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { sortByField } from '@/domains/shared/utils/sortByField'
 import SiteFormFields from '@/domains/site/components/SiteFormFields.vue'
-import SiteMapPanel from '@/domains/site/components/SiteMapPanel.vue'
 import { listSites, createSite, updateSite, deleteSite } from '@/domains/site/services/siteService'
 import { listClients } from '@/domains/client/services/clientService'
 import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
@@ -29,6 +28,8 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+
+const SiteMapPanel = defineAsyncComponent(() => import('@/domains/site/components/SiteMapPanel.vue'))
 
 const toast = useAppToast()
 const confirm = useConfirm()
@@ -178,6 +179,17 @@ function openCreate() {
   dialog.value = true
 }
 
+function openCreateAt({ lat, lng }) {
+  editingId.value = null
+  form.value = {
+    ...emptyForm(),
+    latitude: Number(lat),
+    longitude: Number(lng),
+  }
+  resetErrors()
+  dialog.value = true
+}
+
 function openEdit(item) {
   editingId.value = item.id
   form.value = {
@@ -235,6 +247,31 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async (item) => {
   }
 })
 
+const { run: assignLocationFromMap } = useAsyncAction(async ({ siteId, lat, lng }) => {
+  const site = items.value.find((s) => s.id === siteId)
+  if (!site) {
+    toast.add({ severity: 'error', summary: 'Site', detail: 'Site introuvable.' })
+    return
+  }
+  try {
+    await updateSite(siteId, {
+      title: site.title,
+      description: site.description ?? null,
+      clientId: site.clientId ?? null,
+      latitude: lat,
+      longitude: lng,
+    })
+    await fetchItems()
+    toast.add({
+      severity: 'success',
+      summary: 'Site',
+      detail: `Position affectée à « ${site.title} ».`,
+    })
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Site', detail: e.response?.data?.error || 'Erreur.' })
+  }
+})
+
 const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   if (!validateForm()) return
   const payload = {
@@ -285,12 +322,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               option-label="label"
               option-value="value"
               :allow-empty="false"
-            >
-              <template #option="{ option }">
-                <i :class="option.icon" />
-                <span class="site-view-label">{{ option.label }}</span>
-              </template>
-            </SelectButton>
+            />
             <AppTableSettingsPopover
               v-model:visible-col-keys="visibleColKeys"
               v-model:rows="tableRows"
@@ -323,6 +355,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             :sites="filteredItems"
             :client-map="clientMap"
             @edit="openEdit"
+            @create-at="openCreateAt"
+            @assign-location="assignLocationFromMap"
           />
 
           <template v-else-if="viewMode === 'list'">
@@ -380,6 +414,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
 
     <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(720px, 95vw)">
       <SiteFormFields
+        v-if="dialog"
         v-model="form"
         :errors="fieldErrors"
         :client-options="clientOptions"
@@ -393,9 +428,3 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     </Dialog>
   </section>
 </template>
-
-<style scoped>
-.site-view-label {
-  margin-left: 0.35rem;
-}
-</style>
