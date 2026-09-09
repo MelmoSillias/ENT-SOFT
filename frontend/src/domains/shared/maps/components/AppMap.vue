@@ -2,6 +2,7 @@
 import { computed, shallowRef, ref } from 'vue'
 import { LMap, LTileLayer } from '@vue-leaflet/vue-leaflet'
 import 'leaflet/dist/leaflet.css'
+import '@/domains/shared/maps/mapMarkers.css'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'

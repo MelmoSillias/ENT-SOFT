@@ -181,6 +181,7 @@ watch(
         :lat="latitude"
         :lng="longitude"
         :draggable="!disabled"
+        variant="picked"
         @dragend="onMarkerDrag"
       />
     </AppMap>

@@ -1,0 +1,41 @@
+/* Leaflet DivIcon pins — must be global (icons render outside Vue scoped trees). */
+
+.app-map-pin {
+  background: transparent;
+  border: none;
+}
+
+.app-map-pin__glyph {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgb(15 23 42 / 35%);
+  border: 2px solid #fff;
+  position: relative;
+  top: 4px;
+}
+
+.app-map-pin__glyph::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.app-map-pin--picked .app-map-pin__glyph {
+  background: #ea580c;
+}
+
+.app-map-pin--selected .app-map-pin__glyph {
+  background: #1a3066;
+  width: 26px;
+  height: 26px;
+}
+
+.app-map-pin--me .app-map-pin__glyph {
+  background: #0d9488;
+}

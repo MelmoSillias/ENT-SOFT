@@ -1,7 +1,12 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Select from 'primevue/select'
+import Dialog from 'primevue/dialog'
+import Accordion from 'primevue/accordion'
+import AccordionPanel from 'primevue/accordionpanel'
+import AccordionHeader from 'primevue/accordionheader'
+import AccordionContent from 'primevue/accordioncontent'
 import AppMap from '@/domains/shared/maps/components/AppMap.vue'
 import AppMapMarker from '@/domains/shared/maps/components/AppMapMarker.vue'
 import AppMapRoute from '@/domains/shared/maps/components/AppMapRoute.vue'
@@ -18,6 +23,7 @@ import {
 } from '@/domains/shared/maps/mapDefaults'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 
 const props = defineProps({
   /** Filtered site list from parent. */
@@ -28,6 +34,7 @@ const props = defineProps({
 const emit = defineEmits(['edit', 'create-at', 'assign-location'])
 
 const toast = useAppToast()
+const { isAppMobile } = useAppMobileLayout()
 const { hasPermission } = usePermissions()
 const canRoute = computed(() => hasPermission('geo.use'))
 const canCreate = computed(() => hasPermission('site.sites.create'))
@@ -35,6 +42,9 @@ const canUpdate = computed(() => hasPermission('site.sites.update'))
 const canPlaceSite = computed(() => canCreate.value || canUpdate.value)
 
 const mapRef = ref(null)
+const inlineHost = ref(null)
+const dialogHost = ref(null)
+const teleportTo = ref(null)
 const selectedId = ref(null)
 const routeFromId = ref(null)
 const routeCoords = ref([])
@@ -44,9 +54,15 @@ const routeLoading = ref(false)
 const profile = ref('driving-car')
 const myPosition = ref(null)
 const expanded = ref(false)
-const pickMode = ref(false)
 const pickedPoint = ref(null)
 const assignSiteId = ref(null)
+const sideAccordion = ref(
+  hasPermission('site.sites.update')
+    ? ['link']
+    : hasPermission('site.sites.create')
+      ? ['create']
+      : [],
+)
 
 const { locating, locate } = useGeolocation()
 
@@ -77,8 +93,25 @@ const selectedSite = computed(() =>
   sitesWithCoords.value.find((s) => s.id === selectedId.value) || null,
 )
 
-const mapCursor = computed(() => (pickMode.value ? 'crosshair' : 'grab'))
-const mapHeight = computed(() => (expanded.value ? '100%' : '420px'))
+const activePoint = computed(() => {
+  if (pickedPoint.value) return pickedPoint.value
+  if (selectedSite.value) {
+    return { lat: selectedSite.value.latitude, lng: selectedSite.value.longitude }
+  }
+  return null
+})
+
+const mapHeight = computed(() => {
+  if (expanded.value) return '100%'
+  return isAppMobile.value ? '320px' : '460px'
+})
+
+const dialogContentStyle = computed(() => ({
+  padding: '0.85rem',
+  height: isAppMobile.value ? 'auto' : 'min(80vh, 740px)',
+  maxHeight: '85vh',
+  overflow: isAppMobile.value ? 'auto' : 'hidden',
+}))
 
 function onMapReady(map) {
   fitToSites(map)
@@ -90,10 +123,8 @@ function invalidateMap() {
       try {
         const api = mapRef.value
         if (!api || typeof api.getMap !== 'function') return
-
         const leafletMap = api.getMap()
         if (!leafletMap || typeof leafletMap.invalidateSize !== 'function') return
-
         leafletMap.invalidateSize()
       } catch {
         /* ignore */
@@ -119,9 +150,7 @@ function fitToSites(map) {
   fitMapToPoints(
     leafletMap,
     points.length ? points : [{ lat: DEFAULT_MAP_CENTER[0], lng: DEFAULT_MAP_CENTER[1] }],
-    {
-    maxZoom: points.length ? 14 : DEFAULT_MAP_ZOOM,
-    },
+    { maxZoom: points.length ? 14 : DEFAULT_MAP_ZOOM },
   )
 }
 
@@ -130,63 +159,49 @@ watch(
   () => fitToSites(),
 )
 
-watch(expanded, (isExpanded) => {
-  invalidateMap()
-  document.body.style.overflow = isExpanded ? 'hidden' : ''
+watch(pickedPoint, (point) => {
+  if (point && canPlaceSite.value) {
+    sideAccordion.value = hasPermission('site.sites.update') ? ['link'] : ['create']
+  }
 })
 
-function onKeydown(event) {
-  if (event.key === 'Escape' && expanded.value) {
-    expanded.value = false
-  }
-  if (event.key === 'Escape' && pickMode.value) {
-    pickMode.value = false
-  }
-}
+watch(expanded, async (open, wasOpen) => {
+  if (open || !wasOpen) return
+  // Move content back before Dialog tears down its host.
+  teleportTo.value = inlineHost.value
+  await nextTick()
+  invalidateMap()
+})
 
 onMounted(() => {
-  window.addEventListener('keydown', onKeydown)
+  teleportTo.value = inlineHost.value
 })
 
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onKeydown)
-  document.body.style.overflow = ''
-})
+async function onDialogShow() {
+  await nextTick()
+  teleportTo.value = dialogHost.value
+  await nextTick()
+  invalidateMap()
+  fitToSites()
+}
 
 function selectSite(site) {
   selectedId.value = site.id
-  if (pickMode.value) return
-}
-
-function toggleExpanded() {
-  expanded.value = !expanded.value
-}
-
-function togglePickMode() {
-  if (!canPlaceSite.value) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Sites',
-      detail: 'Permission création ou modification de site requise.',
-    })
-    return
-  }
-  pickMode.value = !pickMode.value
-  if (!pickMode.value) return
   pickedPoint.value = null
   assignSiteId.value = null
-  toast.add({
-    severity: 'info',
-    summary: 'Placer un site',
-    detail: 'Cliquez sur la carte pour choisir un point.',
-    life: 3500,
-  })
 }
 
-function onMapClick({ lat, lng }) {
-  if (!pickMode.value) return
+function openExpanded() {
+  expanded.value = true
+}
+
+function onMapClick({ lat, lng, originalEvent }) {
+  const target = originalEvent?.originalEvent?.target || originalEvent?.target
+  if (target?.closest?.('.leaflet-marker-icon, .app-map-pin, .leaflet-popup')) {
+    return
+  }
   pickedPoint.value = { lat, lng }
-  pickMode.value = false
+  selectedId.value = null
   assignSiteId.value = null
 }
 
@@ -200,7 +215,7 @@ function openCreateAtPicked() {
   emit('create-at', { ...pickedPoint.value })
 }
 
-async function assignPickedToSite() {
+function assignPickedToSite() {
   if (!pickedPoint.value || !assignSiteId.value || !canUpdate.value) {
     toast.add({
       severity: 'warn',
@@ -222,13 +237,12 @@ function openWithMaps(lat, lng) {
   window.open(openWithMapsUrl(lat, lng), '_blank', 'noopener,noreferrer')
 }
 
-function openSelectedWithMaps() {
-  const site = selectedSite.value
-  if (!site) {
-    toast.add({ severity: 'warn', summary: 'Maps', detail: 'Sélectionnez un site sur la carte.' })
+function openActiveWithMaps() {
+  if (!activePoint.value) {
+    toast.add({ severity: 'warn', summary: 'Maps', detail: 'Sélectionnez un point sur la carte.' })
     return
   }
-  openWithMaps(site.latitude, site.longitude)
+  openWithMaps(activePoint.value.lat, activePoint.value.lng)
 }
 
 async function captureMyPosition() {
@@ -308,31 +322,22 @@ function openGoogleDirections(site) {
   const from = myPosition.value || to
   window.open(googleMapsDirectionsUrl(from, to), '_blank', 'noopener,noreferrer')
 }
+
+function siteVariant(site) {
+  return site.id === selectedId.value ? 'selected' : 'default'
+}
 </script>
 
 <template>
-  <div class="site-map-panel" :class="{ 'site-map-panel--expanded': expanded }">
+  <div class="site-map-panel" :class="{ 'site-map-panel--mobile': isAppMobile }">
     <div class="site-map-panel__toolbar">
       <div class="site-map-panel__stats">
         <span>{{ sitesWithCoords.length }} site(s) géolocalisé(s)</span>
         <span v-if="sitesWithoutCoordsCount" class="muted">
           · {{ sitesWithoutCoordsCount }} sans position
         </span>
-        <span v-if="pickMode" class="site-map-panel__pick-hint">
-          · Cliquez sur la carte…
-        </span>
       </div>
       <div class="site-map-panel__actions">
-        <Button
-          v-if="canPlaceSite"
-          type="button"
-          :label="pickMode ? 'Annuler placement' : 'Placer un site'"
-          :icon="pickMode ? 'pi pi-times' : 'pi pi-plus'"
-          size="small"
-          :severity="pickMode ? 'warn' : 'secondary'"
-          :outlined="!pickMode"
-          @click="togglePickMode"
-        />
         <Button
           type="button"
           label="Ma position"
@@ -353,14 +358,14 @@ function openGoogleDirections(site) {
           @click="fitToSites()"
         />
         <Button
-          v-if="selectedSite"
+          v-if="activePoint"
           type="button"
           label="Ouvrir avec Maps"
           icon="pi pi-external-link"
           size="small"
           severity="secondary"
           outlined
-          @click="openSelectedWithMaps"
+          @click="openActiveWithMaps"
         />
         <Button
           v-if="routeCoords.length"
@@ -374,12 +379,12 @@ function openGoogleDirections(site) {
         />
         <Button
           type="button"
-          :label="expanded ? 'Réduire' : 'Agrandir'"
-          :icon="expanded ? 'pi pi-window-minimize' : 'pi pi-window-maximize'"
+          label="Agrandir"
+          icon="pi pi-window-maximize"
           size="small"
           severity="secondary"
           text
-          @click="toggleExpanded"
+          @click="openExpanded"
         />
       </div>
     </div>
@@ -418,132 +423,259 @@ function openGoogleDirections(site) {
       <span><i class="pi pi-clock" /> {{ formatDuration(routeDuration) }}</span>
     </div>
 
-    <div v-if="pickedPoint" class="site-map-panel__picked">
-      <div class="site-map-panel__picked-info">
-        <strong>Point sélectionné</strong>
-        <span class="muted">
-          {{ pickedPoint.lat.toFixed(5) }}, {{ pickedPoint.lng.toFixed(5) }}
-        </span>
-      </div>
-      <div class="site-map-panel__picked-actions">
-        <Button
-          type="button"
-          label="Ouvrir avec Maps"
-          icon="pi pi-external-link"
-          size="small"
-          severity="secondary"
-          outlined
-          @click="openWithMaps(pickedPoint.lat, pickedPoint.lng)"
-        />
-        <Button
-          v-if="canCreate"
-          type="button"
-          label="Nouveau site"
-          icon="pi pi-plus"
-          size="small"
-          @click="openCreateAtPicked"
-        />
-        <Select
-          v-if="canUpdate"
-          v-model="assignSiteId"
-          :options="siteAssignOptions"
-          option-label="label"
-          option-value="value"
-          placeholder="Site existant…"
-          filter
-          show-clear
-          class="site-map-panel__assign"
-        />
-        <Button
-          v-if="canUpdate"
-          type="button"
-          label="Affecter"
-          icon="pi pi-check"
-          size="small"
-          :disabled="!assignSiteId"
-          @click="assignPickedToSite"
-        />
-        <Button
-          type="button"
-          label="Effacer"
-          icon="pi pi-times"
-          size="small"
-          severity="secondary"
-          text
-          @click="clearPickedPoint"
-        />
-      </div>
-    </div>
-
-    <div class="site-map-panel__map-wrap">
-      <AppMap
-        ref="mapRef"
-        :center="DEFAULT_MAP_CENTER"
-        :zoom="DEFAULT_MAP_ZOOM"
-        :height="mapHeight"
-        :fill="expanded"
-        :cursor="mapCursor"
-        @ready="onMapReady"
-        @click="onMapClick"
-      >
-        <AppMapMarker
-          v-for="site in sitesWithCoords"
-          :key="site.id"
-          :lat="site.latitude"
-          :lng="site.longitude"
-          @click="selectSite(site)"
-        >
-          <div class="site-map-popup">
-            <strong>{{ site.code }} — {{ site.title }}</strong>
-            <p v-if="clientMap[site.clientId]" class="muted">{{ clientMap[site.clientId] }}</p>
-            <div class="site-map-popup__actions">
-              <Button type="button" label="Modifier" size="small" text @click="emit('edit', site)" />
-              <Button
-                v-if="canRoute"
-                type="button"
-                label="Depuis moi"
-                size="small"
-                text
-                :loading="routeLoading"
-                @click="routeFromMyPosition(site)"
-              />
-              <Button
-                type="button"
-                label="Ouvrir avec Maps"
-                size="small"
-                text
-                @click="openWithMaps(site.latitude, site.longitude)"
-              />
-              <Button type="button" label="Trajet Google" size="small" text @click="openGoogleDirections(site)" />
-            </div>
-          </div>
-        </AppMapMarker>
-
-        <AppMapMarker
-          v-if="myPosition"
-          :lat="myPosition.lat"
-          :lng="myPosition.lng"
-        >
-          Ma position
-        </AppMapMarker>
-
-        <AppMapMarker
-          v-if="pickedPoint"
-          :lat="pickedPoint.lat"
-          :lng="pickedPoint.lng"
-        >
-          Point sélectionné
-        </AppMapMarker>
-
-        <AppMapRoute :coordinates="routeCoords" />
-      </AppMap>
-    </div>
+    <div
+      ref="inlineHost"
+      class="site-map-panel__host"
+      :class="{ 'site-map-panel__host--hidden': expanded }"
+    />
 
     <p v-if="!sitesWithCoords.length && !pickedPoint" class="site-map-panel__empty">
       Aucun site avec coordonnées dans la sélection actuelle.
-      Utilisez « Placer un site » ou ajoutez une position via le formulaire.
     </p>
   </div>
+
+  <Dialog
+    v-model:visible="expanded"
+    header="Carte des sites"
+    modal
+    dismissable-mask
+    class="site-map-dialog"
+    :style="{ width: 'min(1100px, 96vw)' }"
+    :content-style="dialogContentStyle"
+    @show="onDialogShow"
+  >
+    <div
+      ref="dialogHost"
+      class="site-map-panel__host site-map-panel__host--dialog"
+      :class="{ 'site-map-panel__host--mobile': isAppMobile }"
+    />
+  </Dialog>
+
+  <Teleport v-if="teleportTo" :to="teleportTo">
+    <div
+      class="site-map-panel__body"
+      :class="{
+        'site-map-panel__body--mobile': isAppMobile,
+        'site-map-panel__body--dialog': expanded,
+      }"
+    >
+      <div class="site-map-panel__map-wrap">
+        <AppMap
+          ref="mapRef"
+          :center="DEFAULT_MAP_CENTER"
+          :zoom="DEFAULT_MAP_ZOOM"
+          :height="mapHeight"
+          :fill="expanded"
+          cursor="crosshair"
+          @ready="onMapReady"
+          @click="onMapClick"
+        >
+          <AppMapMarker
+            v-for="site in sitesWithCoords"
+            :key="site.id"
+            :lat="site.latitude"
+            :lng="site.longitude"
+            :variant="siteVariant(site)"
+            @click="selectSite(site)"
+          >
+            <div class="site-map-popup">
+              <strong>{{ site.code }} — {{ site.title }}</strong>
+              <p v-if="clientMap[site.clientId]" class="muted">{{ clientMap[site.clientId] }}</p>
+              <div class="site-map-popup__actions">
+                <Button type="button" label="Modifier" size="small" text @click="emit('edit', site)" />
+                <Button
+                  v-if="canRoute"
+                  type="button"
+                  label="Depuis moi"
+                  size="small"
+                  text
+                  :loading="routeLoading"
+                  @click="routeFromMyPosition(site)"
+                />
+                <Button
+                  type="button"
+                  label="Ouvrir avec Maps"
+                  size="small"
+                  text
+                  @click="openWithMaps(site.latitude, site.longitude)"
+                />
+                <Button type="button" label="Trajet Google" size="small" text @click="openGoogleDirections(site)" />
+              </div>
+            </div>
+          </AppMapMarker>
+
+          <AppMapMarker
+            v-if="myPosition"
+            :lat="myPosition.lat"
+            :lng="myPosition.lng"
+            variant="me"
+          >
+            Ma position
+          </AppMapMarker>
+
+          <AppMapMarker
+            v-if="pickedPoint"
+            :lat="pickedPoint.lat"
+            :lng="pickedPoint.lng"
+            variant="picked"
+          >
+            Point sélectionné
+          </AppMapMarker>
+
+          <AppMapRoute :coordinates="routeCoords" />
+        </AppMap>
+        <p class="site-map-panel__map-hint">
+          Cliquez sur la carte pour sélectionner un point.
+        </p>
+      </div>
+
+      <aside class="site-map-panel__side">
+        <template v-if="pickedPoint">
+          <div class="site-map-side__head">
+            <i class="pi pi-map-marker site-map-side__icon site-map-side__icon--picked" />
+            <div>
+              <h3 class="site-map-side__title">Point sélectionné</h3>
+              <p class="muted site-map-side__coords">
+                {{ pickedPoint.lat.toFixed(6) }}, {{ pickedPoint.lng.toFixed(6) }}
+              </p>
+            </div>
+          </div>
+
+          <div class="site-map-side__actions">
+            <Button
+              type="button"
+              label="Ouvrir avec Maps"
+              icon="pi pi-external-link"
+              size="small"
+              severity="secondary"
+              outlined
+              fluid
+              @click="openWithMaps(pickedPoint.lat, pickedPoint.lng)"
+            />
+            <Button
+              type="button"
+              label="Effacer"
+              icon="pi pi-times"
+              size="small"
+              severity="secondary"
+              text
+              fluid
+              @click="clearPickedPoint"
+            />
+          </div>
+
+          <Accordion
+            v-if="canPlaceSite"
+            v-model:value="sideAccordion"
+            multiple
+            class="site-map-side__accordion"
+          >
+            <AccordionPanel v-if="canCreate" value="create">
+              <AccordionHeader>Nouveau site à cet emplacement</AccordionHeader>
+              <AccordionContent>
+                <p class="site-map-side__help">
+                  Ouvre le formulaire de création avec ces coordonnées préremplies.
+                </p>
+                <Button
+                  type="button"
+                  label="Créer un site"
+                  icon="pi pi-plus"
+                  size="small"
+                  fluid
+                  @click="openCreateAtPicked"
+                />
+              </AccordionContent>
+            </AccordionPanel>
+            <AccordionPanel v-if="canUpdate" value="link">
+              <AccordionHeader>Lier à un site existant</AccordionHeader>
+              <AccordionContent>
+                <p class="site-map-side__help">
+                  Affecte cette position à un site déjà créé.
+                </p>
+                <Select
+                  v-model="assignSiteId"
+                  :options="siteAssignOptions"
+                  option-label="label"
+                  option-value="value"
+                  placeholder="Choisir un site…"
+                  filter
+                  show-clear
+                  fluid
+                  class="site-map-side__select"
+                />
+                <Button
+                  type="button"
+                  label="Affecter la position"
+                  icon="pi pi-check"
+                  size="small"
+                  fluid
+                  class="site-map-side__assign-btn"
+                  :disabled="!assignSiteId"
+                  @click="assignPickedToSite"
+                />
+              </AccordionContent>
+            </AccordionPanel>
+          </Accordion>
+        </template>
+
+        <template v-else-if="selectedSite">
+          <div class="site-map-side__head">
+            <i class="pi pi-building site-map-side__icon site-map-side__icon--site" />
+            <div>
+              <h3 class="site-map-side__title">{{ selectedSite.title }}</h3>
+              <p class="muted">{{ selectedSite.code }}</p>
+            </div>
+          </div>
+          <p v-if="clientMap[selectedSite.clientId]" class="muted site-map-side__meta">
+            Client : {{ clientMap[selectedSite.clientId] }}
+          </p>
+          <p class="muted site-map-side__coords">
+            {{ Number(selectedSite.latitude).toFixed(6) }},
+            {{ Number(selectedSite.longitude).toFixed(6) }}
+          </p>
+          <div class="site-map-side__actions">
+            <Button
+              type="button"
+              label="Modifier"
+              icon="pi pi-pencil"
+              size="small"
+              fluid
+              @click="emit('edit', selectedSite)"
+            />
+            <Button
+              type="button"
+              label="Ouvrir avec Maps"
+              icon="pi pi-external-link"
+              size="small"
+              severity="secondary"
+              outlined
+              fluid
+              @click="openWithMaps(selectedSite.latitude, selectedSite.longitude)"
+            />
+            <Button
+              v-if="canRoute"
+              type="button"
+              label="Itinéraire depuis moi"
+              icon="pi pi-directions"
+              size="small"
+              severity="secondary"
+              text
+              fluid
+              :loading="routeLoading"
+              @click="routeFromMyPosition(selectedSite)"
+            />
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="site-map-side__empty">
+            <i class="pi pi-map" />
+            <p>Sélectionnez un site ou cliquez sur la carte pour choisir un point.</p>
+          </div>
+        </template>
+      </aside>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -553,38 +685,16 @@ function openGoogleDirections(site) {
   gap: 0.75rem;
 }
 
-.site-map-panel--expanded {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  padding: 0.85rem 1rem 1rem;
-  background: var(--layout-surface, #fff);
-  box-sizing: border-box;
-}
-
-.site-map-panel--expanded .site-map-panel__map-wrap {
-  flex: 1;
-  min-height: 0;
-}
-
-.site-map-panel--expanded .site-map-panel__map-wrap :deep(.app-map) {
-  height: 100%;
-  min-height: 0;
-  border-radius: 0.5rem;
-}
-
 .site-map-panel__toolbar,
 .site-map-panel__route-bar,
-.site-map-panel__summary,
-.site-map-panel__picked {
+.site-map-panel__summary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.75rem;
 }
 
-.site-map-panel__actions,
-.site-map-panel__picked-actions {
+.site-map-panel__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
@@ -596,23 +706,13 @@ function openGoogleDirections(site) {
   font-size: 0.875rem;
 }
 
-.site-map-panel__pick-hint {
-  color: var(--p-orange-500, #f59e0b);
-  font-weight: 500;
-}
-
 .site-map-panel__profile {
   min-width: 8rem;
 }
 
-.site-map-panel__from,
-.site-map-panel__assign {
+.site-map-panel__from {
   min-width: 12rem;
   flex: 1;
-}
-
-.site-map-panel__assign {
-  max-width: 18rem;
 }
 
 .site-map-panel__summary {
@@ -624,18 +724,164 @@ function openGoogleDirections(site) {
   margin-right: 0.3rem;
 }
 
-.site-map-panel__picked {
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--layout-border, #e5e7eb);
-  background: var(--layout-surface-muted, #f8fafc);
+.site-map-panel__host {
+  min-height: 0;
 }
 
-.site-map-panel__picked-info {
+.site-map-panel__host--hidden {
+  display: none;
+}
+
+.site-map-panel__host--dialog {
+  height: 100%;
+  min-height: min(70vh, 640px);
+}
+
+.site-map-panel__host--dialog.site-map-panel__host--mobile {
+  min-height: 0;
+  height: auto;
+}
+
+.site-map-panel__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 0.85rem;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.site-map-panel__body--dialog {
+  height: 100%;
+}
+
+.site-map-panel__body--dialog .site-map-panel__map-wrap {
+  min-height: 0;
+  height: 100%;
+}
+
+.site-map-panel__body--dialog .site-map-panel__map-wrap :deep(.app-map) {
+  height: 100%;
+  min-height: 280px;
+}
+
+.site-map-panel__body--mobile {
+  grid-template-columns: 1fr;
+}
+
+.site-map-panel__map-wrap {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.site-map-panel__map-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--layout-text-muted, #64748b);
+}
+
+.site-map-panel__side {
+  border: 1px solid var(--layout-border, #e5e7eb);
+  border-radius: 0.5rem;
+  background: var(--layout-surface-muted, #f8fafc);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 12rem;
+  overflow: auto;
+}
+
+.site-map-panel__body--mobile .site-map-panel__side {
+  order: 2;
+  min-height: 0;
+}
+
+.site-map-panel__body--mobile .site-map-panel__map-wrap {
+  order: 1;
+}
+
+.site-map-side__head {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+
+.site-map-side__icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid var(--layout-border, #e5e7eb);
+}
+
+.site-map-side__icon--picked {
+  color: #ea580c;
+}
+
+.site-map-side__icon--site {
+  color: #1a3066;
+}
+
+.site-map-side__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.site-map-side__coords,
+.site-map-side__meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  word-break: break-all;
+}
+
+.site-map-side__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.site-map-side__help {
+  margin: 0 0 0.65rem;
+  font-size: 0.8125rem;
+  color: var(--layout-text-muted, #64748b);
+}
+
+.site-map-side__select {
+  margin-bottom: 0.55rem;
+}
+
+.site-map-side__assign-btn {
+  margin-top: 0.15rem;
+}
+
+.site-map-side__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+  color: var(--layout-text-muted, #64748b);
+  padding: 1.25rem 0.5rem;
+  flex: 1;
+}
+
+.site-map-side__empty i {
+  font-size: 1.5rem;
+}
+
+.site-map-side__empty p {
+  margin: 0;
   font-size: 0.875rem;
+  max-width: 16rem;
 }
 
 .muted {
@@ -661,5 +907,15 @@ function openGoogleDirections(site) {
   display: flex;
   flex-wrap: wrap;
   gap: 0.15rem;
+}
+
+@media (max-width: 900px) {
+  .site-map-panel__body:not(.site-map-panel__body--mobile) {
+    grid-template-columns: 1fr;
+  }
+
+  .site-map-panel__body:not(.site-map-panel__body--mobile) .site-map-panel__side {
+    order: 2;
+  }
 }
 </style>
