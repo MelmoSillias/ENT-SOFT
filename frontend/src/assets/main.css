@@ -31,6 +31,7 @@
 @import "./layout/primevue.css";
 @import "./layout/primevue-component-colors.css";
 @import "./layout/themes/primevue-surfaces.css";
+@import "./layout/fullcalendar.css";
 @import "./layout/solid-mode.css";
 
 html,

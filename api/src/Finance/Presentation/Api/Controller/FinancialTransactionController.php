@@ -56,12 +56,13 @@ final class FinancialTransactionController extends AbstractController
     public function create(Request $request, CreateFinancialTransactionHandler $handler): JsonResponse
     {
         $data = $request->toArray();
+        $type = $data['type'] ?? 'expense';
         $result = $handler->handle(new CreateFinancialTransactionCommand(
             date: $data['date'] ?? '',
             amount: (float) ($data['amount'] ?? 0),
-            type: $data['type'] ?? 'expense',
+            type: $type,
             category: $data['category'] ?? 'OtherExpense',
-            status: $data['status'] ?? 'pending',
+            status: $type === 'expense' ? 'completed' : ($data['status'] ?? 'pending'),
             fromParty: $data['fromParty'] ?? '',
             toParty: $data['toParty'] ?? '',
             description: $data['description'] ?? null,

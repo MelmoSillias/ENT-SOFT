@@ -87,8 +87,10 @@ const TRANSACTION_COLUMNS = computed(() => {
     { key: 'amount', label: 'Montant', defaultVisible: true },
     { key: 'fromParty', label: 'Émetteur', defaultVisible: true },
     { key: 'toParty', label: 'Destinataire', defaultVisible: true },
-    { key: 'status', label: 'Statut', defaultVisible: true },
   )
+  if (!props.expenseOnly) {
+    cols.push({ key: 'status', label: 'Statut', defaultVisible: true })
+  }
   return cols
 })
 
@@ -292,7 +294,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     amount: form.value.amount,
     type: props.expenseOnly ? 'expense' : form.value.type,
     category: form.value.category,
-    status: form.value.status,
+    status: props.expenseOnly ? 'completed' : form.value.status,
     fromParty: form.value.fromParty?.trim() || '',
     toParty: form.value.toParty?.trim() || '',
     description: form.value.description || null,
@@ -332,7 +334,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     </div>
     <div class="tx-stats__card">
       <span class="tx-stats__label">Dépenses</span>
-      <strong class="tx-stats__value">{{ formatMontant(stats.depenses?.amount ?? 0, DEVISE_APP) }}</strong>
+      <strong class="tx-stats__value tx-amount--expense">{{ formatMontant(stats.depenses?.amount ?? 0, DEVISE_APP) }}</strong>
       <span class="tx-stats__meta">{{ stats.depenses?.count ?? 0 }} opération(s)</span>
     </div>
   </div>
@@ -382,7 +384,10 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         <div class="app-entity-card__row">
           <span v-if="showIndex" class="app-entity-card__index" aria-hidden="true">{{ mobileRankOf(index) }}</span>
           <div style="min-width: 0; flex: 1">
-            <h3 class="app-entity-card__title">{{ formatMontant(item.amount, DEVISE_APP) }}</h3>
+            <h3
+              class="app-entity-card__title"
+              :class="{ 'tx-amount--expense': expenseOnly || item.type === 'expense' }"
+            >{{ formatMontant(item.amount, DEVISE_APP) }}</h3>
             <p class="app-entity-card__subtitle">
               {{ formatDateFr(item.date) }}
               <template v-if="!expenseOnly"> · {{ transactionTypeLabel(item.type) }}</template>
@@ -400,7 +405,12 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           </div>
         </div>
         <div class="app-entity-card__meta-row">
-          <Tag :value="transactionStatusLabel(item.status)" :severity="transactionStatusSeverity(item.status)" rounded />
+          <Tag
+            v-if="!expenseOnly"
+            :value="transactionStatusLabel(item.status)"
+            :severity="transactionStatusSeverity(item.status)"
+            rounded
+          />
           <span class="app-entity-card__meta">{{ [item.fromParty, item.toParty].filter(Boolean).join(' → ') }}</span>
         </div>
         <div v-if="expandedMobileId === item.id" class="tx-expansion" @click.stop>
@@ -445,11 +455,15 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         <template #body="{ data }">{{ transactionCategoryLabel(data.category) }}</template>
       </Column>
       <Column v-if="isColVisible('amount')" field="amount" header="Montant" sortable>
-        <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
+        <template #body="{ data }">
+          <span :class="{ 'tx-amount--expense': expenseOnly || data.type === 'expense' }">
+            {{ formatMontant(data.amount, DEVISE_APP) }}
+          </span>
+        </template>
       </Column>
       <Column v-if="isColVisible('fromParty')" field="fromParty" header="Émetteur" sortable />
       <Column v-if="isColVisible('toParty')" field="toParty" header="Destinataire" sortable />
-      <Column v-if="isColVisible('status')" field="status" header="Statut" sortable>
+      <Column v-if="!expenseOnly && isColVisible('status')" field="status" header="Statut" sortable>
         <template #body="{ data }">
           <Tag :value="transactionStatusLabel(data.status)" :severity="transactionStatusSeverity(data.status)" />
         </template>
@@ -522,6 +536,10 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
 }
 .tx-expansion {
   padding: 0.75rem 0.5rem 1rem 2.5rem;
+}
+.tx-amount--expense {
+  color: var(--content-tone-danger, var(--p-red-500, #ef4444));
+  font-weight: 600;
 }
 @media (max-width: 720px) {
   .tx-stats { grid-template-columns: 1fr; }

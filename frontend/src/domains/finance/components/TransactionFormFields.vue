@@ -49,7 +49,7 @@ defineProps({
         fluid
       />
     </div>
-    <div class="field">
+    <div v-if="!expenseOnly" class="field">
       <label>Statut</label>
       <Select v-model="form.status" :options="TRANSACTION_STATUS_OPTIONS" option-label="label" option-value="value" fluid />
     </div>

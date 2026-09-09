@@ -82,13 +82,7 @@
 }
 
 .app-shell--app-mobile .dashboard-panel__title {
-  font-size: 0.95rem;
-  font-weight: 650;
-  line-height: 1.2;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: none;
 }
 
 .app-shell--app-mobile .dashboard-panel__header {
@@ -99,8 +93,8 @@
 }
 
 .app-shell--app-mobile .dashboard-panel__header-leading {
-  flex: 0 1 auto;
-  max-width: 38%;
+  flex: 0 0 auto;
+  max-width: none;
   min-width: 0;
   gap: 0.35rem;
 }

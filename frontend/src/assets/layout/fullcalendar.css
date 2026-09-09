@@ -1,0 +1,141 @@
+/*
+ * FullCalendar v6 — Technique 1 (Custom Properties)
+ * https://fullcalendar.io/docs/v6/css-customization
+ *
+ * Variables are scoped on .task-calendar (not only :root) so they win over
+ * FullCalendar’s runtime-injected defaults and still track layout themes /
+ * .app-dark via --layout-* and --p-* tokens.
+ */
+.task-calendar {
+  --fc-small-font-size: 0.85em;
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: color-mix(in srgb, var(--layout-panel-bg) 70%, var(--layout-accent-soft));
+  --fc-neutral-text-color: var(--layout-text-muted);
+  --fc-border-color: var(--layout-panel-border);
+
+  --fc-button-text-color: var(--p-primary-contrast-color, #fff);
+  --fc-button-bg-color: var(--layout-accent);
+  --fc-button-border-color: var(--layout-accent);
+  --fc-button-hover-bg-color: var(--layout-accent-strong);
+  --fc-button-hover-border-color: var(--layout-accent-strong);
+  --fc-button-active-bg-color: var(--layout-accent-strong);
+  --fc-button-active-border-color: var(--layout-accent-strong);
+
+  --fc-event-bg-color: var(--layout-accent);
+  --fc-event-border-color: var(--layout-accent);
+  --fc-event-text-color: var(--p-primary-contrast-color, #fff);
+  --fc-event-selected-overlay-color: color-mix(in srgb, var(--layout-text-color) 25%, transparent);
+
+  --fc-more-link-bg-color: color-mix(in srgb, var(--layout-panel-bg) 80%, var(--layout-accent-soft));
+  --fc-more-link-text-color: var(--layout-text-color);
+
+  --fc-non-business-color: color-mix(in srgb, var(--layout-text-muted) 8%, transparent);
+  --fc-bg-event-color: var(--layout-accent);
+  --fc-bg-event-opacity: 0.22;
+  --fc-highlight-color: color-mix(in srgb, var(--layout-accent) 18%, transparent);
+  --fc-today-bg-color: color-mix(in srgb, var(--layout-accent) 10%, transparent);
+  --fc-now-indicator-color: var(--layout-accent);
+
+  --fc-list-event-hover-bg-color: color-mix(in srgb, var(--layout-accent-soft) 55%, var(--layout-panel-bg));
+}
+
+/* Technique 2 — structural polish aligned with the app shell */
+.task-calendar .fc {
+  color: var(--layout-text-color);
+  font-family: var(--layout-font-family);
+  font-size: var(--layout-font-size-sm, 0.875rem);
+}
+
+.task-calendar .fc .fc-toolbar {
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.task-calendar .fc .fc-toolbar-title {
+  font-size: var(--layout-font-size-lg, 1.125rem);
+  font-weight: 700;
+  color: var(--layout-text-color);
+}
+
+.task-calendar .fc .fc-button {
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  font-weight: 600;
+  text-transform: none;
+  box-shadow: none;
+  transition:
+    background-color var(--layout-transition-fast, 150ms ease),
+    border-color var(--layout-transition-fast, 150ms ease),
+    color var(--layout-transition-fast, 150ms ease);
+}
+
+.task-calendar .fc .fc-button-primary:not(:disabled).fc-button-active,
+.task-calendar .fc .fc-button-primary:not(:disabled):active {
+  background-color: var(--fc-button-active-bg-color);
+  border-color: var(--fc-button-active-border-color);
+}
+
+.task-calendar .fc .fc-button-primary:disabled {
+  opacity: 0.45;
+}
+
+.task-calendar .fc a {
+  color: inherit;
+}
+
+.task-calendar .fc .fc-col-header-cell-cushion,
+.task-calendar .fc .fc-daygrid-day-number,
+.task-calendar .fc .fc-timegrid-axis-cushion,
+.task-calendar .fc .fc-timegrid-slot-label-cushion,
+.task-calendar .fc .fc-list-day-text,
+.task-calendar .fc .fc-list-day-side-text {
+  color: var(--layout-text-color);
+}
+
+.task-calendar .fc .fc-daygrid-day-number,
+.task-calendar .fc .fc-col-header-cell-cushion {
+  padding: 0.35rem 0.45rem;
+}
+
+.task-calendar .fc .fc-day-other .fc-daygrid-day-number {
+  color: var(--layout-text-muted);
+  opacity: 0.7;
+}
+
+.task-calendar .fc .fc-daygrid-week-number {
+  color: var(--layout-text-muted);
+  background: var(--fc-neutral-bg-color);
+}
+
+.task-calendar .fc .fc-scrollgrid,
+.task-calendar .fc .fc-list {
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  overflow: hidden;
+}
+
+.task-calendar .fc .fc-list-empty {
+  background: var(--fc-neutral-bg-color);
+  color: var(--layout-text-muted);
+}
+
+.task-calendar .fc .fc-event {
+  border-radius: calc(var(--layout-radius-sm, 0.5rem) * 0.75);
+  cursor: pointer;
+}
+
+.task-calendar .fc .fc-daygrid-event-dot {
+  border-color: currentColor;
+}
+
+.task-calendar .fc .fc-highlight {
+  background: var(--fc-highlight-color);
+}
+
+.task-calendar .fc .fc-timegrid-now-indicator-line {
+  border-color: var(--fc-now-indicator-color);
+}
+
+.task-calendar .fc .fc-timegrid-now-indicator-arrow {
+  border-top-color: var(--fc-now-indicator-color);
+  border-bottom-color: var(--fc-now-indicator-color);
+}

@@ -7,7 +7,7 @@ import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
-import SelectButton from 'primevue/selectbutton'
+import Select from 'primevue/select'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -66,9 +66,9 @@ const menuModel = ref([])
 const rowContextMenu = ref()
 
 const viewOptions = [
-  { label: 'Tableau', value: 'table', icon: 'pi pi-list' },
-  { label: 'Calendrier', value: 'calendar', icon: 'pi pi-calendar' },
-  { label: 'Timeline', value: 'timeline', icon: 'pi pi-sliders-h' },
+  { label: 'Tableau', value: 'table' },
+  { label: 'Calendrier', value: 'calendar' },
+  { label: 'Planning', value: 'timeline' },
 ]
 
 const statusFilterOptions = [{ label: 'Tous', value: null }, ...TASK_STATUS_OPTIONS]
@@ -337,7 +337,15 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           @reload="reload"
         >
           <template #actions>
-            <SelectButton v-model="viewMode" :options="viewOptions" option-label="label" option-value="value" :allow-empty="false" />
+            <Select
+              v-model="viewMode"
+              :options="viewOptions"
+              option-label="label"
+              option-value="value"
+              placeholder="Affichage"
+              class="task-view-select"
+              aria-label="Mode d'affichage"
+            />
             <AppTableSettingsPopover
               v-model:visible-col-keys="visibleColKeys"
               v-model:rows="tableRows"
@@ -479,16 +487,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
 </template>
 
 <style scoped>
-.task-calendar {
-  --fc-border-color: var(--layout-border, #e2e8f0);
-  --fc-today-bg-color: color-mix(in srgb, var(--p-primary-color, #3b82f6) 8%, transparent);
-}
-
-.task-calendar :deep(.fc) {
-  font-size: 0.875rem;
-}
-
-.task-calendar :deep(.fc .fc-event) {
-  cursor: pointer;
+.task-view-select {
+  min-width: 8.5rem;
+  flex-shrink: 0;
 }
 </style>
