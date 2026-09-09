@@ -179,17 +179,6 @@ function openCreate() {
   dialog.value = true
 }
 
-function openCreateAt({ lat, lng }) {
-  editingId.value = null
-  form.value = {
-    ...emptyForm(),
-    latitude: Number(lat),
-    longitude: Number(lng),
-  }
-  resetErrors()
-  dialog.value = true
-}
-
 function openEdit(item) {
   editingId.value = item.id
   form.value = {
@@ -244,6 +233,26 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async (item) => {
     await fetchItems()
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Site', detail: e.response?.data?.error || 'Erreur.' })
+  }
+})
+
+const { pending: creatingFromMap, run: createFromMap } = useAsyncAction(async (payload) => {
+  const { done, ...data } = payload || {}
+  try {
+    await createSite({
+      code: data.code,
+      title: data.title,
+      description: data.description ?? null,
+      clientId: data.clientId ?? null,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
+    })
+    await fetchItems()
+    toast.add({ severity: 'success', summary: 'Site', detail: 'Créé.' })
+    done?.(true)
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Site', detail: e.response?.data?.error || 'Erreur.' })
+    done?.(false)
   }
 })
 
@@ -354,8 +363,10 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             v-if="viewMode === 'map' && !loading && !error"
             :sites="filteredItems"
             :client-map="clientMap"
+            :client-options="clientOptions"
+            :create-saving="creatingFromMap"
             @edit="openEdit"
-            @create-at="openCreateAt"
+            @create="createFromMap"
             @assign-location="assignLocationFromMap"
           />
 

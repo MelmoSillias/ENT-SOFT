@@ -52,7 +52,7 @@ class DoctrineEmployeeRepository extends ServiceEntityRepository implements Empl
             ->addOrderBy('e.prenom', 'ASC');
 
         if ($search !== null && trim($search) !== '') {
-            $qb->andWhere('e.prenom LIKE :search OR e.nom LIKE :search OR e.email LIKE :search OR e.roleCode LIKE :search')
+            $qb->andWhere('e.prenom LIKE :search OR e.nom LIKE :search OR e.email LIKE :search OR e.roleCode LIKE :search OR e.mention LIKE :search')
                 ->setParameter('search', '%'.trim($search).'%');
         }
 

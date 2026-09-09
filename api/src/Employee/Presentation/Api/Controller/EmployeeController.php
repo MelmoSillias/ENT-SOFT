@@ -45,6 +45,7 @@ final class EmployeeController extends AbstractController
             phone: $data['phone'] ?? '',
             roleCode: $data['roleCode'] ?? $data['function'] ?? '',
             address: $data['address'] ?? null,
+            mention: $data['mention'] ?? null,
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -71,6 +72,8 @@ final class EmployeeController extends AbstractController
             roleCode: $data['roleCode'] ?? $data['function'] ?? null,
             address: array_key_exists('address', $data) ? $data['address'] : null,
             hasAddress: array_key_exists('address', $data),
+            mention: array_key_exists('mention', $data) ? $data['mention'] : null,
+            hasMention: array_key_exists('mention', $data),
         ));
 
         return $this->json($result->toArray());

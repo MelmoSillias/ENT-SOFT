@@ -35,6 +35,10 @@ class Employee
     #[ORM\Column(length: 50)]
     private string $roleCode;
 
+    /** Free-text job title / function label (distinct from access roleCode). */
+    #[ORM\Column(length: 150, nullable: true)]
+    private ?string $mention;
+
     #[ORM\Column(type: 'uuid', nullable: true)]
     private ?Uuid $userId;
 
@@ -45,6 +49,7 @@ class Employee
         string $phone,
         string $roleCode,
         ?string $address = null,
+        ?string $mention = null,
         ?Uuid $userId = null,
     ) {
         $this->initializeUuid();
@@ -55,6 +60,7 @@ class Employee
         $this->phone = $phone;
         $this->roleCode = strtoupper(trim($roleCode));
         $this->address = $address;
+        $this->mention = self::normalizeMention($mention);
         $this->userId = $userId;
     }
 
@@ -65,6 +71,7 @@ class Employee
     public function getPhone(): string { return $this->phone; }
     public function getAddress(): ?string { return $this->address; }
     public function getRoleCode(): string { return $this->roleCode; }
+    public function getMention(): ?string { return $this->mention; }
     public function getUserId(): ?Uuid { return $this->userId; }
 
     public function setPrenom(string $prenom): void { $this->prenom = $prenom; $this->touch(); }
@@ -73,5 +80,16 @@ class Employee
     public function setPhone(string $phone): void { $this->phone = $phone; $this->touch(); }
     public function setAddress(?string $address): void { $this->address = $address; $this->touch(); }
     public function setRoleCode(string $roleCode): void { $this->roleCode = strtoupper(trim($roleCode)); $this->touch(); }
+    public function setMention(?string $mention): void { $this->mention = self::normalizeMention($mention); $this->touch(); }
     public function setUserId(?Uuid $userId): void { $this->userId = $userId; $this->touch(); }
+
+    private static function normalizeMention(?string $mention): ?string
+    {
+        if ($mention === null) {
+            return null;
+        }
+        $trimmed = trim($mention);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
 }

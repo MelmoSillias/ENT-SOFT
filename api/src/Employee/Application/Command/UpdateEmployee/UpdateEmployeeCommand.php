@@ -13,6 +13,8 @@ final readonly class UpdateEmployeeCommand
         public ?string $roleCode = null,
         public ?string $address = null,
         public bool $hasAddress = false,
+        public ?string $mention = null,
+        public bool $hasMention = false,
     ) {
     }
 }

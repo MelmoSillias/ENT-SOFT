@@ -19,6 +19,8 @@ defineProps({
   showCode: { type: Boolean, default: false },
   /** When true (create mode), code is editable and required. */
   requireCode: { type: Boolean, default: false },
+  /** When false, hide the map position picker (coords still on the model). */
+  showPosition: { type: Boolean, default: true },
 })
 
 const { hasPermission } = usePermissions()
@@ -26,7 +28,7 @@ const canGeocode = computed(() => hasPermission('geo.use'))
 </script>
 
 <template>
-  <div class="ent-form-grid">
+  <div class="ent-form-grid" :class="{ 'ent-form-grid--fields-only': !showPosition }">
     <div v-if="showCode || requireCode" class="field">
       <label>Code <span v-if="requireCode" class="required">*</span></label>
       <InputText
@@ -61,7 +63,7 @@ const canGeocode = computed(() => hasPermission('geo.use'))
         fluid
       />
     </div>
-    <div class="field ent-form-grid__full">
+    <div v-if="showPosition" class="field ent-form-grid__full">
       <label>Position</label>
       <AppMapMarkerPicker
         v-model:latitude="form.latitude"
@@ -78,6 +80,10 @@ const canGeocode = computed(() => hasPermission('geo.use'))
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem 1rem;
+}
+
+.ent-form-grid--fields-only {
+  grid-template-columns: 1fr;
 }
 
 .ent-form-grid__full {

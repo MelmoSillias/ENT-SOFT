@@ -7,6 +7,7 @@ import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
 import AccordionContent from 'primevue/accordioncontent'
+import SiteFormFields from '@/domains/site/components/SiteFormFields.vue'
 import AppMap from '@/domains/shared/maps/components/AppMap.vue'
 import AppMapMarker from '@/domains/shared/maps/components/AppMapMarker.vue'
 import AppMapRoute from '@/domains/shared/maps/components/AppMapRoute.vue'
@@ -24,14 +25,18 @@ import {
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
+import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 
 const props = defineProps({
   /** Filtered site list from parent. */
   sites: { type: Array, default: () => [] },
   clientMap: { type: Object, default: () => ({}) },
+  clientOptions: { type: Array, default: () => [] },
+  createSaving: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['edit', 'create-at', 'assign-location'])
+const emit = defineEmits(['edit', 'create', 'assign-location'])
 
 const toast = useAppToast()
 const { isAppMobile } = useAppMobileLayout()
@@ -57,12 +62,25 @@ const expanded = ref(false)
 const pickedPoint = ref(null)
 const assignSiteId = ref(null)
 const sideAccordion = ref(
-  hasPermission('site.sites.update')
-    ? ['link']
-    : hasPermission('site.sites.create')
-      ? ['create']
+  hasPermission('site.sites.create')
+    ? ['create']
+    : hasPermission('site.sites.update')
+      ? ['link']
       : [],
 )
+
+function emptyCreateForm() {
+  return { code: '', title: '', description: '', clientId: null, latitude: null, longitude: null }
+}
+
+const createForm = ref(emptyCreateForm())
+
+const { errors: createErrors, validate: validateCreateForm, resetErrors: resetCreateErrors } = useFormFieldErrors(() => {
+  const errs = {}
+  if (!hasRequiredText(createForm.value.code)) errs.code = requiredMessage('Code')
+  if (!hasRequiredText(createForm.value.title)) errs.title = requiredMessage('Titre')
+  return errs
+})
 
 const { locating, locate } = useGeolocation()
 
@@ -160,9 +178,19 @@ watch(
 )
 
 watch(pickedPoint, (point) => {
-  if (point && canPlaceSite.value) {
-    sideAccordion.value = hasPermission('site.sites.update') ? ['link'] : ['create']
+  if (point) {
+    createForm.value = {
+      ...createForm.value,
+      latitude: point.lat,
+      longitude: point.lng,
+    }
+    if (canPlaceSite.value) {
+      sideAccordion.value = canCreate.value ? ['create'] : ['link']
+    }
+    return
   }
+  createForm.value = emptyCreateForm()
+  resetCreateErrors()
 })
 
 watch(expanded, async (open, wasOpen) => {
@@ -210,9 +238,25 @@ function clearPickedPoint() {
   assignSiteId.value = null
 }
 
-function openCreateAtPicked() {
+function submitCreateFromPoint() {
   if (!pickedPoint.value || !canCreate.value) return
-  emit('create-at', { ...pickedPoint.value })
+  createForm.value.latitude = pickedPoint.value.lat
+  createForm.value.longitude = pickedPoint.value.lng
+  if (!validateCreateForm()) return
+  emit('create', {
+    code: createForm.value.code.trim(),
+    title: createForm.value.title.trim(),
+    description: createForm.value.description || null,
+    clientId: createForm.value.clientId || null,
+    latitude: pickedPoint.value.lat,
+    longitude: pickedPoint.value.lng,
+    done: (ok) => {
+      if (!ok) return
+      createForm.value = emptyCreateForm()
+      resetCreateErrors()
+      clearPickedPoint()
+    },
+  })
 }
 
 function assignPickedToSite() {
@@ -574,15 +618,25 @@ function siteVariant(site) {
               <AccordionHeader>Nouveau site à cet emplacement</AccordionHeader>
               <AccordionContent>
                 <p class="site-map-side__help">
-                  Ouvre le formulaire de création avec ces coordonnées préremplies.
+                  Le site sera créé sur le point sélectionné
+                  ({{ pickedPoint.lat.toFixed(5) }}, {{ pickedPoint.lng.toFixed(5) }}).
                 </p>
+                <SiteFormFields
+                  v-model="createForm"
+                  :errors="createErrors"
+                  :client-options="clientOptions"
+                  require-code
+                  :show-position="false"
+                />
                 <Button
                   type="button"
-                  label="Créer un site"
-                  icon="pi pi-plus"
+                  label="Créer le site"
+                  icon="pi pi-check"
                   size="small"
                   fluid
-                  @click="openCreateAtPicked"
+                  class="site-map-side__create-btn"
+                  :loading="createSaving"
+                  @click="submitCreateFromPoint"
                 />
               </AccordionContent>
             </AccordionPanel>
@@ -858,8 +912,9 @@ function siteVariant(site) {
   margin-bottom: 0.55rem;
 }
 
-.site-map-side__assign-btn {
-  margin-top: 0.15rem;
+.site-map-side__assign-btn,
+.site-map-side__create-btn {
+  margin-top: 0.65rem;
 }
 
 .site-map-side__empty {

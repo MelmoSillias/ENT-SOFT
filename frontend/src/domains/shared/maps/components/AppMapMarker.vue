@@ -1,20 +1,18 @@
 <script setup>
 import { computed, shallowRef, watch } from 'vue'
-import { LMarker, LPopup } from '@vue-leaflet/vue-leaflet'
+import { LMarker, LPopup, LIcon } from '@vue-leaflet/vue-leaflet'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 
 const props = defineProps({
-  lat: { type: Number, required: true },
-  lng: { type: Number, required: true },
+  lat: { type: [Number, String], required: true },
+  lng: { type: [Number, String], required: true },
   draggable: { type: Boolean, default: false },
   /**
    * Visual style of the pin.
-   * - default: classic Leaflet pin
-   * - picked: orange selection pin
-   * - selected: brand/blue emphasis for selected site
-   * - me: teal pin for geolocation
+   * - default: classic Leaflet pin (PNG via LIcon)
+   * - picked / selected / me: colored DivIcon
    */
   variant: {
     type: String,
@@ -25,10 +23,13 @@ const props = defineProps({
 
 const emit = defineEmits(['dragend', 'click'])
 
-const icon = shallowRef(null)
+const customIcon = shallowRef(null)
 let Leaflet = null
 
-const latLng = computed(() => [props.lat, props.lng])
+const latNum = computed(() => Number(props.lat))
+const lngNum = computed(() => Number(props.lng))
+const latLng = computed(() => [latNum.value, lngNum.value])
+const useDefaultIcon = computed(() => props.variant === 'default')
 
 async function ensureLeaflet() {
   if (Leaflet) return Leaflet
@@ -37,24 +38,13 @@ async function ensureLeaflet() {
   return Leaflet
 }
 
-async function rebuildIcon() {
-  const L = await ensureLeaflet()
-
-  if (props.variant === 'default') {
-    icon.value = L.icon({
-      iconUrl: markerIcon,
-      iconRetinaUrl: markerIcon2x,
-      shadowUrl: markerShadow,
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      tooltipAnchor: [16, -28],
-      shadowSize: [41, 41],
-    })
+async function rebuildCustomIcon() {
+  if (useDefaultIcon.value) {
+    customIcon.value = null
     return
   }
-
-  icon.value = L.divIcon({
+  const L = await ensureLeaflet()
+  customIcon.value = L.divIcon({
     className: `app-map-pin app-map-pin--${props.variant}`,
     html: '<span class="app-map-pin__glyph" aria-hidden="true"></span>',
     iconSize: [32, 40],
@@ -63,7 +53,7 @@ async function rebuildIcon() {
   })
 }
 
-watch(() => props.variant, rebuildIcon, { immediate: true })
+watch(() => props.variant, rebuildCustomIcon, { immediate: true })
 
 function onDragEnd(event) {
   const marker = event?.target
@@ -85,13 +75,24 @@ function onClick(event) {
 
 <template>
   <LMarker
-    v-if="icon"
+    v-if="Number.isFinite(latNum) && Number.isFinite(lngNum) && (useDefaultIcon || customIcon)"
     :lat-lng="latLng"
-    :icon="icon"
+    :icon="useDefaultIcon ? undefined : customIcon"
     :draggable="draggable"
     @dragend="onDragEnd"
     @click="onClick"
   >
+    <LIcon
+      v-if="useDefaultIcon"
+      :icon-url="markerIcon"
+      :icon-retina-url="markerIcon2x"
+      :shadow-url="markerShadow"
+      :icon-size="[25, 41]"
+      :icon-anchor="[12, 41]"
+      :popup-anchor="[1, -34]"
+      :tooltip-anchor="[16, -28]"
+      :shadow-size="[41, 41]"
+    />
     <LPopup v-if="$slots.default">
       <slot />
     </LPopup>

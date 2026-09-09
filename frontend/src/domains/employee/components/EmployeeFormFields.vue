@@ -35,7 +35,7 @@ defineProps({
       <AppPhoneInput v-model="form.phone" :invalid="Boolean(errors.phone)" fluid />
       <AppFieldError :message="errors.phone" />
     </div>
-    <div class="field ent-form-grid__full">
+    <div class="field">
       <label>Fonction <span class="required">*</span></label>
       <Select
         v-model="form.roleCode"
@@ -49,6 +49,18 @@ defineProps({
       />
       <AppFieldError :message="errors.roleCode" />
       <small v-if="!errors.roleCode" class="field-hint">Un compte utilisateur désactivé sera créé automatiquement.</small>
+    </div>
+    <div class="field">
+      <label>Mention</label>
+      <InputText
+        v-model="form.mention"
+        :invalid="Boolean(errors.mention)"
+        placeholder="Ex. Technicien terrain"
+        maxlength="150"
+        fluid
+      />
+      <AppFieldError :message="errors.mention" />
+      <small v-if="!errors.mention" class="field-hint">Fonction libre de l’employé (affichée dans la liste).</small>
     </div>
     <div class="field ent-form-grid__full">
       <label>Adresse</label>

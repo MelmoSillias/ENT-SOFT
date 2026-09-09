@@ -80,7 +80,7 @@ const rowContextMenu = ref()
 const canCreate = computed(() => hasPermission('employee.employees.create'))
 
 function emptyForm() {
-  return { prenom: '', nom: '', email: '', phone: '', roleCode: '', address: '' }
+  return { prenom: '', nom: '', email: '', phone: '', roleCode: '', mention: '', address: '' }
 }
 
 const form = ref(emptyForm())
@@ -140,7 +140,7 @@ const filteredItems = computed(() => {
   let list = items.value
   if (q) {
     list = list.filter((item) =>
-      [item.name, item.prenom, item.nom, item.email, item.phone, item.roleCode]
+      [item.name, item.prenom, item.nom, item.email, item.phone, item.roleCode, item.mention]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
@@ -169,6 +169,7 @@ function openEdit(item) {
     email: item.email ?? '',
     phone: item.phone ?? '',
     roleCode: item.roleCode ?? item.function ?? '',
+    mention: item.mention ?? '',
     address: item.address ?? '',
   }
   resetErrors()
@@ -222,6 +223,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     email: form.value.email.trim(),
     phone: sanitizePhoneInput(form.value.phone),
     roleCode: form.value.roleCode,
+    mention: form.value.mention?.trim() || null,
     address: form.value.address || null,
   }
   try {
@@ -281,7 +283,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :rows="tableRows"
           :show-index="showIndex"
           :title-of="(item) => item.name || `${item.prenom} ${item.nom}`"
-          :subtitle-of="(item) => item.email || null"
+          :subtitle-of="(item) => item.mention || item.email || null"
           :meta-of="(item) => roleLabel(item.roleCode || item.function)"
           :status-of="(item) => ({ value: item.isEnabled ? 'Actif' : 'Inactif', severity: item.isEnabled ? 'success' : 'secondary' })"
           :actions-of="buildMenuItems"
@@ -302,7 +304,12 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             <template #body="{ index }">{{ index + 1 }}</template>
           </Column>
           <Column v-if="isColVisible('name')" header="Nom" sortable field="nom">
-            <template #body="{ data }">{{ data.name || `${data.prenom} ${data.nom}` }}</template>
+            <template #body="{ data }">
+              <div class="employee-name-cell">
+                <span>{{ data.name || `${data.prenom} ${data.nom}` }}</span>
+                <small v-if="data.mention" class="employee-name-cell__mention">{{ data.mention }}</small>
+              </div>
+            </template>
           </Column>
           <Column v-if="isColVisible('email')" field="email" header="Email" sortable />
           <Column v-if="isColVisible('phone')" field="phone" header="Téléphone" sortable />
@@ -340,3 +347,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     </template>
   </Dialog>
 </template>
+
+<style scoped>
+.employee-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  line-height: 1.25;
+}
+.employee-name-cell__mention {
+  color: var(--p-text-muted-color, var(--layout-text-muted));
+  font-size: 0.75rem;
+}
+</style>

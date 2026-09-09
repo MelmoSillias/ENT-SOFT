@@ -41,6 +41,7 @@ final class CreateEmployeeHandler
             phone: $phone,
             roleCode: $role->getCode(),
             address: $command->address,
+            mention: $command->mention,
         );
 
         $login = $this->generateUniqueLogin($prenom, $nom, $phone);

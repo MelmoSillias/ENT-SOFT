@@ -42,6 +42,7 @@ const infoItems = computed(() => {
     { key: 'email', label: 'Email', icon: 'pi pi-envelope', value: employee.value.email },
     { key: 'phone', label: 'Téléphone', icon: 'pi pi-phone', value: employee.value.phone },
     { key: 'role', label: 'Fonction', icon: 'pi pi-id-card', value: employee.value.roleCode || employee.value.function },
+    { key: 'mention', label: 'Mention', icon: 'pi pi-briefcase', value: employee.value.mention || null },
     { key: 'address', label: 'Adresse', icon: 'pi pi-map-marker', value: employee.value.address || null, full: true },
   ]
 })
@@ -78,6 +79,7 @@ onMounted(load)
         <div class="detail-header">
           <div>
             <h1 class="detail-header__title">{{ employee.name || `${employee.prenom} ${employee.nom}` }}</h1>
+            <small v-if="employee.mention" class="detail-header__mention">{{ employee.mention }}</small>
             <Tag :value="employee.isEnabled ? 'Actif' : 'Inactif'" />
           </div>
           <Button label="Retour" icon="pi pi-arrow-left" text @click="router.push({ name: 'employees' })" />
@@ -141,6 +143,13 @@ onMounted(load)
 .detail-header__title {
   margin: 0 0 0.35rem;
   font-size: 1.25rem;
+}
+
+.detail-header__mention {
+  display: block;
+  margin: -0.15rem 0 0.45rem;
+  color: var(--layout-text-muted);
+  font-size: 0.8125rem;
 }
 
 .dashboard-page__state {

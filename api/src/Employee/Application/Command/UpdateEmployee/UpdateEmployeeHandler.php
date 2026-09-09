@@ -65,6 +65,9 @@ final class UpdateEmployeeHandler
         if ($command->hasAddress) {
             $employee->setAddress($command->address);
         }
+        if ($command->hasMention) {
+            $employee->setMention($command->mention);
+        }
 
         $this->employeeRepository->save($employee);
 

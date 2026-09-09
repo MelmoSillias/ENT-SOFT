@@ -32,11 +32,14 @@ let reverseTimer = null
 let reverseSeq = 0
 
 const hasPoint = computed(
-  () => Number.isFinite(latitude.value) && Number.isFinite(longitude.value),
+  () => Number.isFinite(Number(latitude.value)) && Number.isFinite(Number(longitude.value)),
 )
 
+const latNum = computed(() => Number(latitude.value))
+const lngNum = computed(() => Number(longitude.value))
+
 const mapCenter = computed(() =>
-  hasPoint.value ? [latitude.value, longitude.value] : [...DEFAULT_MAP_CENTER],
+  hasPoint.value ? [latNum.value, lngNum.value] : [...DEFAULT_MAP_CENTER],
 )
 
 const mapZoom = computed(() => (hasPoint.value ? 15 : DEFAULT_MAP_ZOOM))
@@ -50,6 +53,19 @@ function setPoint(lat, lng, { reverse = true } = {}) {
   if (reverse && props.enableGeocode) {
     scheduleReverse()
   }
+}
+
+function onMapReady() {
+  if (!hasPoint.value) return
+  const map = mapRef.value?.getMap?.()
+  fitMapToPoints(map, [{ lat: latNum.value, lng: lngNum.value }], { maxZoom: 16 })
+  requestAnimationFrame(() => {
+    try {
+      map?.invalidateSize?.()
+    } catch {
+      /* ignore */
+    }
+  })
 }
 
 function onMapClick({ lat, lng }) {
@@ -174,14 +190,15 @@ watch(
       :zoom="mapZoom"
       :height="height"
       :cursor="mapCursor"
+      @ready="onMapReady"
       @click="onMapClick"
     >
       <AppMapMarker
         v-if="hasPoint"
-        :lat="latitude"
-        :lng="longitude"
+        :lat="latNum"
+        :lng="lngNum"
         :draggable="!disabled"
-        variant="picked"
+        variant="default"
         @dragend="onMarkerDrag"
       />
     </AppMap>
