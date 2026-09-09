@@ -154,10 +154,10 @@
                 {% endif %}
             </td>
             <td style="width:42%">
-                <div class="inv-number">Facture N°{{ data.invoice.number }}</div>
+                <div class="inv-number">{{ data.documentLabel|default('Facture') }} N°{{ data.invoice.number }}</div>
                 <table class="inv-meta-box">
                     <tr>
-                        <th>Facture</th>
+                        <th>{{ data.documentShortLabel|default(data.documentLabel|default('Facture')) }}</th>
                         <th>Date</th>
                     </tr>
                     <tr>

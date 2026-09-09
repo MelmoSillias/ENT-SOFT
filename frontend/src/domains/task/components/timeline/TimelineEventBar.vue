@@ -4,10 +4,10 @@ import { computed } from 'vue'
 const props = defineProps({
   event: { type: Object, required: true }, // { task, left, width, lane, allDay, bounds }
   color: { type: String, default: '#64748b' },
-  clickable: { type: Boolean, default: false },
+  interactive: { type: Boolean, default: true },
 })
 
-const emit = defineEmits(['open'])
+const emit = defineEmits(['preview'])
 
 const timeLabel = computed(() => {
   const { bounds, allDay } = props.event
@@ -16,23 +16,26 @@ const timeLabel = computed(() => {
   return `${fmt(bounds.start)} – ${fmt(bounds.end)}`
 })
 
-const tooltip = computed(() => `${props.event.task.title}\n${timeLabel.value}`)
+function onPreview(domEvent) {
+  if (!props.interactive) return
+  emit('preview', { event: domEvent, task: props.event.task })
+}
 </script>
 
 <template>
   <button
     type="button"
     class="tl-event"
-    :class="{ 'tl-event--allday': event.allDay, 'tl-event--static': !clickable }"
+    :class="{ 'tl-event--allday': event.allDay, 'tl-event--static': !interactive }"
     :style="{
       left: `${event.left}%`,
       width: `${event.width}%`,
       top: `calc(${event.lane} * (var(--tl-bar-h) + 0.25rem) + 0.375rem)`,
       '--tl-event-color': color,
     }"
-    :title="tooltip"
-    :tabindex="clickable ? 0 : -1"
-    @click.stop="clickable && emit('open', event.task)"
+    :tabindex="interactive ? 0 : -1"
+    :aria-label="event.task.title"
+    @click.stop="onPreview"
   >
     <span class="tl-event__title">{{ event.task.title }}</span>
     <span class="tl-event__time">{{ timeLabel }}</span>

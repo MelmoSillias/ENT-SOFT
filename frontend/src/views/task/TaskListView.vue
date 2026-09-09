@@ -25,6 +25,7 @@ import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLay
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { sortByField } from '@/domains/shared/utils/sortByField'
 import TaskFormFields from '@/domains/task/components/TaskFormFields.vue'
+import TaskPreviewPopover from '@/domains/task/components/TaskPreviewPopover.vue'
 import TaskResourceTimeline from '@/domains/task/components/timeline/TaskResourceTimeline.vue'
 import { listTasks, createTask, updateTask, deleteTask } from '@/domains/task/services/taskService'
 import { listSites } from '@/domains/site/services/siteService'
@@ -64,6 +65,10 @@ const actionItem = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
 const rowContextMenu = ref()
+const taskPreview = ref()
+
+const canUpdate = computed(() => hasPermission('task.tasks.update'))
+const canDelete = computed(() => hasPermission('task.tasks.delete'))
 
 const viewOptions = [
   { label: 'Tableau', value: 'table' },
@@ -210,7 +215,9 @@ const calendarOptions = computed(() => ({
       extendedProps: { task: t },
     })),
   eventClick: (info) => {
-    if (hasPermission('task.tasks.update')) openEdit(info.event.extendedProps.task)
+    info.jsEvent.preventDefault()
+    info.jsEvent.stopPropagation()
+    taskPreview.value?.show(info.jsEvent, info.event.extendedProps.task, info.el)
   },
   dateClick: (info) => {
     if (!canCreate.value) return
@@ -258,8 +265,8 @@ function openEdit(item) {
 
 function buildMenuItems(item) {
   const menu = []
-  if (hasPermission('task.tasks.update')) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
-  if (hasPermission('task.tasks.delete')) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', severity: 'danger', command: () => askDelete(item) })
+  if (canUpdate.value) menu.push({ label: 'Modifier', icon: 'pi pi-pencil', command: () => openEdit(item) })
+  if (canDelete.value) menu.push({ label: 'Supprimer', icon: 'pi pi-trash', severity: 'danger', command: () => askDelete(item) })
   return menu
 }
 
@@ -271,6 +278,10 @@ function toggleMenu(event, item) {
 
 function onRowContextMenu(event) {
   rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
+}
+
+function onPreviewTask({ event, task }) {
+  taskPreview.value?.show(event, task)
 }
 
 function askDelete(item) {
@@ -289,6 +300,17 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async (item) => {
     await deleteTask(item.id)
     toast.add({ severity: 'success', summary: 'Tâche', detail: 'Supprimée.' })
     await fetchItems()
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Tâche', detail: e.response?.data?.error || 'Erreur.' })
+  }
+})
+
+const { pending: statusUpdating, run: runStatusChange } = useAsyncAction(async ({ task, status }) => {
+  try {
+    await updateTask(task.id, { status })
+    taskPreview.value?.patchTask({ status })
+    await fetchItems()
+    toast.add({ severity: 'success', summary: 'Tâche', detail: 'Statut mis à jour.' })
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Tâche', detail: e.response?.data?.error || 'Erreur.' })
   }
@@ -460,15 +482,27 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             :tasks="filteredItems"
             :resources="timelineResources"
             :status-colors="STATUS_COLORS"
-            :can-update="hasPermission('task.tasks.update')"
             :can-create="canCreate"
             :mobile="isAppMobile"
-            @open-task="openEdit"
+            @preview-task="onPreviewTask"
             @create-at="onTimelineCreate"
           />
         </AppTableState>
       </template>
     </Card>
+
+    <TaskPreviewPopover
+      ref="taskPreview"
+      :site-map="siteMap"
+      :employee-map="employeeMap"
+      :status-colors="STATUS_COLORS"
+      :can-edit="canUpdate"
+      :can-delete="canDelete"
+      :status-updating="statusUpdating"
+      @edit="openEdit"
+      @delete="askDelete"
+      @status-change="runStatusChange"
+    />
 
     <AppMobileFab
       v-if="isAppMobile && canCreate"

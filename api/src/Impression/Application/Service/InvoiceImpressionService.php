@@ -7,6 +7,7 @@ use App\Configuration\Application\Service\AgenceLogoUploadService;
 use App\Configuration\Domain\Repository\SettingRepositoryInterface;
 use App\Finance\Application\Service\InvoiceAssembler;
 use App\Finance\Application\Service\InvoiceNumberResolver;
+use App\Finance\Domain\Enum\InvoiceStatus;
 use App\Finance\Domain\Exception\InvoiceNotFoundException;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
 use App\Project\Domain\Repository\ProjectRepositoryInterface;
@@ -74,6 +75,8 @@ final class InvoiceImpressionService
         $amountRaw = (float) ($dto['amount'] ?? 0);
         $dateDisplay = $invoice->getDate()->format('d/m/Y');
         $numberDisplay = $this->numberResolver->resolve($invoice);
+        $documentLabel = $this->documentLabel($invoice->getStatus());
+        $documentShortLabel = $invoice->getStatus() === InvoiceStatus::INVOICED ? 'Facture' : 'Proforma';
 
         $serviceLines = array_values(array_filter([
             $client?->getAddress(),
@@ -82,7 +85,9 @@ final class InvoiceImpressionService
 
         $html = $this->twig->render('impression/facture.html.twig', [
             'data' => [
-                'title' => 'Facture '.$numberDisplay,
+                'title' => $documentLabel.' '.$numberDisplay,
+                'documentLabel' => $documentLabel,
+                'documentShortLabel' => $documentShortLabel,
                 'invoice' => [
                     'number' => $numberDisplay,
                     'date' => $dateDisplay,
@@ -93,25 +98,31 @@ final class InvoiceImpressionService
                 'clientName' => $client?->getTitle() ?? '—',
                 'serviceLines' => $serviceLines,
                 'projectName' => $projectName,
-                'amountInWords' => AmountInWordsFrench::format($amountRaw),
+                'amountInWords' => AmountInWordsFrench::format($amountRaw, documentLabel: $documentLabel),
             ],
             'profile' => $this->profile(),
             'page' => $this->pageContext($page, $orientation),
             'auto_print' => $format === 'html' && $disposition === 'inline',
         ]);
 
-        $filename = 'facture-'.preg_replace('/[^\w.\-]+/', '-', $numberDisplay);
+        $filenamePrefix = $invoice->getStatus() === InvoiceStatus::INVOICED ? 'facture' : 'facture-proforma';
+        $filename = $filenamePrefix.'-'.preg_replace('/[^\w.\-]+/', '-', $numberDisplay);
 
         return match ($format) {
             'pdf' => $this->pdfResponse($html, $filename, $page, $orientation, $disposition),
             'csv' => $this->csvResponse($dto, $filename),
             'excel' => $this->excelResponse($dto, $filename),
-            'word' => $this->wordResponse($dto, $filename),
+            'word' => $this->wordResponse($dto, $filename, $documentLabel),
             default => new Response($html, 200, [
                 'Content-Type' => 'text/html; charset=UTF-8',
                 'Content-Disposition' => ($disposition === 'attachment' ? 'attachment' : 'inline').'; filename="'.$filename.'.html"',
             ]),
         };
+    }
+
+    private function documentLabel(InvoiceStatus $status): string
+    {
+        return $status === InvoiceStatus::INVOICED ? 'Facture' : 'Facture proforma';
     }
 
     /** @return array<string, mixed> */
@@ -254,11 +265,11 @@ final class InvoiceImpressionService
     }
 
     /** @param array<string, mixed> $dto */
-    private function wordResponse(array $dto, string $filename): StreamedResponse
+    private function wordResponse(array $dto, string $filename, string $documentLabel = 'Facture'): StreamedResponse
     {
         $phpWord = new PhpWord();
         $section = $phpWord->addSection();
-        $section->addText('Facture '.$dto['number']);
+        $section->addText($documentLabel.' '.$dto['number']);
         $table = $section->addTable();
         $table->addRow();
         foreach (['Description', 'Unit', 'QTY', 'PU', 'Montant'] as $header) {

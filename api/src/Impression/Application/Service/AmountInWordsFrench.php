@@ -10,7 +10,7 @@ namespace App\Impression\Application\Service;
  */
 final class AmountInWordsFrench
 {
-    public static function format(float|int $amount, string $currencyLabel = 'Franc CFA'): string
+    public static function format(float|int $amount, string $currencyLabel = 'Franc CFA', string $documentLabel = 'Facture'): string
     {
         $rounded = (int) round($amount);
         $formattedNumber = number_format($rounded, 0, ',', ' ');
@@ -19,8 +19,11 @@ final class AmountInWordsFrench
         $words = mb_strtoupper(mb_substr($words, 0, 1, 'UTF-8'), 'UTF-8')
             .mb_substr($words, 1, null, 'UTF-8');
 
+        $documentNoun = mb_strtolower($documentLabel, 'UTF-8');
+
         return sprintf(
-            'Arrêté la présente facture à la somme de : %s ( %s ) %s',
+            'Arrêté la présente %s à la somme de : %s ( %s ) %s',
+            $documentNoun,
             $words,
             $formattedNumber,
             $currencyLabel

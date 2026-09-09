@@ -8,12 +8,11 @@ const props = defineProps({
   dayColumns: { type: Array, required: true },
   nowPosition: { type: Number, default: null },
   statusColors: { type: Object, default: () => ({}) },
-  canUpdate: { type: Boolean, default: false },
   canCreate: { type: Boolean, default: false },
   compact: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['open-task', 'create-at'])
+const emit = defineEmits(['preview-task', 'create-at'])
 
 const trackEl = ref(null)
 
@@ -56,8 +55,7 @@ function onTrackClick(event) {
         :key="ev.task.id"
         :event="ev"
         :color="statusColors[ev.task.status] || '#64748b'"
-        :clickable="canUpdate"
-        @open="emit('open-task', $event)"
+        @preview="emit('preview-task', $event)"
       />
     </div>
   </div>

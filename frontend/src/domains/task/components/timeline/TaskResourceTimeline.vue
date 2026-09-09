@@ -1,5 +1,5 @@
 <script setup>
-import { computed, toRef } from 'vue'
+import { computed, nextTick, onMounted, ref, toRef, watch } from 'vue'
 import TimelineToolbar from './TimelineToolbar.vue'
 import TimelineHeader from './TimelineHeader.vue'
 import TimelineRow from './TimelineRow.vue'
@@ -10,12 +10,11 @@ const props = defineProps({
   tasks: { type: Array, required: true },
   resources: { type: Array, required: true }, // [{ id, label }]
   statusColors: { type: Object, default: () => ({}) },
-  canUpdate: { type: Boolean, default: false },
   canCreate: { type: Boolean, default: false },
   mobile: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['open-task', 'create-at'])
+const emit = defineEmits(['preview-task', 'create-at'])
 
 const {
   scale,
@@ -30,9 +29,37 @@ const {
   goToday,
 } = useTimelineLayout(toRef(props, 'tasks'), toRef(props, 'resources'))
 
+const scrollEl = ref(null)
+
 const legend = computed(() =>
   Object.entries(props.statusColors).map(([status, color]) => ({ status, label: taskStatusLabel(status), color })),
 )
+
+function scrollToNow({ smooth = false } = {}) {
+  const container = scrollEl.value
+  if (!container || nowPosition.value == null) return
+
+  const canvas = container.querySelector('.tl-canvas')
+  if (!canvas) return
+
+  const sticky = canvas.querySelector('.tl-sticky-left')
+  const resW = sticky?.offsetWidth ?? 0
+  const trackW = Math.max(canvas.scrollWidth - resW, 0)
+  const nowX = resW + (nowPosition.value / 100) * trackW
+  const maxScroll = Math.max(canvas.scrollWidth - container.clientWidth, 0)
+  const target = Math.min(Math.max(nowX - container.clientWidth / 2, 0), maxScroll)
+
+  container.scrollTo({ left: target, behavior: smooth ? 'smooth' : 'auto' })
+}
+
+function scheduleScrollToNow(options) {
+  nextTick(() => {
+    requestAnimationFrame(() => scrollToNow(options))
+  })
+}
+
+onMounted(() => scheduleScrollToNow())
+watch([nowPosition, scale, dayColumns], () => scheduleScrollToNow())
 
 function onCreateAt({ resourceId, ratio }) {
   emit('create-at', { resourceId, start: ratioToDate(ratio) })
@@ -50,7 +77,7 @@ function onCreateAt({ resourceId, ratio }) {
       @today="goToday"
     />
 
-    <div class="tl-scroll" role="table" aria-label="Timeline des tâches par employé">
+    <div ref="scrollEl" class="tl-scroll" role="table" aria-label="Timeline des tâches par employé">
       <div class="tl-canvas" :style="{ '--tl-hours': totalHours }">
         <TimelineHeader :day-columns="dayColumns" />
         <TimelineRow
@@ -60,10 +87,9 @@ function onCreateAt({ resourceId, ratio }) {
           :day-columns="dayColumns"
           :now-position="nowPosition"
           :status-colors="statusColors"
-          :can-update="canUpdate"
           :can-create="canCreate"
           :compact="mobile"
-          @open-task="emit('open-task', $event)"
+          @preview-task="emit('preview-task', $event)"
           @create-at="onCreateAt"
         />
         <p v-if="!rows.length" class="tl-empty">Aucun employé à afficher.</p>
