@@ -26,7 +26,7 @@ final class InvoiceLineWriter
         }
 
         $total = 0.0;
-        foreach ($lines as $lineData) {
+        foreach (array_values($lines) as $index => $lineData) {
             $description = FieldValidator::requireNonEmpty((string) ($lineData['description'] ?? ''), 'Libellé de ligne');
             $quantity = (float) ($lineData['quantity'] ?? 0);
             $unitPrice = (float) ($lineData['unitPrice'] ?? 0);
@@ -37,7 +37,7 @@ final class InvoiceLineWriter
             if ($quantity <= 0) {
                 throw new \InvalidArgumentException('La quantité de ligne doit être supérieure à 0.');
             }
-            $line = new InvoiceLine($invoice, $description, $quantity, $unitPrice, $unit);
+            $line = new InvoiceLine($invoice, $description, $quantity, $unitPrice, $unit, $index);
             $this->lineRepository->save($line);
             $total += $line->getAmount();
         }

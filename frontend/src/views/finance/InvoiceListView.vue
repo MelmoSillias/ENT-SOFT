@@ -9,8 +9,8 @@ import Dialog from 'primevue/dialog'
 import DatePicker from 'primevue/datepicker'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
-import Paginator from 'primevue/paginator'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
+import AppEntityPaginator from '@/domains/shared/components/AppEntityPaginator.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
 import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
@@ -96,8 +96,23 @@ const {
 
 const canCreate = computed(() => hasPermission('finance.invoices.create'))
 
+let lineUid = 0
+function newLineKey() {
+  return `il-${Date.now()}-${++lineUid}`
+}
+
 function emptyLine() {
-  return { description: '', unit: 'Lot', quantity: 1, unitPrice: 0 }
+  return { _key: newLineKey(), description: '', unit: 'Lot', quantity: 1, unitPrice: 0 }
+}
+
+function mapFormLines(lines) {
+  return (lines?.length ? lines : [emptyLine()]).map((l) => ({
+    _key: l.id || newLineKey(),
+    description: l.description ?? '',
+    unit: l.unit ?? 'Lot',
+    quantity: l.quantity ?? 1,
+    unitPrice: l.unitPrice ?? 0,
+  }))
 }
 
 function emptyForm() {
@@ -198,12 +213,7 @@ function openEdit(item) {
     projectId: item.projectId,
     projectLabel: item.projectLabel ?? '',
     status: item.status ?? 'draft',
-    lines: (item.lines?.length ? item.lines : [emptyLine()]).map((l) => ({
-      description: l.description ?? '',
-      unit: l.unit ?? 'Lot',
-      quantity: l.quantity ?? 1,
-      unitPrice: l.unitPrice ?? 0,
-    })),
+    lines: mapFormLines(item.lines),
   }
   resetErrors()
   dialog.value = true
@@ -217,12 +227,7 @@ function openDuplicate(item) {
     projectId: item.projectId,
     projectLabel: item.projectLabel ?? '',
     status: 'draft',
-    lines: (item.lines?.length ? item.lines : [emptyLine()]).map((l) => ({
-      description: l.description ?? '',
-      unit: l.unit ?? 'Lot',
-      quantity: l.quantity ?? 1,
-      unitPrice: l.unitPrice ?? 0,
-    })),
+    lines: mapFormLines(item.lines),
   }
   resetErrors()
   dialog.value = true
@@ -420,6 +425,14 @@ const printFormatItems = computed(() => [
     </AppTablePanelHeader>
     <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
       <div v-if="isAppMobile" class="app-entity-dataview">
+        <AppEntityPaginator
+          v-if="mobileTotal > 0"
+          position="top"
+          :rows="tableRows"
+          :first="mobileFirst"
+          :total-records="mobileTotal"
+          @page="onMobilePage"
+        />
         <article
           v-for="(item, index) in mobilePageItems"
           :key="item.id"
@@ -472,14 +485,12 @@ const printFormatItems = computed(() => [
             </div>
           </div>
         </article>
-        <Paginator
+        <AppEntityPaginator
           v-if="mobileTotal > 0"
-          class="app-entity-dataview__paginator"
+          position="bottom"
           :rows="tableRows"
           :first="mobileFirst"
           :total-records="mobileTotal"
-          template="PrevPageLink PageLinks NextPageLink CurrentPageReport"
-          current-page-report-template="{first}-{last} / {totalRecords}"
           @page="onMobilePage"
         />
       </div>

@@ -6,8 +6,8 @@ import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
-import Paginator from 'primevue/paginator'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
+import AppEntityPaginator from '@/domains/shared/components/AppEntityPaginator.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
 import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
@@ -374,6 +374,14 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
   </AppTablePanelHeader>
   <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
     <div v-if="isAppMobile" class="app-entity-dataview">
+      <AppEntityPaginator
+        v-if="mobileTotal > 0"
+        position="top"
+        :rows="tableRows"
+        :first="mobileFirst"
+        :total-records="mobileTotal"
+        @page="onMobilePage"
+      />
       <article
         v-for="(item, index) in mobilePageItems"
         :key="item.id"
@@ -418,14 +426,12 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           <TransactionAttachments :owner-id="item.id" />
         </div>
       </article>
-      <Paginator
+      <AppEntityPaginator
         v-if="mobileTotal > 0"
-        class="app-entity-dataview__paginator"
+        position="bottom"
         :rows="tableRows"
         :first="mobileFirst"
         :total-records="mobileTotal"
-        template="PrevPageLink PageLinks NextPageLink CurrentPageReport"
-        current-page-report-template="{first}-{last} / {totalRecords}"
         @page="onMobilePage"
       />
     </div>

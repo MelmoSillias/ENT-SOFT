@@ -383,13 +383,61 @@
 }
 
 .app-entity-dataview__paginator {
-  margin-top: 0.15rem;
-  padding: 0.35rem 0;
+  margin: 0;
+  padding: 0.55rem 0.45rem;
   justify-content: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  background: color-mix(in srgb, var(--layout-panel-bg) 82%, var(--layout-accent-soft));
+  border: 1px solid color-mix(in srgb, var(--layout-accent) 28%, var(--layout-panel-border));
+  border-radius: var(--app-card-radius);
+}
+
+.app-entity-dataview__paginator--top {
+  order: -1;
+}
+
+.app-entity-dataview__paginator .p-paginator-page,
+.app-entity-dataview__paginator .p-paginator-prev,
+.app-entity-dataview__paginator .p-paginator-next,
+.app-entity-dataview__paginator .p-paginator-first,
+.app-entity-dataview__paginator .p-paginator-last {
+  min-width: 2.5rem !important;
+  min-height: 2.5rem !important;
+  background: var(--layout-panel-bg) !important;
+  border: 1px solid var(--layout-panel-border) !important;
+  color: var(--layout-text-color) !important;
+  font-weight: 650;
+}
+
+.app-entity-dataview__paginator .p-paginator-page.p-paginator-page-selected {
+  background: var(--layout-accent) !important;
+  border-color: var(--layout-accent) !important;
+  color: #fff !important;
+}
+
+.app-entity-dataview__paginator .p-paginator-prev:not(.p-disabled):hover,
+.app-entity-dataview__paginator .p-paginator-next:not(.p-disabled):hover,
+.app-entity-dataview__paginator .p-paginator-page:not(.p-disabled):not(.p-paginator-page-selected):hover {
+  background: var(--layout-accent-soft) !important;
+  border-color: color-mix(in srgb, var(--layout-accent) 40%, transparent) !important;
+  color: var(--layout-accent-strong) !important;
 }
 
 .app-entity-dataview__paginator .p-paginator-current {
+  width: 100%;
+  order: 3;
+  margin: 0.1rem 0 0;
+  text-align: center;
   font-size: var(--app-font-meta);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--layout-text-color) !important;
+}
+
+/* Keep page numbers visible on narrow phones (global CSS hides them ≤479px) */
+.app-entity-dataview__paginator .p-paginator-pages {
+  display: flex !important;
 }
 
 /* FAB create above bottom nav (wrapper teleported to body) */

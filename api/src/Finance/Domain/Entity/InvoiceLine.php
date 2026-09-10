@@ -31,12 +31,16 @@ class InvoiceLine
     #[ORM\Column(type: 'float')]
     private float $amount;
 
+    #[ORM\Column(type: 'integer')]
+    private int $position = 0;
+
     public function __construct(
         Invoice $invoice,
         string $description,
         float $quantity,
         float $unitPrice,
         string $unit = 'Lot',
+        int $position = 0,
     ) {
         $this->initializeUuid();
         $this->invoice = $invoice;
@@ -45,6 +49,7 @@ class InvoiceLine
         $this->quantity = $quantity;
         $this->unitPrice = $unitPrice;
         $this->amount = round($quantity * $unitPrice, 2);
+        $this->position = $position;
     }
 
     public function getInvoice(): Invoice { return $this->invoice; }
@@ -53,7 +58,9 @@ class InvoiceLine
     public function getQuantity(): float { return $this->quantity; }
     public function getUnitPrice(): float { return $this->unitPrice; }
     public function getAmount(): float { return $this->amount; }
+    public function getPosition(): int { return $this->position; }
 
+    public function setPosition(int $position): void { $this->position = $position; }
     public function setDescription(string $description): void { $this->description = $description; }
     public function setUnit(string $unit): void { $this->unit = $unit !== '' ? $unit : 'Lot'; }
     public function setQuantity(float $quantity): void

@@ -158,7 +158,7 @@ const { pending: removingPhoto, run: runRemovePhoto } = useAsyncAction(async () 
 
       <Card class="dashboard-panel profile-page__password-card">
         <template #title>Changer le mot de passe</template>
-        <template #subtitle>
+        <template #subtitle class="profile-page__password-subtitle">
           Saisissez votre mot de passe actuel, puis choisissez-en un nouveau.
         </template>
         <template #content>
@@ -278,6 +278,12 @@ const { pending: removingPhoto, run: runRemovePhoto } = useAsyncAction(async () 
 
 .profile-page__details {
   margin-top: 1.15rem;
+}
+
+.profile-page__password-subtitle {
+  color: var(--layout-text-muted, #64748b);
+  font-size: 0.85rem;
+  padding-left: 2rem;
 }
 
 .profile-page__password-form {

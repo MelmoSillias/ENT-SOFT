@@ -7,7 +7,7 @@ import Button from 'primevue/button'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import { INVOICE_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const form = defineModel({ type: Object, required: true })
 
@@ -18,17 +18,31 @@ defineProps({
 })
 
 const statusOptions = INVOICE_STATUS_OPTIONS
+const dragFromIndex = ref(null)
+let lineUid = 0
+
+function newLineKey() {
+  return `il-${Date.now()}-${++lineUid}`
+}
 
 const linesTotal = computed(() =>
   (form.value.lines ?? []).reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unitPrice || 0), 0),
 )
 
 function addLine() {
-  form.value.lines = [...(form.value.lines ?? []), { description: '', unit: 'Lot', quantity: 1, unitPrice: 0 }]
+  form.value.lines = [
+    ...(form.value.lines ?? []),
+    { _key: newLineKey(), description: '', unit: 'Lot', quantity: 1, unitPrice: 0 },
+  ]
 }
 
 function removeLine(index) {
   form.value.lines = (form.value.lines ?? []).filter((_, i) => i !== index)
+}
+
+function lineKey(line, index) {
+  if (!line._key) line._key = newLineKey()
+  return line._key || `fallback-${index}`
 }
 
 function lineAmount(line) {
@@ -45,6 +59,28 @@ function onProjectLabelInput() {
   if (String(form.value.projectLabel || '').trim()) {
     form.value.projectId = null
   }
+}
+
+function onDragStart(index, event) {
+  dragFromIndex.value = index
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', String(index))
+}
+
+function onDragOver(index, event) {
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'move'
+  if (dragFromIndex.value === null || dragFromIndex.value === index) return
+
+  const lines = [...(form.value.lines ?? [])]
+  const [moved] = lines.splice(dragFromIndex.value, 1)
+  lines.splice(index, 0, moved)
+  form.value.lines = lines
+  dragFromIndex.value = index
+}
+
+function onDragEnd() {
+  dragFromIndex.value = null
 }
 </script>
 
@@ -104,7 +140,26 @@ function onProjectLabelInput() {
     </div>
     <AppFieldError :message="errors.lines" />
     <div v-if="!(form.lines ?? []).length" class="invoice-lines__empty">Aucune ligne. Ajoutez-en une à la volée.</div>
-    <div v-for="(line, index) in form.lines" :key="index" class="invoice-lines__row">
+    <div
+      v-for="(line, index) in form.lines"
+      :key="lineKey(line, index)"
+      class="invoice-lines__row"
+      :class="{ 'is-dragging': dragFromIndex === index }"
+      @dragover="onDragOver(index, $event)"
+      @drop.prevent
+    >
+      <span
+        class="invoice-lines__drag"
+        title="Glisser pour réordonner"
+        aria-label="Glisser pour réordonner"
+        role="button"
+        tabindex="0"
+        draggable="true"
+        @dragstart="onDragStart(index, $event)"
+        @dragend="onDragEnd"
+      >
+        <i class="pi pi-bars" aria-hidden="true" />
+      </span>
       <InputText v-model="line.description" placeholder="Libellé" fluid />
       <InputText v-model="line.unit" placeholder="Unit" fluid />
       <InputNumber v-model="line.quantity" :min="0" :min-fraction-digits="0" :max-fraction-digits="2" fluid />
@@ -167,9 +222,43 @@ function onProjectLabelInput() {
 
 .invoice-lines__row {
   display: grid;
-  grid-template-columns: 1fr 5rem 5.5rem 8rem 6rem auto;
+  grid-template-columns: 1.5rem 1fr 5rem 5.5rem 8rem 6rem auto;
   gap: 0.5rem;
   align-items: center;
+  border-radius: 0.35rem;
+  transition: background-color 0.12s ease, opacity 0.12s ease;
+}
+
+.invoice-lines__row.is-dragging {
+  opacity: 0.55;
+  background: color-mix(in srgb, var(--p-primary-color, #3b82f6) 8%, transparent);
+}
+
+.invoice-lines__drag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--layout-text-muted);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.invoice-lines__drag:active {
+  cursor: grabbing;
+}
+
+.invoice-lines__drag:hover,
+.invoice-lines__drag:focus-visible {
+  color: var(--layout-text-color, inherit);
+  background: color-mix(in srgb, var(--layout-text-muted) 16%, transparent);
+  outline: none;
 }
 
 .invoice-lines__amount,

@@ -1,9 +1,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import Tag from 'primevue/tag'
-import Paginator from 'primevue/paginator'
 import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
 import AppPersonAvatar from '@/domains/shared/components/AppPersonAvatar.vue'
+import AppEntityPaginator from '@/domains/shared/components/AppEntityPaginator.vue'
 import { useClientPagination } from '@/domains/shared/composables/useClientPagination'
 
 const props = defineProps({
@@ -140,6 +140,15 @@ function onPage(event) {
 
 <template>
   <div class="app-entity-dataview" role="list">
+    <AppEntityPaginator
+      v-if="showPaginator"
+      position="top"
+      :rows="pageSize"
+      :first="paginatorFirst"
+      :total-records="paginatorTotal"
+      @page="onPage"
+    />
+
     <article
       v-for="(item, index) in displayItems"
       :key="item[dataKey]"
@@ -187,14 +196,12 @@ function onPage(event) {
       <slot name="footer" :item="item" />
     </article>
 
-    <Paginator
+    <AppEntityPaginator
       v-if="showPaginator"
-      class="app-entity-dataview__paginator"
+      position="bottom"
       :rows="pageSize"
       :first="paginatorFirst"
       :total-records="paginatorTotal"
-      template="PrevPageLink PageLinks NextPageLink CurrentPageReport"
-      current-page-report-template="{first}-{last} / {totalRecords}"
       @page="onPage"
     />
   </div>

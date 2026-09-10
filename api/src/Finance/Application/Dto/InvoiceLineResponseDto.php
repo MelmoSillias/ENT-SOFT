@@ -13,6 +13,7 @@ final readonly class InvoiceLineResponseDto
         public float $quantity,
         public float $unitPrice,
         public float $amount,
+        public int $position,
     ) {
     }
 
@@ -25,6 +26,7 @@ final readonly class InvoiceLineResponseDto
             quantity: $line->getQuantity(),
             unitPrice: $line->getUnitPrice(),
             amount: $line->getAmount(),
+            position: $line->getPosition(),
         );
     }
 
@@ -38,6 +40,7 @@ final readonly class InvoiceLineResponseDto
             'quantity' => $this->quantity,
             'unitPrice' => $this->unitPrice,
             'amount' => $this->amount,
+            'position' => $this->position,
         ];
     }
 }
