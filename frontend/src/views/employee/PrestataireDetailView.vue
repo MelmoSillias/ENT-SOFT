@@ -540,6 +540,9 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
             <AppPersonAvatar
               :name="personDisplayName(prestataire)"
               :photo-url="prestataire.photoUrl"
+              :person="prestataire"
+              kind="prestataire"
+              previewable
               size="large"
             />
             <div>

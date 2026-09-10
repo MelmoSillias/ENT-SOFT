@@ -437,7 +437,12 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               :meta-of="(item) => [employeeMap[item.employeeId], formatDateFr(item.dateDue)].filter(Boolean).join(' · ') || null"
               :status-of="(item) => ({ value: taskStatusLabel(item.status), severity: taskStatusSeverity(item.status) })"
               :avatar-of="(item) => item.employeeId && employeeMap[item.employeeId]
-                ? { name: employeeMap[item.employeeId], photoUrl: employeePhotoMap[item.employeeId] }
+                ? {
+                    name: employeeMap[item.employeeId],
+                    photoUrl: employeePhotoMap[item.employeeId],
+                    person: { name: employeeMap[item.employeeId], photoUrl: employeePhotoMap[item.employeeId] },
+                    kind: 'employee',
+                  }
                 : null"
               :actions-of="buildMenuItems"
               :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
@@ -466,6 +471,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
                     v-if="data.employeeId && employeeMap[data.employeeId]"
                     :name="employeeMap[data.employeeId]"
                     :photo-url="employeePhotoMap[data.employeeId]"
+                    :person="{ name: employeeMap[data.employeeId], photoUrl: employeePhotoMap[data.employeeId] }"
+                    kind="employee"
                   />
                   <span v-else>—</span>
                 </template>

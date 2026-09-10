@@ -330,7 +330,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :subtitle-of="(item) => item.mention || item.email || null"
           :meta-of="(item) => roleLabel(item.roleCode || item.function)"
           :status-of="(item) => ({ value: item.isEnabled ? 'Actif' : 'Inactif', severity: item.isEnabled ? 'success' : 'secondary' })"
-          :avatar-of="(item) => ({ name: personDisplayName(item), photoUrl: item.photoUrl })"
+          :avatar-of="(item) => ({ name: personDisplayName(item), photoUrl: item.photoUrl, person: item, kind: 'employee' })"
           :actions-of="buildMenuItems"
           :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
           @select="(item) => router.push({ name: 'employee-detail', params: { id: item.id } })"
@@ -354,6 +354,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
                 :name="personDisplayName(data)"
                 :photo-url="data.photoUrl"
                 :subtitle="data.mention || null"
+                :person="data"
+                kind="employee"
               />
             </template>
           </Column>

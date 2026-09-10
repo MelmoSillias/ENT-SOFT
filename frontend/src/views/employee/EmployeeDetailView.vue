@@ -83,6 +83,9 @@ onMounted(load)
             <AppPersonAvatar
               :name="personDisplayName(employee)"
               :photo-url="employee.photoUrl"
+              :person="employee"
+              kind="employee"
+              previewable
               size="large"
             />
             <div>

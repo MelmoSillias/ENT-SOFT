@@ -449,7 +449,12 @@ const { run: runReset } = useAsyncAction(async (item) => {
         :subtitle-of="(item) => item.prestataireName || null"
         :meta-of="(item) => `${formatDateFr(item.date)} · ${formatMontant(item.amount, DEVISE_APP)} · ${formatMontant(item.paidAmount ?? 0, DEVISE_APP)} payé${item.siteId && siteMap[item.siteId] ? ` · ${siteMap[item.siteId]}` : ''}`"
         :status-of="(item) => ({ value: PAYMENT_STATUS_LABEL[item.paymentStatus] || item.paymentStatus, severity: PAYMENT_STATUS_SEVERITY[item.paymentStatus] })"
-        :avatar-of="(item) => item.prestataireName ? { name: item.prestataireName, photoUrl: item.prestatairePhotoUrl } : null"
+        :avatar-of="(item) => item.prestataireName ? {
+          name: item.prestataireName,
+          photoUrl: item.prestatairePhotoUrl,
+          person: { name: item.prestataireName, photoUrl: item.prestatairePhotoUrl },
+          kind: 'prestataire',
+        } : null"
         :actions-of="buildMenuItems"
         :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
         @select="openPrestataire"
@@ -485,6 +490,8 @@ const { run: runReset } = useAsyncAction(async (item) => {
               <AppPersonNameCell
                 :name="data.prestataireName || '—'"
                 :photo-url="data.prestatairePhotoUrl"
+                :person="{ name: data.prestataireName, photoUrl: data.prestatairePhotoUrl }"
+                kind="prestataire"
               />
             </button>
           </template>

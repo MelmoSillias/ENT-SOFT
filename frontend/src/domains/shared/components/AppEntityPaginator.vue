@@ -1,7 +1,8 @@
 <script setup>
+import { computed } from 'vue'
 import Paginator from 'primevue/paginator'
 
-defineProps({
+const props = defineProps({
   rows: {
     type: Number,
     required: true,
@@ -22,6 +23,12 @@ defineProps({
 })
 
 defineEmits(['page'])
+
+const paginatorTemplate = computed(() =>
+  props.position === 'top'
+    ? 'PrevPageLink PageLinks NextPageLink'
+    : 'PrevPageLink PageLinks NextPageLink CurrentPageReport',
+)
 </script>
 
 <template>
@@ -31,8 +38,8 @@ defineEmits(['page'])
     :rows="rows"
     :first="first"
     :total-records="totalRecords"
-    template="PrevPageLink PageLinks NextPageLink CurrentPageReport"
-    current-page-report-template="{first}-{last} / {totalRecords}"
+    :template="paginatorTemplate"
+    current-page-report-template="Page {currentPage} / {totalPages}"
     @page="$emit('page', $event)"
   />
 </template>

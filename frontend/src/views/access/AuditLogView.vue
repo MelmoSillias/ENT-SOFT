@@ -391,6 +391,12 @@ function onRowContextMenu(event) {
             :avatar-of="(item) => ({
               name: userDisplayName(item.utilisateur_id),
               photoUrl: userPhotoUrl(item.utilisateur_id, item.userPhotoUrl),
+              person: users.find((u) => u.id === item.utilisateur_id) || {
+                name: userDisplayName(item.utilisateur_id),
+                photoUrl: userPhotoUrl(item.utilisateur_id, item.userPhotoUrl),
+                login: userLabel(item.utilisateur_id),
+              },
+              kind: 'user',
             })"
             :actions-of="buildMenuItems"
             :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
@@ -438,6 +444,12 @@ function onRowContextMenu(event) {
                   :name="userDisplayName(data.utilisateur_id)"
                   :photo-url="userPhotoUrl(data.utilisateur_id, data.userPhotoUrl)"
                   :subtitle="userLabel(data.utilisateur_id)"
+                  :person="users.find((u) => u.id === data.utilisateur_id) || {
+                    name: userDisplayName(data.utilisateur_id),
+                    photoUrl: userPhotoUrl(data.utilisateur_id, data.userPhotoUrl),
+                    login: userLabel(data.utilisateur_id),
+                  }"
+                  kind="user"
                 />
               </template>
             </Column>

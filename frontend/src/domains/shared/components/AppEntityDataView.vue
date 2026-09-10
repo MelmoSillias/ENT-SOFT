@@ -36,7 +36,7 @@ const props = defineProps({
     type: Function,
     default: null,
   },
-  /** (item) => { name: string, photoUrl?: string|null } | null */
+  /** (item) => { name: string, photoUrl?: string|null, person?: object, kind?: string, previewable?: boolean } | null */
   avatarOf: {
     type: Function,
     default: null,
@@ -165,6 +165,9 @@ function onPage(event) {
           v-if="avatarOf?.(item)"
           :name="avatarOf(item).name"
           :photo-url="avatarOf(item).photoUrl"
+          :person="avatarOf(item).person ?? null"
+          :kind="avatarOf(item).kind ?? 'auto'"
+          :previewable="avatarOf(item).previewable !== false"
           size="normal"
           class="app-entity-card__avatar"
         />

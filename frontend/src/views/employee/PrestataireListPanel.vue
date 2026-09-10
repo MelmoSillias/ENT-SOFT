@@ -352,7 +352,7 @@ function onPendingPhoto(file) {
           :subtitle-of="(item) => item.email || null"
           :meta-of="(item) => `${item.openPrestationsCount ?? 0} ouverte(s) · ${formatMontant(item.unpaidCompletedReliquat ?? 0, DEVISE_APP)}`"
           :status-of="(item) => ({ value: item.isEnabled ? 'Actif' : 'Inactif', severity: item.isEnabled ? 'success' : 'secondary' })"
-          :avatar-of="(item) => ({ name: personDisplayName(item), photoUrl: item.photoUrl })"
+          :avatar-of="(item) => ({ name: personDisplayName(item), photoUrl: item.photoUrl, person: item, kind: 'prestataire' })"
           :actions-of="buildMenuItems"
           :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
           @select="(item) => router.push({ name: 'prestataire-detail', params: { id: item.id } })"
@@ -372,7 +372,7 @@ function onPendingPhoto(file) {
           </Column>
           <Column v-if="isColVisible('name')" header="Nom" sortable field="nom">
             <template #body="{ data }">
-              <AppPersonNameCell :name="personDisplayName(data)" :photo-url="data.photoUrl" />
+              <AppPersonNameCell :name="personDisplayName(data)" :photo-url="data.photoUrl" :person="data" kind="prestataire" />
             </template>
           </Column>
           <Column v-if="isColVisible('email')" field="email" header="Email" sortable />

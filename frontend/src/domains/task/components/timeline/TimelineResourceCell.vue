@@ -11,6 +11,11 @@ const props = defineProps({
 })
 
 const displayName = computed(() => (props.unassigned ? '?' : props.label))
+const previewPerson = computed(() =>
+  props.unassigned
+    ? null
+    : { name: props.label, photoUrl: props.photoUrl },
+)
 </script>
 
 <template>
@@ -18,6 +23,9 @@ const displayName = computed(() => (props.unassigned ? '?' : props.label))
     <AppPersonAvatar
       :name="displayName"
       :photo-url="unassigned ? null : photoUrl"
+      :person="previewPerson"
+      kind="employee"
+      :previewable="!unassigned"
       size="small"
       class="tl-resource__avatar"
     />

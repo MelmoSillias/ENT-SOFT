@@ -496,7 +496,7 @@ function onRowContextMenu(event) {
                 value: item.isActive !== false ? 'Actif' : 'Inactif',
                 severity: item.isActive !== false ? 'success' : 'secondary',
               })"
-              :avatar-of="(item) => ({ name: personDisplayName(item, item.login), photoUrl: item.photoUrl })"
+              :avatar-of="(item) => ({ name: personDisplayName(item, item.login), photoUrl: item.photoUrl, person: item, kind: 'user' })"
               :actions-of="userActions"
               :row-bindings-of="(item) => rowContextMenu?.rowBindings(item) ?? {}"
               @select="openEdit"
@@ -520,6 +520,8 @@ function onRowContextMenu(event) {
                     :name="personDisplayName(data, data.login)"
                     :photo-url="data.photoUrl"
                     :subtitle="data.login"
+                    :person="data"
+                    kind="user"
                   />
                 </template>
               </Column>

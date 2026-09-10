@@ -125,6 +125,9 @@ const { pending: removingPhoto, run: runRemovePhoto } = useAsyncAction(async () 
             <AppPersonAvatar
               :name="displayName"
               :photo-url="photoUrl"
+              :person="user"
+              kind="user"
+              previewable
               size="xlarge"
               class="profile-page__avatar"
             />
