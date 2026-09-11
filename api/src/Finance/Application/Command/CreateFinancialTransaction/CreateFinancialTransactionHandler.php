@@ -26,7 +26,7 @@ final class CreateFinancialTransactionHandler
             date: new \DateTimeImmutable($command->date),
             amount: $command->amount,
             type: TransactionType::from($command->type),
-            category: TransactionCategory::from($command->category),
+            category: trim($command->category) !== '' ? trim($command->category) : TransactionCategory::OTHER_EXPENSE->value,
             status: TransactionStatus::from($command->status),
             fromParty: $fromParty !== '' ? $fromParty : null,
             toParty: $toParty !== '' ? $toParty : null,

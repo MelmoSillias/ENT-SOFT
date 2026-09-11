@@ -4,6 +4,7 @@ namespace App\AccessAudit\Presentation\Api\Controller;
 
 use App\AccessAudit\Domain\Repository\HistoriqueActionRepositoryInterface;
 use App\IdentityAccess\Domain\Repository\UtilisateurRepositoryInterface;
+use App\SharedKernel\Domain\Period\PeriodBounds;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -31,8 +32,8 @@ final class AuditLogController extends AbstractController
         $page = max(1, (int) $request->query->get('page', 1));
         $limit = min(100, max(1, (int) $request->query->get('limit', 50)));
 
-        $fromDate = is_string($from) && $from !== '' ? new \DateTimeImmutable($from) : null;
-        $toDate = is_string($to) && $to !== '' ? new \DateTimeImmutable($to) : null;
+        $fromDate = is_string($from) ? PeriodBounds::from($from) : null;
+        $toDate = is_string($to) ? PeriodBounds::to($to) : null;
         $utilisateurUuid = is_string($utilisateurId) && $utilisateurId !== '' ? Uuid::fromString($utilisateurId) : null;
         $excludeUtilisateurId = $this->utilisateurRepository->findSystemAdmin()?->getId();
 

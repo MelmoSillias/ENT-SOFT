@@ -2,6 +2,7 @@
 
 namespace App\Site\Application\Query\ListSites;
 
+use App\SharedKernel\Domain\Period\PeriodBounds;
 use App\Site\Application\Dto\SiteResponseDto;
 use App\Site\Domain\Repository\SiteRepositoryInterface;
 
@@ -19,8 +20,8 @@ final class ListSitesHandler
             static fn ($item) => SiteResponseDto::fromEntity($item)->toArray(),
             $this->siteRepository->findAllEnabled(
                 $query->search,
-                $query->from ? new \DateTimeImmutable($query->from) : null,
-                $query->to ? new \DateTimeImmutable($query->to) : null,
+                PeriodBounds::from($query->from),
+                PeriodBounds::to($query->to),
             ),
         );
     }

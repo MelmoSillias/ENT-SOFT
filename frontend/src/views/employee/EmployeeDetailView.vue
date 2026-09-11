@@ -12,6 +12,7 @@ import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
 import AppPersonAvatar from '@/domains/shared/components/AppPersonAvatar.vue'
@@ -127,7 +128,9 @@ onMounted(load)
                   <template #body="{ data }">{{ siteMap[data.siteId] || '—' }}</template>
                 </Column>
                 <Column header="Échéance">
-                  <template #body="{ data }">{{ formatDateFr(data.dateDue) }}</template>
+                  <template #body="{ data }">
+                    <AppDateTimeCell :value="data.dateDue" :time-from="data.createdAt" />
+                  </template>
                 </Column>
                 <Column header="Statut">
                   <template #body="{ data }">

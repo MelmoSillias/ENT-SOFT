@@ -14,6 +14,7 @@ import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
 import AppPersonNameCell from '@/domains/shared/components/AppPersonNameCell.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { sortByField } from '@/domains/shared/utils/sortByField'
@@ -423,9 +424,7 @@ function onRowContextMenu(event) {
             </Column>
             <Column v-if="isColVisible('date_action')" field="date_action" header="Date" style="width: 10.5rem" sortable>
               <template #body="{ data }">
-                <div class="audit-log__date-cell">
-                  <span class="audit-log__date">{{ formatDateTime(data.date_action) }}</span>
-                </div>
+                <AppDateTimeCell :value="data.date_action" />
               </template>
             </Column>
             <Column v-if="isColVisible('action')" field="action" header="Action" style="width: 12rem" sortable>
@@ -472,17 +471,6 @@ function onRowContextMenu(event) {
 .audit-log {
   display: grid;
   gap: 0.75rem;
-}
-
-.audit-log__date-cell {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.audit-log__date {
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .audit-log__action-tag {

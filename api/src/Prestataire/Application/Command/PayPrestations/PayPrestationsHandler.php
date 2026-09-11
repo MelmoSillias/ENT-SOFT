@@ -90,7 +90,7 @@ final class PayPrestationsHandler
             date: $date,
             amount: $total,
             type: TransactionType::EXPENSE,
-            category: TransactionCategory::PRESTATION_PAYMENT,
+            category: TransactionCategory::PRESTATION_PAYMENT->value,
             status: TransactionStatus::COMPLETED,
             fromParty: null,
             toParty: null,

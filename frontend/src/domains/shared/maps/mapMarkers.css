@@ -39,3 +39,7 @@
 .app-map-pin--me .app-map-pin__glyph {
   background: #0d9488;
 }
+
+.app-map-pin--employee .app-map-pin__glyph {
+  background: #7c3aed;
+}

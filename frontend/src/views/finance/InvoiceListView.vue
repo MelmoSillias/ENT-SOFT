@@ -19,6 +19,7 @@ import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { useClientPagination } from '@/domains/shared/composables/useClientPagination'
 import { sortByField } from '@/domains/shared/utils/sortByField'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import InvoiceFormFields from '@/domains/finance/components/InvoiceFormFields.vue'
 import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
 import ExportFormatMenu from '@/domains/impression/components/ExportFormatMenu.vue'
@@ -26,7 +27,7 @@ import { listInvoices, createInvoice, updateInvoice, deleteInvoice, payInvoice, 
 import { listClients } from '@/domains/client/services/clientService'
 import { listProjects } from '@/domains/project/services/projectService'
 import { invoiceStatusLabel, invoiceStatusSeverity, formatDateFr } from '@/domains/shared/utils/entLabels'
-import { toApiDate, parseApiDate, periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate, periodToApiParams, currentMonthRange } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
@@ -94,6 +95,8 @@ const {
   defaultSortOrder: -1,
 })
 
+const tableFirst = ref(0)
+
 const canCreate = computed(() => hasPermission('finance.invoices.create'))
 
 let lineUid = 0
@@ -138,7 +141,7 @@ async function loadRefs() {
   clientMap.value = Object.fromEntries(clients.map((c) => [c.id, c.title]))
 }
 
-const filterPeriod = ref(null)
+const filterPeriod = ref(currentMonthRange())
 
 async function fetchItems() {
   items.value = await listInvoices(periodToApiParams(filterPeriod.value))
@@ -505,14 +508,16 @@ const printFormatItems = computed(() => [
         :sort-field="sortField === 'client' ? undefined : (sortField || undefined)"
         :sort-order="sortOrder"
         @row-contextmenu="onRowContextMenu"
-      >
+        v-model:first="tableFirst">
         <Column expander style="width: 3rem" />
         <Column v-if="showIndex" header="#" style="width: 3.5rem">
-          <template #body="{ index }">{{ index + 1 }}</template>
+          <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
         </Column>
         <Column v-if="isColVisible('number')" field="number" header="N°" sortable />
         <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
-          <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+          <template #body="{ data }">
+            <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
+          </template>
         </Column>
         <Column v-if="isColVisible('client')" header="Client">
           <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>

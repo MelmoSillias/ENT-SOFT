@@ -2,6 +2,7 @@
 
 namespace App\Task\Application\Query\ListTasks;
 
+use App\SharedKernel\Domain\Period\PeriodBounds;
 use App\Task\Application\Dto\TaskResponseDto;
 use App\Task\Domain\Enum\TaskStatus;
 use App\Task\Domain\Repository\TaskRepositoryInterface;
@@ -21,8 +22,8 @@ final class ListTasksHandler
             siteId: $query->siteId ? Uuid::fromString($query->siteId) : null,
             employeeId: $query->employeeId ? Uuid::fromString($query->employeeId) : null,
             status: $query->status ? TaskStatus::from($query->status) : null,
-            from: $query->from ? new \DateTimeImmutable($query->from) : null,
-            to: $query->to ? new \DateTimeImmutable($query->to) : null,
+            from: PeriodBounds::from($query->from),
+            to: PeriodBounds::to($query->to),
         );
 
         return array_map(

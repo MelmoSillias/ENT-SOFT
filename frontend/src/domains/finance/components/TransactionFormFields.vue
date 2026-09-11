@@ -1,26 +1,91 @@
 <script setup>
+import { computed, onMounted, ref } from 'vue'
 import Select from 'primevue/select'
 import DatePicker from 'primevue/datepicker'
-import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Textarea from 'primevue/textarea'
+import AutoComplete from 'primevue/autocomplete'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import {
-  EXPENSE_CATEGORY_OPTIONS,
-  TRANSACTION_CATEGORY_OPTIONS,
+  SYSTEM_TRANSACTION_CATEGORY_OPTIONS,
   TRANSACTION_STATUS_OPTIONS,
   TRANSACTION_TYPE_OPTIONS,
+  transactionCategoryLabel,
 } from '@/domains/shared/utils/entLabels'
+import api from '@/services/api'
+import { parseSettingList } from '@/domains/configuration/utils/settingList'
+
+const DEFAULT_EXPENSE_CATEGORIES = [
+  'Dépense projet',
+  'Dépense site',
+  'Dépense matériel',
+  'Dépense équipement',
+  'Autre dépense',
+]
 
 const form = defineModel({ type: Object, required: true })
 
-defineProps({
+const props = defineProps({
   errors: { type: Object, default: () => ({}) },
   clientOptions: { type: Array, default: () => [] },
   siteOptions: { type: Array, default: () => [] },
   expenseOnly: { type: Boolean, default: false },
 })
+
+const emetteurOptions = ref([])
+const destinataireOptions = ref([])
+const emetteurSuggestions = ref([])
+const destinataireSuggestions = ref([])
+const expenseCategoryLabels = ref([...DEFAULT_EXPENSE_CATEGORIES])
+
+const expenseCategoryOptions = computed(() =>
+  expenseCategoryLabels.value.map((label) => ({ label, value: label })),
+)
+
+const categoryOptions = computed(() => {
+  const base = props.expenseOnly
+    ? [...expenseCategoryOptions.value]
+    : [...SYSTEM_TRANSACTION_CATEGORY_OPTIONS, ...expenseCategoryOptions.value]
+
+  const current = form.value?.category
+  if (current && !base.some((o) => o.value === current)) {
+    return [{ label: transactionCategoryLabel(current), value: current }, ...base]
+  }
+  return base
+})
+
+function filterSuggestions(source, query) {
+  const q = String(query ?? '').trim().toLowerCase()
+  if (!q) return [...source]
+  return source.filter((item) => item.toLowerCase().includes(q))
+}
+
+function completeEmetteur(event) {
+  emetteurSuggestions.value = filterSuggestions(emetteurOptions.value, event.query)
+}
+
+function completeDestinataire(event) {
+  destinataireSuggestions.value = filterSuggestions(destinataireOptions.value, event.query)
+}
+
+async function loadFinanceLists() {
+  try {
+    const { data } = await api.get('/settings')
+    const items = Array.isArray(data) ? data : (data.items ?? [])
+    const map = Object.fromEntries(items.map((item) => [item.cle, item.valeur]))
+    emetteurOptions.value = parseSettingList(map.FINANCE_EMETTEURS)
+    destinataireOptions.value = parseSettingList(map.FINANCE_DESTINATAIRES)
+    const cats = parseSettingList(map.FINANCE_CATEGORIES_DEPENSES)
+    expenseCategoryLabels.value = cats.length ? cats : [...DEFAULT_EXPENSE_CATEGORIES]
+  } catch {
+    emetteurOptions.value = []
+    destinataireOptions.value = []
+    expenseCategoryLabels.value = [...DEFAULT_EXPENSE_CATEGORIES]
+  }
+}
+
+onMounted(loadFinanceLists)
 </script>
 
 <template>
@@ -43,9 +108,10 @@ defineProps({
       <label>Catégorie</label>
       <Select
         v-model="form.category"
-        :options="expenseOnly ? EXPENSE_CATEGORY_OPTIONS : TRANSACTION_CATEGORY_OPTIONS"
+        :options="categoryOptions"
         option-label="label"
         option-value="value"
+        filter
         fluid
       />
     </div>
@@ -55,11 +121,27 @@ defineProps({
     </div>
     <div class="field">
       <label>Émetteur</label>
-      <InputText v-model="form.fromParty" fluid />
+      <AutoComplete
+        v-model="form.fromParty"
+        :suggestions="emetteurSuggestions"
+        dropdown
+        complete-on-focus
+        placeholder="Choisir ou saisir…"
+        fluid
+        @complete="completeEmetteur"
+      />
     </div>
     <div class="field">
       <label>Destinataire</label>
-      <InputText v-model="form.toParty" fluid />
+      <AutoComplete
+        v-model="form.toParty"
+        :suggestions="destinataireSuggestions"
+        dropdown
+        complete-on-focus
+        placeholder="Choisir ou saisir…"
+        fluid
+        @complete="completeDestinataire"
+      />
     </div>
     <div class="field">
       <label>Client</label>

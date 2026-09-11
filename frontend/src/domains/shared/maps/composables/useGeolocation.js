@@ -27,6 +27,7 @@ export function useGeolocation() {
       return {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
+        accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
       }
     } catch (e) {
       error.value = e?.message || 'Impossible d’obtenir la position.'

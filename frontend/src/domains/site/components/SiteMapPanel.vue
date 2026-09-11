@@ -27,10 +27,13 @@ import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
+import { formatDateTimeFr } from '@/domains/shared/utils/entLabels'
 
 const props = defineProps({
   /** Filtered site list from parent. */
   sites: { type: Array, default: () => [] },
+  /** Latest employee check-in positions (map markers). */
+  employeePositions: { type: Array, default: () => [] },
   clientMap: { type: Object, default: () => ({}) },
   clientOptions: { type: Array, default: () => [] },
   createSaving: { type: Boolean, default: false },
@@ -96,6 +99,12 @@ const sitesWithCoords = computed(() =>
   ),
 )
 
+const positionsWithCoords = computed(() =>
+  (props.employeePositions || []).filter(
+    (p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude),
+  ),
+)
+
 const sitesWithoutCoordsCount = computed(
   () => (props.sites || []).length - sitesWithCoords.value.length,
 )
@@ -158,7 +167,10 @@ function fitToSites(map) {
     leafletMap = api && typeof api.getMap === 'function' ? api.getMap() : null
   }
 
-  const points = sitesWithCoords.value.map((s) => ({ lat: s.latitude, lng: s.longitude }))
+  const points = [
+    ...sitesWithCoords.value.map((s) => ({ lat: s.latitude, lng: s.longitude })),
+    ...positionsWithCoords.value.map((p) => ({ lat: p.latitude, lng: p.longitude })),
+  ]
   if (myPosition.value) points.push(myPosition.value)
   if (pickedPoint.value) points.push(pickedPoint.value)
   if (routeCoords.value.length) {
@@ -174,6 +186,11 @@ function fitToSites(map) {
 
 watch(
   () => sitesWithCoords.value.map((s) => s.id).join(','),
+  () => fitToSites(),
+)
+
+watch(
+  () => positionsWithCoords.value.map((p) => p.id).join(','),
   () => fitToSites(),
 )
 
@@ -217,6 +234,10 @@ function selectSite(site) {
   selectedId.value = site.id
   pickedPoint.value = null
   assignSiteId.value = null
+}
+
+function formatPositionTime(value) {
+  return formatDateTimeFr(value) || '—'
 }
 
 function openExpanded() {
@@ -379,6 +400,9 @@ function siteVariant(site) {
         <span>{{ sitesWithCoords.length }} site(s) géolocalisé(s)</span>
         <span v-if="sitesWithoutCoordsCount" class="muted">
           · {{ sitesWithoutCoordsCount }} sans position
+        </span>
+        <span v-if="positionsWithCoords.length" class="muted">
+          · {{ positionsWithCoords.length }} employé(s)
         </span>
       </div>
       <div class="site-map-panel__actions">
@@ -544,6 +568,29 @@ function siteVariant(site) {
                   @click="openWithMaps(site.latitude, site.longitude)"
                 />
                 <Button type="button" label="Trajet Google" size="small" text @click="openGoogleDirections(site)" />
+              </div>
+            </div>
+          </AppMapMarker>
+
+          <AppMapMarker
+            v-for="pos in positionsWithCoords"
+            :key="`emp-${pos.id}`"
+            :lat="pos.latitude"
+            :lng="pos.longitude"
+            variant="employee"
+          >
+            <div class="site-map-popup">
+              <strong>{{ pos.employeeName || 'Employé' }}</strong>
+              <p class="muted">Dernière position</p>
+              <p v-if="pos.recordedAt" class="muted">{{ formatPositionTime(pos.recordedAt) }}</p>
+              <div class="site-map-popup__actions">
+                <Button
+                  type="button"
+                  label="Ouvrir avec Maps"
+                  size="small"
+                  text
+                  @click="openWithMaps(pos.latitude, pos.longitude)"
+                />
               </div>
             </div>
           </AppMapMarker>

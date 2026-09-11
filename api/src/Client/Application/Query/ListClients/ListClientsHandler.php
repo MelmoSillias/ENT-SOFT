@@ -4,6 +4,7 @@ namespace App\Client\Application\Query\ListClients;
 
 use App\Client\Application\Dto\ClientResponseDto;
 use App\Client\Domain\Repository\ClientRepositoryInterface;
+use App\SharedKernel\Domain\Period\PeriodBounds;
 
 final class ListClientsHandler
 {
@@ -19,8 +20,8 @@ final class ListClientsHandler
             static fn ($client) => ClientResponseDto::fromEntity($client)->toArray(),
             $this->clientRepository->findAllEnabled(
                 $query->search,
-                $query->from ? new \DateTimeImmutable($query->from) : null,
-                $query->to ? new \DateTimeImmutable($query->to) : null,
+                PeriodBounds::from($query->from),
+                PeriodBounds::to($query->to),
             ),
         );
     }

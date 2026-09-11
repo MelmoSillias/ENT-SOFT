@@ -4,6 +4,7 @@ namespace App\Finance\Application\Query\ListFinancialTransactions;
 
 use App\Finance\Application\Dto\FinancialTransactionResponseDto;
 use App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface;
+use App\SharedKernel\Domain\Period\PeriodBounds;
 
 final class ListFinancialTransactionsHandler
 {
@@ -18,8 +19,8 @@ final class ListFinancialTransactionsHandler
         return array_map(
             static fn ($t) => FinancialTransactionResponseDto::fromEntity($t)->toArray(),
             $this->transactionRepository->findAllEnabled(
-                $from ? new \DateTimeImmutable($from) : null,
-                $to ? new \DateTimeImmutable($to) : null,
+                PeriodBounds::from($from),
+                PeriodBounds::to($to),
             ),
         );
     }

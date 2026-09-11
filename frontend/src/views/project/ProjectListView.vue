@@ -14,13 +14,14 @@ import AppTableSettingsPopover from '@/domains/shared/components/AppTableSetting
 import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { sortByField } from '@/domains/shared/utils/sortByField'
 import ProjectFormFields from '@/domains/project/components/ProjectFormFields.vue'
 import { listProjects, createProject, updateProject, deleteProject } from '@/domains/project/services/projectService'
 import { listClients } from '@/domains/client/services/clientService'
-import { projectStatusLabel, projectStatusSeverity, formatDateFr } from '@/domains/shared/utils/entLabels'
+import { projectStatusLabel, projectStatusSeverity } from '@/domains/shared/utils/entLabels'
 import { toApiDate, parseApiDate, periodToApiParams } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
@@ -74,6 +75,8 @@ const {
 } = useTableSettings('table_projects', PROJECT_COLUMNS, {
   defaultSortField: 'title',
 })
+
+const tableFirst = ref(0)
 
 const canCreate = computed(() => hasPermission('project.projects.create'))
 
@@ -344,9 +347,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             :sort-field="sortField || undefined"
             :sort-order="sortOrder"
             @row-contextmenu="onRowContextMenu"
-          >
+            v-model:first="tableFirst">
             <Column v-if="showIndex" header="#" style="width: 3.5rem">
-              <template #body="{ index }">{{ index + 1 }}</template>
+              <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
             </Column>
             <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
             <Column v-if="isColVisible('title')" field="title" header="Titre" sortable />
@@ -360,7 +363,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               <template #body="{ data }">{{ formatMontant(data.budget, DEVISE_APP) }}</template>
             </Column>
             <Column v-if="isColVisible('dateDebut')" field="dateDebut" header="Début" sortable>
-              <template #body="{ data }">{{ formatDateFr(data.dateDebut) }}</template>
+              <template #body="{ data }">
+                <AppDateTimeCell :value="data.dateDebut" :time-from="data.createdAt" />
+              </template>
             </Column>
             <Column header="Actions" style="width: 5rem">
               <template #body="{ data }">

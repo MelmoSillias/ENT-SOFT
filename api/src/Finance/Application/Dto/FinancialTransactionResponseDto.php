@@ -35,7 +35,7 @@ final readonly class FinancialTransactionResponseDto
             date: $t->getDate()->format('Y-m-d'),
             amount: $t->getAmount(),
             type: $t->getType()->value,
-            category: $t->getCategory()->value,
+            category: $t->getCategory(),
             description: $t->getDescription(),
             status: $t->getStatus()->value,
             fromParty: $t->getFromParty(),
@@ -51,12 +51,9 @@ final readonly class FinancialTransactionResponseDto
         );
     }
 
-    public static function isSystemGeneratedCategory(TransactionCategory $category): bool
+    public static function isSystemGeneratedCategory(string $category): bool
     {
-        return in_array($category, [
-            TransactionCategory::PRESTATION_PAYMENT,
-            TransactionCategory::INVOICE_PAYMENT,
-        ], true);
+        return TransactionCategory::isSystemGenerated($category);
     }
 
     /** @return array<string, mixed> */

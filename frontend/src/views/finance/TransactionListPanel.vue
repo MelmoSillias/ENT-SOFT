@@ -16,6 +16,7 @@ import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { useClientPagination } from '@/domains/shared/composables/useClientPagination'
 import { sortByField } from '@/domains/shared/utils/sortByField'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import TransactionFormFields from '@/domains/finance/components/TransactionFormFields.vue'
 import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
 import PendingAttachments from '@/domains/finance/components/PendingAttachments.vue'
@@ -35,8 +36,9 @@ import {
   transactionStatusLabel,
   transactionStatusSeverity,
   transactionTypeLabel,
+  DEFAULT_EXPENSE_CATEGORY,
 } from '@/domains/shared/utils/entLabels'
-import { toApiDate, parseApiDate, periodToApiParams, lastMonthsRange } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate, periodToApiParams, currentMonthRange } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
@@ -110,6 +112,8 @@ const {
   defaultSortOrder: -1,
 })
 
+const tableFirst = ref(0)
+
 const canCreate = computed(() => hasPermission('finance.transactions.create'))
 
 function emptyForm() {
@@ -117,7 +121,7 @@ function emptyForm() {
     date: new Date(),
     amount: 0,
     type: 'expense',
-    category: 'OtherExpense',
+    category: DEFAULT_EXPENSE_CATEGORY,
     status: 'completed',
     fromParty: '',
     toParty: '',
@@ -142,7 +146,7 @@ async function loadRefs() {
   siteOptions.value = sites.map((s) => ({ label: `${s.code} — ${s.title}`, value: s.id }))
 }
 
-const filterPeriod = ref(lastMonthsRange(3))
+const filterPeriod = ref(currentMonthRange())
 
 async function fetchItems() {
   const all = await listFinancialTransactions(periodToApiParams(filterPeriod.value))
@@ -446,13 +450,15 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       :sort-field="sortField === 'category' || sortField === 'type' ? undefined : (sortField || undefined)"
       :sort-order="sortOrder"
       @row-contextmenu="onRowContextMenu"
-    >
+      v-model:first="tableFirst">
       <Column expander style="width: 3rem" />
       <Column v-if="showIndex" header="#" style="width: 3.5rem">
-        <template #body="{ index }">{{ index + 1 }}</template>
+        <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
       </Column>
       <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
-        <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+        <template #body="{ data }">
+          <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
+        </template>
       </Column>
       <Column v-if="!expenseOnly && isColVisible('type')" field="type" header="Type" sortable>
         <template #body="{ data }">{{ transactionTypeLabel(data.type) }}</template>

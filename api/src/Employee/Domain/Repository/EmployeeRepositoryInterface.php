@@ -11,6 +11,8 @@ interface EmployeeRepositoryInterface
 
     public function findById(Uuid $id): ?Employee;
 
+    public function findByUserId(Uuid $userId): ?Employee;
+
     /**
      * @param list<Uuid> $ids
      * @return list<Employee>

@@ -20,6 +20,7 @@ import AppTableSettingsPopover from '@/domains/shared/components/AppTableSetting
 import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
@@ -102,6 +103,8 @@ const {
 } = useTableSettings('table_tasks', TASK_COLUMNS, {
   defaultSortField: 'dateDue',
 })
+
+const tableFirst = ref(0)
 
 const canCreate = computed(() => hasPermission('task.tasks.create'))
 
@@ -457,9 +460,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               :sort-field="sortField === 'site' || sortField === 'employee' ? undefined : (sortField || undefined)"
               :sort-order="sortOrder"
               @row-contextmenu="onRowContextMenu"
-            >
+              v-model:first="tableFirst">
               <Column v-if="showIndex" header="#" style="width: 3.5rem">
-                <template #body="{ index }">{{ index + 1 }}</template>
+                <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
               </Column>
               <Column v-if="isColVisible('title')" field="title" header="Titre" sortable />
               <Column v-if="isColVisible('site')" header="Site">
@@ -478,7 +481,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
                 </template>
               </Column>
               <Column v-if="isColVisible('dateDue')" field="dateDue" header="Échéance" sortable>
-                <template #body="{ data }">{{ formatDateFr(data.dateDue) }}</template>
+                <template #body="{ data }">
+                  <AppDateTimeCell :value="data.dateDue" :time-from="data.createdAt" />
+                </template>
               </Column>
               <Column v-if="isColVisible('status')" field="status" header="Statut" sortable>
                 <template #body="{ data }">

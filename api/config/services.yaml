@@ -106,6 +106,9 @@ services:
     App\Employee\Domain\Repository\EmployeeRepositoryInterface:
         alias: App\Employee\Infrastructure\Persistence\Doctrine\DoctrineEmployeeRepository
 
+    App\Employee\Domain\Repository\EmployeePositionRepositoryInterface:
+        alias: App\Employee\Infrastructure\Persistence\Doctrine\DoctrineEmployeePositionRepository
+
     App\Prestataire\Domain\Repository\PrestataireRepositoryInterface:
         alias: App\Prestataire\Infrastructure\Persistence\Doctrine\DoctrinePrestataireRepository
 

@@ -57,7 +57,7 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
             ->andWhere('t.isEnabled = :enabled')
             ->andWhere('t.category = :category')
             ->setParameter('enabled', true)
-            ->setParameter('category', TransactionCategory::INVOICE_PAYMENT)
+            ->setParameter('category', TransactionCategory::INVOICE_PAYMENT->value)
             ->orderBy('t.date', 'DESC');
         UuidQueryParameter::eq($qb, 't.invoiceId', 'invoiceId', $invoiceId);
 
@@ -77,7 +77,7 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
             ->andWhere('a.isEnabled = :enabled')
             ->andWhere('t.category = :category')
             ->setParameter('enabled', true)
-            ->setParameter('category', TransactionCategory::PRESTATION_PAYMENT)
+            ->setParameter('category', TransactionCategory::PRESTATION_PAYMENT->value)
             ->orderBy('t.date', 'DESC')
             ->distinct();
         UuidQueryParameter::eq($qb, 'a.prestationId', 'prestationId', $prestationId);

@@ -65,9 +65,9 @@ final class ReferentielBootstrapService
             $allowed = array_fill_keys($codes, true);
             $existing = $rolePermissionRepo->findBy(['roleCode' => $roleValue]);
             $isSystem = isset($systemCodes[$roleValue]);
-            $hasAny = [] !== $existing;
 
-            // Rôles système : sync strict. Rôles métier : seed seulement si vide.
+            // Rôles système : sync strict (retire les perms hors catalogue).
+            // Rôles métier : on ajoute les manquantes sans retirer les extras custom.
             if ($isSystem) {
                 foreach ($existing as $rp) {
                     $code = $rp->getPermission()->getCode();
@@ -75,8 +75,6 @@ final class ReferentielBootstrapService
                         $this->entityManager->remove($rp);
                     }
                 }
-            } elseif ($hasAny) {
-                continue;
             }
 
             foreach ($codes as $code) {

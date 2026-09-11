@@ -4,6 +4,7 @@ namespace App\IdentityAccess\Application\Query\ListUsers;
 
 use App\IdentityAccess\Application\Dto\UserResponseDto;
 use App\IdentityAccess\Domain\Repository\UtilisateurRepositoryInterface;
+use App\SharedKernel\Domain\Period\PeriodBounds;
 
 final class ListUsersHandler
 {
@@ -18,8 +19,8 @@ final class ListUsersHandler
         return array_map(
             static fn ($user) => UserResponseDto::fromEntity($user)->toArray(),
             $this->utilisateurRepository->findAll(
-                $query->from ? new \DateTimeImmutable($query->from) : null,
-                $query->to ? new \DateTimeImmutable($query->to) : null,
+                PeriodBounds::from($query->from),
+                PeriodBounds::to($query->to),
             ),
         );
     }

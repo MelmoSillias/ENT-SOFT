@@ -14,6 +14,7 @@ import AppThemeControls from '@/domains/layout/components/AppThemeControls.vue'
 import AgencySettingsPanel from '@/views/configuration/AgencySettingsPanel.vue'
 import ImpressionSettingsPanel from '@/views/configuration/ImpressionSettingsPanel.vue'
 import NumerotationSettingsPanel from '@/views/configuration/NumerotationSettingsPanel.vue'
+import FinancePartiesSettingsPanel from '@/views/configuration/FinancePartiesSettingsPanel.vue'
 import CorbeillePanel from '@/views/configuration/CorbeillePanel.vue'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 
@@ -102,6 +103,7 @@ syncFromQuery()
         </div>
         <div v-if="canViewSettings" v-show="activeTab === 'settings'" class="settings-dedicated">
           <NumerotationSettingsPanel :can-edit="canEditSettings" />
+          <FinancePartiesSettingsPanel :can-edit="canEditSettings" />
         </div>
         <div v-if="canViewSettings" v-show="activeTab === 'corbeille'">
           <CorbeillePanel ref="corbeillePanel" />

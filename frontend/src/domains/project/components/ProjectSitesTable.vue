@@ -17,6 +17,7 @@ import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
 import Divider from 'primevue/divider'
 import AppTableActionsMenu from '@/domains/shared/components/AppTableActionsMenu.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import {
@@ -251,10 +252,18 @@ function cellValue(site, key) {
   const raw = site.informationsValues?.[key]
   if (raw === null || raw === undefined || raw === '') return '—'
   if (typeof raw === 'boolean') return raw ? 'Oui' : 'Non'
-  if (key.endsWith('_date') || key === 'start_date' || key === 'end_date') {
+  if (isDateInfoKey(key)) {
     return formatDateFr(raw)
   }
   return String(raw)
+}
+
+function isDateInfoKey(key) {
+  return key.endsWith('_date') || key === 'start_date' || key === 'end_date'
+}
+
+function cellRawValue(site, key) {
+  return site.informationsValues?.[key]
 }
 
 function lotLabel(lot) {
@@ -932,6 +941,11 @@ onMounted(() => {
               >
                 <template #body="{ data }">
                   <Skeleton v-if="loadingRowIds.has(data.id)" width="6rem" height="1rem" />
+                  <AppDateTimeCell
+                    v-else-if="isDateInfoKey(col.key)"
+                    :value="cellRawValue(data, col.key)"
+                    :time-from="data.createdAt"
+                  />
                   <template v-else>{{ cellValue(data, col.key) }}</template>
                 </template>
               </Column>
@@ -1023,7 +1037,14 @@ onMounted(() => {
               </Column>
               <template v-for="col in infoColumns" :key="'f-' + col.key">
                 <Column v-if="isColVisible(col.key)" :header="col.label" :frozen="isColumnFrozen(col.key)" style="min-width: 6rem">
-                  <template #body="{ data }">{{ cellValue(data, col.key) }}</template>
+                  <template #body="{ data }">
+                    <AppDateTimeCell
+                      v-if="isDateInfoKey(col.key)"
+                      :value="cellRawValue(data, col.key)"
+                      :time-from="data.createdAt"
+                    />
+                    <template v-else>{{ cellValue(data, col.key) }}</template>
+                  </template>
                 </Column>
               </template>
               <Column

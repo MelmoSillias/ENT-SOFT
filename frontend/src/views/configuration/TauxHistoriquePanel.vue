@@ -5,6 +5,7 @@ import Column from 'primevue/column'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import DeviseBadge from '@/domains/shared/components/DeviseBadge.vue'
 import CountryFlag from '@/domains/shared/components/CountryFlag.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import api from '@/services/api'
 
 const rows = ref([])
@@ -14,14 +15,6 @@ const error = ref(null)
 
 function normalizeList(data) {
   return Array.isArray(data) ? data : (data.items ?? [])
-}
-
-function formatDateTime(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('fr-FR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  })
 }
 
 function formatTaux(value) {
@@ -80,7 +73,7 @@ defineExpose({ load })
       <DataTable :value="rows" paginator :rows="15" striped-rows data-key="id">
         <Column header="Date" style="min-width: 9rem">
           <template #body="{ data }">
-            {{ formatDateTime(data.date_modification) }}
+            <AppDateTimeCell :value="data.date_modification" />
           </template>
         </Column>
 

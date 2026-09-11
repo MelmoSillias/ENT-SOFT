@@ -45,6 +45,8 @@ const {
   toggleCol,
 } = useTableSettings('table_corbeille_clients', COLUMNS, { defaultSortField: 'updatedAt', defaultSortOrder: -1 })
 
+const tableFirst = ref(0)
+
 function clientLabel(client) {
   return client.title || client.code || '—'
 }
@@ -173,9 +175,9 @@ defineExpose({ load })
           :sort-field="sortField || undefined"
           :sort-order="sortOrder"
           @row-contextmenu="onRowContextMenu"
-        >
+          v-model:first="tableFirst">
           <Column v-if="showIndex" header="#" style="width: 3.5rem">
-            <template #body="{ index }">{{ index + 1 }}</template>
+            <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
           </Column>
           <Column v-if="isColVisible('title')" header="Nom" field="title" sortable>
             <template #body="{ data }">

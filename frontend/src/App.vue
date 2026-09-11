@@ -16,6 +16,8 @@ const showQuickNav = computed(() => route.meta.requiresAuth === true && !isAppMo
 
 // Clears SpeedDial / bottom nav. Inline style needed:
 // PrimeVue sets bottom: 20px on the root, which beats class CSS without !important.
+const toastPosition = computed(() => (isAppMobile.value ? 'bottom-center' : 'bottom-right'))
+
 const toastPt = computed(() => {
   if (isAppMobile.value) {
     return {
@@ -43,7 +45,7 @@ function onToastMouseLeave() {}
 
 <template>
   <Toast
-    position="bottom-right"
+    :position="toastPosition"
     class="app-toast"
     :pt="toastPt"
     :onMouseEnter="onToastMouseEnter"

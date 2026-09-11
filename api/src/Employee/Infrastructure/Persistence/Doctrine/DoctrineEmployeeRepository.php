@@ -31,6 +31,15 @@ class DoctrineEmployeeRepository extends ServiceEntityRepository implements Empl
         return $qb->getQuery()->getOneOrNullResult();
     }
 
+    public function findByUserId(Uuid $userId): ?Employee
+    {
+        $qb = $this->createQueryBuilder('e');
+        UuidQueryParameter::eq($qb, 'e.userId', 'userId', $userId);
+        $qb->andWhere('e.isEnabled = :enabled')->setParameter('enabled', true);
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
     public function findByIds(array $ids): array
     {
         if ($ids === []) {

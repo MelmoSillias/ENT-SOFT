@@ -74,6 +74,8 @@ const {
   defaultSortField: 'nom',
 })
 
+const tableFirst = ref(0)
+
 const activeTab = ref('0')
 const tabItems = computed(() => {
   const items = [{ value: '0', label: 'Utilisateurs', shortLabel: 'Users' }]
@@ -510,9 +512,9 @@ function onRowContextMenu(event) {
               :sort-field="sortField || undefined"
               :sort-order="sortOrder"
               @row-contextmenu="onRowContextMenu"
-            >
+              v-model:first="tableFirst">
               <Column v-if="showIndex" header="#" style="width: 3.5rem">
-                <template #body="{ index }">{{ index + 1 }}</template>
+                <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
               </Column>
               <Column v-if="isColVisible('name')" header="Nom" sortable field="nom">
                 <template #body="{ data }">

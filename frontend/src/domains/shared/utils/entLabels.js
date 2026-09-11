@@ -51,9 +51,26 @@ export const TRANSACTION_TYPE_OPTIONS = [
   { label: 'Dépense', value: 'expense' },
 ]
 
-export const TRANSACTION_CATEGORY_OPTIONS = [
+/** Catégories système (paiements générés) — non paramétrables. */
+export const SYSTEM_TRANSACTION_CATEGORY_OPTIONS = [
   { label: 'Paiement facture', value: 'InvoicePayment' },
   { label: 'Paiement prestation', value: 'PrestationPayment' },
+]
+
+/** Libellés legacy des codes historiques (affichage des anciennes transactions). */
+export const LEGACY_TRANSACTION_CATEGORY_LABELS = {
+  InvoicePayment: 'Paiement facture',
+  PrestationPayment: 'Paiement prestation',
+  ProjetExpense: 'Dépense projet',
+  SiteExpense: 'Dépense site',
+  MaterialExpense: 'Dépense matériel',
+  EquipmentExpense: 'Dépense équipement',
+  OtherExpense: 'Autre dépense',
+}
+
+/** @deprecated Utiliser les settings FINANCE_CATEGORIES_DEPENSES ; conservé pour fallback. */
+export const TRANSACTION_CATEGORY_OPTIONS = [
+  ...SYSTEM_TRANSACTION_CATEGORY_OPTIONS,
   { label: 'Dépense projet', value: 'ProjetExpense' },
   { label: 'Dépense site', value: 'SiteExpense' },
   { label: 'Dépense matériel', value: 'MaterialExpense' },
@@ -64,6 +81,8 @@ export const TRANSACTION_CATEGORY_OPTIONS = [
 export const EXPENSE_CATEGORY_OPTIONS = TRANSACTION_CATEGORY_OPTIONS.filter(
   (o) => o.value !== 'InvoicePayment' && o.value !== 'PrestationPayment',
 )
+
+export const DEFAULT_EXPENSE_CATEGORY = 'Autre dépense'
 
 export const TRANSACTION_STATUS_OPTIONS = [
   { label: 'En attente', value: 'pending' },
@@ -143,7 +162,10 @@ export function equipmentUnitLabel(unit) {
 }
 
 const transactionTypeMap = Object.fromEntries(TRANSACTION_TYPE_OPTIONS.map((o) => [o.value, o.label]))
-const transactionCategoryMap = Object.fromEntries(TRANSACTION_CATEGORY_OPTIONS.map((o) => [o.value, o.label]))
+const transactionCategoryMap = {
+  ...LEGACY_TRANSACTION_CATEGORY_LABELS,
+  ...Object.fromEntries(TRANSACTION_CATEGORY_OPTIONS.map((o) => [o.value, o.label])),
+}
 const transactionStatusMap = Object.fromEntries(TRANSACTION_STATUS_OPTIONS.map((o) => [o.value, o.label]))
 
 export function transactionTypeLabel(type) {
@@ -151,7 +173,8 @@ export function transactionTypeLabel(type) {
 }
 
 export function transactionCategoryLabel(category) {
-  return transactionCategoryMap[category] ?? category ?? '—'
+  if (!category) return '—'
+  return transactionCategoryMap[category] ?? category
 }
 
 export function transactionStatusLabel(status) {
@@ -171,6 +194,24 @@ export function formatDateFr(value) {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
   return d.toLocaleDateString('fr-FR')
+}
+
+export function formatTimeFr(value) {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** True when the value carries a usable time (not a bare YYYY-MM-DD date). */
+export function hasTimeComponent(value) {
+  if (value == null || value === '') return false
+  if (value instanceof Date) {
+    return value.getHours() !== 0 || value.getMinutes() !== 0 || value.getSeconds() !== 0
+  }
+  const s = String(value).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
+  return /T|\d{1,2}:\d{2}/.test(s)
 }
 
 export function formatDateTimeFr(value) {

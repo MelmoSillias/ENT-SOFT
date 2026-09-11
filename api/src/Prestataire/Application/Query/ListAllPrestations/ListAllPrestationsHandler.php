@@ -5,6 +5,7 @@ namespace App\Prestataire\Application\Query\ListAllPrestations;
 use App\Prestataire\Application\Service\PrestataireAssembler;
 use App\Prestataire\Domain\Repository\PrestataireRepositoryInterface;
 use App\Prestataire\Domain\Repository\PrestationRepositoryInterface;
+use App\SharedKernel\Domain\Period\PeriodBounds;
 
 final class ListAllPrestationsHandler
 {
@@ -28,8 +29,8 @@ final class ListAllPrestationsHandler
 
         $result = [];
         $prestations = $this->prestationRepository->findAllEnabled(
-            $query->from ? new \DateTimeImmutable($query->from) : null,
-            $query->to ? new \DateTimeImmutable($query->to) : null,
+            PeriodBounds::from($query->from),
+            PeriodBounds::to($query->to),
         );
         foreach ($prestations as $prestation) {
             $row = $this->assembler->toPrestationDto($prestation)->toArray();

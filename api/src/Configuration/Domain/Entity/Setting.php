@@ -21,7 +21,7 @@ class Setting
     #[ORM\Column(length: 100)]
     private string $cle;
 
-    #[ORM\Column(length: 500)]
+    #[ORM\Column(type: 'text')]
     private string $valeur;
 
     #[ORM\Column(enumType: TypeValeur::class)]

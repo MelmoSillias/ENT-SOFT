@@ -46,7 +46,7 @@ final class PayInvoiceHandler
             date: new \DateTimeImmutable($command->date),
             amount: $command->amount,
             type: TransactionType::INCOME,
-            category: TransactionCategory::INVOICE_PAYMENT,
+            category: TransactionCategory::INVOICE_PAYMENT->value,
             status: TransactionStatus::COMPLETED,
             fromParty: $fromParty,
             toParty: $toParty,

@@ -2,7 +2,6 @@
 
 namespace App\Finance\Domain\Entity;
 
-use App\Finance\Domain\Enum\TransactionCategory;
 use App\Finance\Domain\Enum\TransactionStatus;
 use App\Finance\Domain\Enum\TransactionType;
 use App\Finance\Infrastructure\Persistence\Doctrine\DoctrineFinancialTransactionRepository;
@@ -29,8 +28,8 @@ class FinancialTransaction
     #[ORM\Column(enumType: TransactionType::class)]
     private TransactionType $type;
 
-    #[ORM\Column(enumType: TransactionCategory::class)]
-    private TransactionCategory $category;
+    #[ORM\Column(length: 100)]
+    private string $category;
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $description;
@@ -60,7 +59,7 @@ class FinancialTransaction
         \DateTimeImmutable $date,
         float $amount,
         TransactionType $type,
-        TransactionCategory $category,
+        string $category,
         TransactionStatus $status,
         ?string $fromParty = null,
         ?string $toParty = null,
@@ -89,7 +88,7 @@ class FinancialTransaction
     public function getDate(): \DateTimeImmutable { return $this->date; }
     public function getAmount(): float { return $this->amount; }
     public function getType(): TransactionType { return $this->type; }
-    public function getCategory(): TransactionCategory { return $this->category; }
+    public function getCategory(): string { return $this->category; }
     public function getDescription(): ?string { return $this->description; }
     public function getStatus(): TransactionStatus { return $this->status; }
     public function getFromParty(): ?string { return $this->fromParty; }
@@ -102,7 +101,7 @@ class FinancialTransaction
     public function setDate(\DateTimeImmutable $date): void { $this->date = $date; $this->touch(); }
     public function setAmount(float $amount): void { $this->amount = $amount; $this->touch(); }
     public function setType(TransactionType $type): void { $this->type = $type; $this->touch(); }
-    public function setCategory(TransactionCategory $category): void { $this->category = $category; $this->touch(); }
+    public function setCategory(string $category): void { $this->category = $category; $this->touch(); }
     public function setDescription(?string $description): void { $this->description = $description; $this->touch(); }
     public function setStatus(TransactionStatus $status): void { $this->status = $status; $this->touch(); }
     public function setFromParty(?string $fromParty): void { $this->fromParty = $fromParty; $this->touch(); }

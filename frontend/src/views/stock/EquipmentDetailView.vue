@@ -12,6 +12,7 @@ import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
@@ -118,7 +119,9 @@ onMounted(load)
               />
               <DataTable v-else-if="equipmentMovements.length" :value="equipmentMovements" striped-rows>
                 <Column header="Date">
-                  <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+                  <template #body="{ data }">
+                    <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
+                  </template>
                 </Column>
                 <Column header="Type">
                   <template #body="{ data }">

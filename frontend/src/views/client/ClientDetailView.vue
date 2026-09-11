@@ -26,6 +26,7 @@ import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
@@ -229,7 +230,9 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async () => {
                 <DataTable v-else-if="invoices.length" :value="invoices" striped-rows>
                   <Column field="number" header="N°" />
                   <Column header="Date">
-                    <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+                    <template #body="{ data }">
+                      <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
+                    </template>
                   </Column>
                   <Column header="Montant">
                     <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>

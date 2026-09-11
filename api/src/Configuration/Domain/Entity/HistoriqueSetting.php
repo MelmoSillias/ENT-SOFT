@@ -17,10 +17,10 @@ class HistoriqueSetting
     #[ORM\Column(length: 100)]
     private string $settingCle;
 
-    #[ORM\Column(length: 500)]
+    #[ORM\Column(type: 'text')]
     private string $ancienneValeur;
 
-    #[ORM\Column(length: 500)]
+    #[ORM\Column(type: 'text')]
     private string $nouvelleValeur;
 
     #[ORM\Column(type: 'uuid')]

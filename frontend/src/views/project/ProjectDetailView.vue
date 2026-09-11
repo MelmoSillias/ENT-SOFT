@@ -20,6 +20,7 @@ import { getProjectDetail, updateProject, createProjectEvent } from '@/domains/p
 import ProjectSitesTable from '@/domains/project/components/ProjectSitesTable.vue'
 import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import {
@@ -391,7 +392,9 @@ onMounted(load)
               <DataTable v-if="project.events?.length" :value="project.events" striped-rows>
                 <Column field="title" header="Titre" />
                 <Column header="Date">
-                  <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+                  <template #body="{ data }">
+                    <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
+                  </template>
                 </Column>
               </DataTable>
               <p v-else class="dashboard-page__state">Aucun événement.</p>

@@ -16,6 +16,7 @@ import AppPersonAvatar from '@/domains/shared/components/AppPersonAvatar.vue'
 import { useBreakpoint } from '@/domains/layout/composables/useBreakpoint'
 import { useLayoutStore } from '@/domains/layout/stores/layout'
 import { useAppBusyStore } from '@/domains/layout/stores/appBusy'
+import { usePositionCheckIn } from '@/domains/employee/composables/usePositionCheckIn'
 
 const props = defineProps({
   brand: {
@@ -64,11 +65,13 @@ const busyStore = useAppBusyStore()
 const { topbarLogoVisibility, topbarProfilePosition, topbarSearchPosition } = storeToRefs(layoutStore)
 const { exporting, exportLabel } = storeToRefs(busyStore)
 const { isMobile, isCompact } = useBreakpoint()
+const { askCheckIn, isBusy: checkInBusy, canCheckIn } = usePositionCheckIn()
 
 const profileMenu = ref()
 const mobileActionsMenu = ref()
 
 const userPhotoUrl = computed(() => props.user?.avatar || props.user?.photoUrl || null)
+const showCheckIn = canCheckIn
 
 const showProfile = computed(() => props.showProfileActions && topbarProfilePosition.value !== 'hidden')
 const showBrandLogo = computed(() => topbarLogoVisibility.value !== 'hidden')
@@ -84,23 +87,33 @@ const toggleMobileActionsMenu = (event) => {
 }
 
 const mobileActionItems = computed(() => {
-  if (!showProfile.value) {
-    return []
+  const items = []
+
+  if (showCheckIn.value) {
+    items.push({
+      label: 'Enregistrer ma position',
+      icon: 'pi pi-map-marker',
+      command: () => askCheckIn(),
+    })
   }
 
-  return [
-    {
-      label: 'Profil',
-      icon: 'pi pi-user',
-      command: () => router.push({ name: 'profile' }),
-    },
-    {
-      label: 'Déconnexion',
-      icon: 'pi pi-sign-out',
-      class: 'app-topbar-mobile-menu__logout',
-      command: () => emit('logout'),
-    },
-  ]
+  if (showProfile.value) {
+    items.push(
+      {
+        label: 'Profil',
+        icon: 'pi pi-user',
+        command: () => router.push({ name: 'profile' }),
+      },
+      {
+        label: 'Déconnexion',
+        icon: 'pi pi-sign-out',
+        class: 'app-topbar-mobile-menu__logout',
+        command: () => emit('logout'),
+      },
+    )
+  }
+
+  return items
 })
 
 const showMobileActionsMenu = computed(() => isMobile.value && mobileActionItems.value.length > 0)
@@ -186,6 +199,17 @@ const goToProfile = () => {
           <i class="pi pi-spin pi-spinner" aria-hidden="true" />
           <span>{{ exportLabel || 'Export en cours…' }}</span>
         </div>
+        <Button
+          v-if="showCheckIn"
+          icon="pi pi-map-marker"
+          severity="secondary"
+          rounded
+          text
+          :loading="checkInBusy"
+          aria-label="Enregistrer ma position"
+          title="Enregistrer ma position"
+          @click="askCheckIn"
+        />
         <div class="app-topbar__status">
           <AppTopbarDateClock
             v-if="!isMobile"

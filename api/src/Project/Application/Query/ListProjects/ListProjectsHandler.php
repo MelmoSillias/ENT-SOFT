@@ -5,6 +5,7 @@ namespace App\Project\Application\Query\ListProjects;
 use App\Project\Application\Dto\ProjectResponseDto;
 use App\Project\Domain\Repository\ProjectRepositoryInterface;
 use App\Project\Domain\Repository\ProjectSiteRepositoryInterface;
+use App\SharedKernel\Domain\Period\PeriodBounds;
 
 final class ListProjectsHandler
 {
@@ -19,8 +20,8 @@ final class ListProjectsHandler
     {
         $projects = $this->projectRepository->findAllEnabled(
             $query->search,
-            $query->from ? new \DateTimeImmutable($query->from) : null,
-            $query->to ? new \DateTimeImmutable($query->to) : null,
+            PeriodBounds::from($query->from),
+            PeriodBounds::to($query->to),
         );
         $siteCounts = $this->projectSiteRepository->countByProjectIds(
             array_map(static fn ($p) => $p->getId(), $projects),

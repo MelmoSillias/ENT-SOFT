@@ -34,6 +34,8 @@ final class PermissionCatalog
             ['code' => 'employee.employees.create', 'libelle' => 'Créer un employé', 'module' => 'employee', 'description' => 'Créer un employé'],
             ['code' => 'employee.employees.update', 'libelle' => 'Modifier un employé', 'module' => 'employee', 'description' => 'Modifier un employé existant'],
             ['code' => 'employee.employees.delete', 'libelle' => 'Supprimer un employé', 'module' => 'employee', 'description' => 'Mettre un employé à la corbeille'],
+            ['code' => 'employee.positions.checkin', 'libelle' => 'Pointer sa position', 'module' => 'employee', 'description' => 'Enregistrer sa géolocalisation (check-in)'],
+            ['code' => 'employee.positions.view', 'libelle' => 'Consulter les positions', 'module' => 'employee', 'description' => 'Voir les positions GPS des employés'],
             ['code' => 'employee.prestataires.view', 'libelle' => 'Consulter les prestataires', 'module' => 'employee', 'description' => 'Lister et consulter les prestataires'],
             ['code' => 'employee.prestataires.create', 'libelle' => 'Créer un prestataire', 'module' => 'employee', 'description' => 'Créer un prestataire'],
             ['code' => 'employee.prestataires.update', 'libelle' => 'Modifier un prestataire', 'module' => 'employee', 'description' => 'Modifier un prestataire ou ses prestations'],
@@ -108,6 +110,7 @@ final class PermissionCatalog
             'site.sites.delete',
             'project.projects.delete', 'project.sites.manage', 'project.events.create',
             'employee.employees.create', 'employee.employees.update', 'employee.employees.delete',
+            'employee.positions.view',
             'employee.prestataires.create', 'employee.prestataires.update', 'employee.prestataires.delete',
             'employee.prestations.pay',
             'task.tasks.delete',
@@ -124,6 +127,7 @@ final class PermissionCatalog
             'task.tasks.delete',
             'stock.equipment.view',
             'stock.movements.create', 'stock.movements.update',
+            'employee.positions.checkin',
         ])));
 
         $secretaire = array_values(array_unique(array_merge($agent, [

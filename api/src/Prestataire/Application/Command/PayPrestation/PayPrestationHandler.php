@@ -56,7 +56,7 @@ final class PayPrestationHandler
             date: $date,
             amount: $command->amount,
             type: TransactionType::EXPENSE,
-            category: TransactionCategory::PRESTATION_PAYMENT,
+            category: TransactionCategory::PRESTATION_PAYMENT->value,
             status: TransactionStatus::COMPLETED,
             fromParty: null,
             toParty: null,

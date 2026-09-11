@@ -68,6 +68,8 @@ const {
   defaultSortField: 'libelle',
 })
 
+const tableFirst = ref(0)
+
 const items = ref([])
 const searchTerm = ref('')
 const permissionsCatalog = ref([])
@@ -337,9 +339,9 @@ function setPermGranted(code, granted) {
             :sort-field="sortField || undefined"
             :sort-order="sortOrder"
             @row-contextmenu="onRowContextMenu"
-          >
+            v-model:first="tableFirst">
             <Column v-if="showIndex" header="#" style="width: 3.5rem">
-              <template #body="{ index }">{{ index + 1 }}</template>
+              <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
             </Column>
             <Column v-if="isColVisible('libelle')" field="libelle" header="Libellé" sortable />
             <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
@@ -424,9 +426,9 @@ function setPermGranted(code, granted) {
           :sort-field="sortField || undefined"
           :sort-order="sortOrder"
           @row-contextmenu="onRowContextMenu"
-        >
+          v-model:first="tableFirst">
           <Column v-if="showIndex" header="#" style="width: 3.5rem">
-            <template #body="{ index }">{{ index + 1 }}</template>
+            <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
           </Column>
           <Column v-if="isColVisible('libelle')" field="libelle" header="Libellé" sortable />
           <Column v-if="isColVisible('code')" field="code" header="Code" sortable />

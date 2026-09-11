@@ -39,6 +39,7 @@ import { sortByField } from '@/domains/shared/utils/sortByField'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import AppTableSettingsPopover from '@/domains/shared/components/AppTableSettingsPopover.vue'
@@ -116,6 +117,8 @@ const {
   defaultSortField: 'date',
   defaultSortOrder: -1,
 })
+
+const tableFirst = ref(0)
 
 function emptyForm() {
   return { prestataireId: null, date: new Date(), description: '', siteId: null, amount: 0, workStatus: 'pending' }
@@ -477,12 +480,14 @@ const { run: runReset } = useAsyncAction(async (item) => {
         :sort-field="sortField === 'prestataire' ? 'prestataireName' : (sortField || undefined)"
         :sort-order="sortOrder"
         @row-contextmenu="onRowContextMenu"
-      >
+        v-model:first="tableFirst">
         <Column v-if="showIndex" header="#" style="width: 3.5rem">
-          <template #body="{ index }">{{ index + 1 }}</template>
+          <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
         </Column>
         <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
-          <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+          <template #body="{ data }">
+            <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
+          </template>
         </Column>
         <Column v-if="isColVisible('prestataire')" field="prestataireName" header="Prestataire" sortable>
           <template #body="{ data }">
@@ -517,10 +522,10 @@ const { run: runReset } = useAsyncAction(async (item) => {
           </template>
         </Column>
         <Column v-if="isColVisible('createdAt')" field="createdAt" header="Créé le" sortable>
-          <template #body="{ data }">{{ formatDateFr(data.createdAt) }}</template>
+          <template #body="{ data }"><AppDateTimeCell :value="data.createdAt" /></template>
         </Column>
         <Column v-if="isColVisible('updatedAt')" field="updatedAt" header="Modifié le" sortable>
-          <template #body="{ data }">{{ formatDateFr(data.updatedAt) }}</template>
+          <template #body="{ data }"><AppDateTimeCell :value="data.updatedAt" /></template>
         </Column>
         <Column header="Actions" style="width: 5rem">
           <template #body="{ data }">

@@ -4,6 +4,7 @@ namespace App\Prestataire\Application\Query\ListPrestataires;
 
 use App\Prestataire\Application\Service\PrestataireAssembler;
 use App\Prestataire\Domain\Repository\PrestataireRepositoryInterface;
+use App\SharedKernel\Domain\Period\PeriodBounds;
 
 final class ListPrestatairesHandler
 {
@@ -20,8 +21,8 @@ final class ListPrestatairesHandler
             fn ($p) => $this->assembler->toPrestataireDto($p)->toArray(),
             $this->prestataireRepository->findAllEnabled(
                 $query->search,
-                $query->from ? new \DateTimeImmutable($query->from) : null,
-                $query->to ? new \DateTimeImmutable($query->to) : null,
+                PeriodBounds::from($query->from),
+                PeriodBounds::to($query->to),
             ),
         );
     }

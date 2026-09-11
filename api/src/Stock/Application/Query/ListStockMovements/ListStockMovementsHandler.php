@@ -2,6 +2,7 @@
 
 namespace App\Stock\Application\Query\ListStockMovements;
 
+use App\SharedKernel\Domain\Period\PeriodBounds;
 use App\Stock\Application\Dto\StockMovementLineResponseDto;
 use App\Stock\Application\Dto\StockMovementResponseDto;
 use App\Stock\Domain\Repository\StockMovementLineRepositoryInterface;
@@ -20,8 +21,8 @@ final class ListStockMovementsHandler
     {
         $result = [];
         $movements = $this->movementRepository->findAllEnabled(
-            $from ? new \DateTimeImmutable($from) : null,
-            $to ? new \DateTimeImmutable($to) : null,
+            PeriodBounds::from($from),
+            PeriodBounds::to($to),
         );
         foreach ($movements as $movement) {
             $lines = array_map(

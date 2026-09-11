@@ -2,6 +2,7 @@
 
 namespace App\Stock\Application\Query\ListEquipment;
 
+use App\SharedKernel\Domain\Period\PeriodBounds;
 use App\Stock\Application\Dto\EquipmentResponseDto;
 use App\Stock\Domain\Repository\EquipmentRepositoryInterface;
 use App\Stock\Domain\Repository\StockMovementLineRepositoryInterface;
@@ -36,8 +37,8 @@ final class ListEquipmentHandler
             )->toArray(),
             $this->equipmentRepository->findAllEnabled(
                 $query->search,
-                $query->from ? new \DateTimeImmutable($query->from) : null,
-                $query->to ? new \DateTimeImmutable($query->to) : null,
+                PeriodBounds::from($query->from),
+                PeriodBounds::to($query->to),
             ),
         );
     }

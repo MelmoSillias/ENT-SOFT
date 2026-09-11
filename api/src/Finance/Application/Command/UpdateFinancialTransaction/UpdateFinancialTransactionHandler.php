@@ -39,7 +39,8 @@ final class UpdateFinancialTransactionHandler
             $transaction->setType(TransactionType::from($command->type));
         }
         if ($command->category !== null) {
-            $transaction->setCategory(TransactionCategory::from($command->category));
+            $trimmed = trim($command->category);
+            $transaction->setCategory($trimmed !== '' ? $trimmed : TransactionCategory::OTHER_EXPENSE->value);
         }
         if ($command->description !== null) {
             $transaction->setDescription($command->description);

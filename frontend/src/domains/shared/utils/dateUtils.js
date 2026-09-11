@@ -65,3 +65,13 @@ export function lastMonthsRange(n) {
   start.setMonth(start.getMonth() - n)
   return [startOfDay(start), endOfDay(end)]
 }
+
+/**
+ * Retourne une période [start, end] couvrant le mois calendaire en cours.
+ */
+export function currentMonthRange() {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return [startOfDay(start), endOfDay(end)]
+}

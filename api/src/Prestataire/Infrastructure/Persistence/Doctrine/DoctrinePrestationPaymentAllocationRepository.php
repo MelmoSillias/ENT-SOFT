@@ -60,7 +60,7 @@ class DoctrinePrestationPaymentAllocationRepository extends ServiceEntityReposit
             ->andWhere('t.category = :category')
             ->setParameter('enabled', true)
             ->setParameter('status', TransactionStatus::COMPLETED)
-            ->setParameter('category', TransactionCategory::PRESTATION_PAYMENT);
+            ->setParameter('category', TransactionCategory::PRESTATION_PAYMENT->value);
         UuidQueryParameter::eq($qb, 'a.prestationId', 'prestationId', $prestationId);
 
         return (float) $qb->getQuery()->getSingleScalarResult();
@@ -76,7 +76,7 @@ class DoctrinePrestationPaymentAllocationRepository extends ServiceEntityReposit
             ->andWhere('t.isEnabled = :enabled')
             ->andWhere('t.category = :category')
             ->setParameter('enabled', true)
-            ->setParameter('category', TransactionCategory::PRESTATION_PAYMENT);
+            ->setParameter('category', TransactionCategory::PRESTATION_PAYMENT->value);
         UuidQueryParameter::eq($qb, 'a.prestationId', 'prestationId', $prestationId);
 
         return (int) $qb->getQuery()->getSingleScalarResult() > 0;

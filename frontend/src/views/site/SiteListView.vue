@@ -14,12 +14,14 @@ import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { sortByField } from '@/domains/shared/utils/sortByField'
 import SiteFormFields from '@/domains/site/components/SiteFormFields.vue'
 import { listSites, createSite, updateSite, deleteSite } from '@/domains/site/services/siteService'
 import { listClients } from '@/domains/client/services/clientService'
+import { listEmployeePositions } from '@/domains/employee/services/employeePositionService'
 import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
@@ -28,13 +30,18 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import { formatDateTimeFr } from '@/domains/shared/utils/entLabels'
 
 const SiteMapPanel = defineAsyncComponent(() => import('@/domains/site/components/SiteMapPanel.vue'))
 
 const toast = useAppToast()
 const confirm = useConfirm()
-const { hasPermission } = usePermissions()
+const { hasPermission, hasAnyPermission } = usePermissions()
 const { isAppMobile } = useAppMobileLayout()
+
+const canViewPositions = computed(() =>
+  hasAnyPermission('employee.positions.view', 'employee.positions.checkin'),
+)
 
 const SITE_COLUMNS = [
   { key: 'code', label: 'Code', defaultVisible: true },
@@ -58,7 +65,11 @@ const {
   defaultSortField: 'title',
 })
 
+const tableFirst = ref(0)
+
 const items = ref([])
+const latestEmployeePositions = ref([])
+const positionHistory = ref([])
 const clientOptions = ref([])
 const clientMap = ref({})
 const searchTerm = ref('')
@@ -73,15 +84,27 @@ const menuModel = ref([])
 const rowContextMenu = ref()
 const viewMode = ref('list')
 
-const viewModeOptions = [
-  { label: 'Liste', value: 'list', icon: 'pi pi-list' },
-  { label: 'Carte', value: 'map', icon: 'pi pi-map' },
-]
+const viewModeOptions = computed(() => {
+  const options = [
+    { label: 'Liste', value: 'list', icon: 'pi pi-list' },
+    { label: 'Carte', value: 'map', icon: 'pi pi-map' },
+  ]
+  if (canViewPositions.value) {
+    options.push({ label: 'Positions', value: 'positions', icon: 'pi pi-map-marker' })
+  }
+  return options
+})
 
-const mobileViewTabs = [
-  { value: 'list', label: 'Liste', shortLabel: 'Liste' },
-  { value: 'map', label: 'Carte', shortLabel: 'Carte' },
-]
+const mobileViewTabs = computed(() => {
+  const tabs = [
+    { value: 'list', label: 'Liste', shortLabel: 'Liste' },
+    { value: 'map', label: 'Carte', shortLabel: 'Carte' },
+  ]
+  if (canViewPositions.value) {
+    tabs.push({ value: 'positions', label: 'Positions', shortLabel: 'Pos.' })
+  }
+  return tabs
+})
 
 const canCreate = computed(() => hasPermission('site.sites.create'))
 
@@ -131,11 +154,30 @@ async function fetchItems() {
   items.value = await listSites(periodToApiParams(filterPeriod.value))
 }
 
+async function fetchPositions() {
+  if (!canViewPositions.value) {
+    latestEmployeePositions.value = []
+    positionHistory.value = []
+    return
+  }
+  try {
+    const [latest, history] = await Promise.all([
+      listEmployeePositions({ latestOnly: true }),
+      listEmployeePositions({ limit: 200 }),
+    ])
+    latestEmployeePositions.value = Array.isArray(latest) ? latest : []
+    positionHistory.value = Array.isArray(history) ? history : []
+  } catch {
+    latestEmployeePositions.value = []
+    positionHistory.value = []
+  }
+}
+
 async function load() {
   loading.value = true
   error.value = null
   try {
-    await Promise.all([fetchItems(), loadClients()])
+    await Promise.all([fetchItems(), loadClients(), fetchPositions()])
   } catch (e) {
     error.value = e.response?.data?.error || 'Impossible de charger les sites.'
   } finally {
@@ -146,7 +188,7 @@ async function load() {
 async function reload() {
   reloading.value = true
   try {
-    await fetchItems()
+    await Promise.all([fetchItems(), fetchPositions()])
   } finally {
     reloading.value = false
   }
@@ -156,6 +198,12 @@ onMounted(load)
 
 watch(filterPeriod, () => {
   reload()
+})
+
+watch(canViewPositions, (ok) => {
+  if (!ok && viewMode.value === 'positions') {
+    viewMode.value = 'list'
+  }
 })
 
 const filteredItems = computed(() => {
@@ -169,7 +217,38 @@ const filteredItems = computed(() => {
   return sortByField(list, sortField.value, sortOrder.value)
 })
 
-const countLabel = computed(() => `${filteredItems.value.length}`)
+const filteredPositions = computed(() => {
+  const q = searchTerm.value.trim().toLowerCase()
+  let list = positionHistory.value
+  if (q) {
+    list = list.filter((item) =>
+      [item.employeeName, item.latitude, item.longitude, item.recordedAt]
+        .filter((v) => v != null)
+        .join(' ')
+        .toLowerCase()
+        .includes(q),
+    )
+  }
+  return list
+})
+
+const countLabel = computed(() => {
+  if (viewMode.value === 'positions') return `${filteredPositions.value.length}`
+  return `${filteredItems.value.length}`
+})
+
+const isEmptyState = computed(() => {
+  if (loading.value || error.value) return false
+  if (viewMode.value === 'positions') return filteredPositions.value.length === 0
+  if (viewMode.value === 'list') return filteredItems.value.length === 0
+  return false
+})
+
+function positionCoordsLabel(item) {
+  if (!Number.isFinite(item.latitude) || !Number.isFinite(item.longitude)) return '—'
+  return `${Number(item.latitude).toFixed(5)}, ${Number(item.longitude).toFixed(5)}`
+}
+
 const dialogTitle = computed(() => (editingId.value ? 'Modifier site' : 'Nouveau site'))
 
 function openCreate() {
@@ -358,10 +437,11 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :items="mobileViewTabs"
         />
 
-        <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0 && viewMode === 'list'" @retry="load">
+        <AppTableState :loading="loading" :error="error" :is-empty="isEmptyState" @retry="load">
           <SiteMapPanel
             v-if="viewMode === 'map' && !loading && !error"
             :sites="filteredItems"
+            :employee-positions="latestEmployeePositions"
             :client-map="clientMap"
             :client-options="clientOptions"
             :create-saving="creatingFromMap"
@@ -369,6 +449,46 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             @create="createFromMap"
             @assign-location="assignLocationFromMap"
           />
+
+          <template v-else-if="viewMode === 'positions'">
+            <AppEntityDataView
+              v-if="isAppMobile"
+              :items="filteredPositions"
+              :rows="tableRows"
+              :show-index="showIndex"
+              :title-of="(item) => item.employeeName || 'Employé'"
+              :code-of="(item) => formatDateTimeFr(item.recordedAt) || '—'"
+              :subtitle-of="(item) => positionCoordsLabel(item)"
+              :actions-of="() => []"
+            />
+            <DataTable
+              v-else
+              :value="filteredPositions"
+              paginator
+              :rows="tableRows"
+              striped-rows
+              sort-field="recordedAt"
+              :sort-order="-1"
+              v-model:first="tableFirst">
+              <Column v-if="showIndex" header="#" style="width: 3.5rem">
+                <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
+              </Column>
+              <Column field="employeeName" header="Employé" sortable>
+                <template #body="{ data }">{{ data.employeeName || '—' }}</template>
+              </Column>
+              <Column field="recordedAt" header="Horodatage" sortable>
+                <template #body="{ data }"><AppDateTimeCell :value="data.recordedAt" /></template>
+              </Column>
+              <Column header="Coordonnées">
+                <template #body="{ data }">{{ positionCoordsLabel(data) }}</template>
+              </Column>
+              <Column field="accuracy" header="Précision">
+                <template #body="{ data }">
+                  {{ Number.isFinite(data.accuracy) ? `${Math.round(data.accuracy)} m` : '—' }}
+                </template>
+              </Column>
+            </DataTable>
+          </template>
 
           <template v-else-if="viewMode === 'list'">
             <AppEntityDataView
@@ -392,9 +512,9 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               :sort-field="sortField || undefined"
               :sort-order="sortOrder"
               @row-contextmenu="onRowContextMenu"
-            >
+              v-model:first="tableFirst">
               <Column v-if="showIndex" header="#" style="width: 3.5rem">
-                <template #body="{ index }">{{ index + 1 }}</template>
+                <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
               </Column>
               <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
               <Column v-if="isColVisible('title')" field="title" header="Titre" sortable />

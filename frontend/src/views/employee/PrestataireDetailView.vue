@@ -41,6 +41,7 @@ import { formatDateFr } from '@/domains/shared/utils/entLabels'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
+import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppDetailInfoList from '@/domains/shared/components/AppDetailInfoList.vue'
@@ -113,6 +114,8 @@ const {
   defaultSortField: 'date',
   defaultSortOrder: -1,
 })
+
+const tableFirst = ref(0)
 
 const PAYMENT_STATUS_OPTIONS = [
   { label: 'Impayé', value: 'unpaid' },
@@ -670,12 +673,14 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                 :sort-field="sortField || undefined"
                 :sort-order="sortOrder"
                 @row-contextmenu="onPrestationRowContextMenu"
-              >
+                v-model:first="tableFirst">
                 <Column v-if="showIndex" header="#" style="width: 3.5rem">
-                  <template #body="{ index }">{{ index + 1 }}</template>
+                  <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
                 </Column>
                 <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
-                  <template #body="{ data }">{{ formatDateFr(data.date) }}</template>
+                  <template #body="{ data }">
+                    <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
+                  </template>
                 </Column>
                 <Column v-if="isColVisible('description')" field="description" header="Description" sortable />
                 <Column v-if="isColVisible('site')" header="Site">
@@ -698,10 +703,10 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                   </template>
                 </Column>
                 <Column v-if="isColVisible('createdAt')" field="createdAt" header="Créé le" sortable>
-                  <template #body="{ data }">{{ formatDateFr(data.createdAt) }}</template>
+                  <template #body="{ data }"><AppDateTimeCell :value="data.createdAt" /></template>
                 </Column>
                 <Column v-if="isColVisible('updatedAt')" field="updatedAt" header="Modifié le" sortable>
-                  <template #body="{ data }">{{ formatDateFr(data.updatedAt) }}</template>
+                  <template #body="{ data }"><AppDateTimeCell :value="data.updatedAt" /></template>
                 </Column>
                 <Column header="Actions" style="width: 5rem">
                   <template #body="{ data }">

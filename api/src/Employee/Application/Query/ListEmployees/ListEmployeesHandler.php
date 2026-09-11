@@ -4,6 +4,7 @@ namespace App\Employee\Application\Query\ListEmployees;
 
 use App\Employee\Application\Dto\EmployeeResponseDto;
 use App\Employee\Domain\Repository\EmployeeRepositoryInterface;
+use App\SharedKernel\Domain\Period\PeriodBounds;
 
 final class ListEmployeesHandler
 {
@@ -19,8 +20,8 @@ final class ListEmployeesHandler
             static fn ($e) => EmployeeResponseDto::fromEntity($e)->toArray(),
             $this->employeeRepository->findAllEnabled(
                 $query->search,
-                $query->from ? new \DateTimeImmutable($query->from) : null,
-                $query->to ? new \DateTimeImmutable($query->to) : null,
+                PeriodBounds::from($query->from),
+                PeriodBounds::to($query->to),
             ),
         );
     }

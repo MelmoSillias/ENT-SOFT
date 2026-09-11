@@ -50,6 +50,9 @@ final class SettingsCatalog
             ['cle' => 'IMPRESSION_ORIENTATION_TABLE', 'valeur' => 'portrait', 'type' => TypeValeur::STRING, 'description' => 'Orientation tableaux'],
             ['cle' => 'IMPRESSION_PAGE_INVOICE', 'valeur' => 'a4', 'type' => TypeValeur::STRING, 'description' => 'Format page facture'],
             ['cle' => 'IMPRESSION_ORIENTATION_INVOICE', 'valeur' => 'portrait', 'type' => TypeValeur::STRING, 'description' => 'Orientation facture'],
+            ['cle' => 'FINANCE_EMETTEURS', 'valeur' => '[]', 'type' => TypeValeur::STRING, 'description' => 'Liste paramétrable des émetteurs (transactions)'],
+            ['cle' => 'FINANCE_DESTINATAIRES', 'valeur' => '[]', 'type' => TypeValeur::STRING, 'description' => 'Liste paramétrable des destinataires / récepteurs (transactions)'],
+            ['cle' => 'FINANCE_CATEGORIES_DEPENSES', 'valeur' => '["Dépense projet","Dépense site","Dépense matériel","Dépense équipement","Autre dépense"]', 'type' => TypeValeur::STRING, 'description' => 'Liste paramétrable des catégories de dépenses'],
         ];
     }
 }
