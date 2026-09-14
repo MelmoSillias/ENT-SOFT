@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Select from 'primevue/select'
 import Dialog from 'primevue/dialog'
@@ -17,6 +17,7 @@ import { getDirections } from '@/domains/shared/maps/services/geoService'
 import {
   DEFAULT_MAP_CENTER,
   DEFAULT_MAP_ZOOM,
+  USER_POSITION_ZOOM,
   formatDistance,
   formatDuration,
   googleMapsDirectionsUrl,
@@ -87,6 +88,11 @@ const { errors: createErrors, validate: validateCreateForm, resetErrors: resetCr
 
 const { locating, locate } = useGeolocation()
 
+const CLICK_SELECT_DELAY_MS = 280
+let clickTimer = null
+let ignoreClicksUntil = 0
+let userMovedMap = false
+
 const profileOptions = [
   { label: 'Voiture', value: 'driving-car' },
   { label: 'À pied', value: 'foot-walking' },
@@ -140,8 +146,57 @@ const dialogContentStyle = computed(() => ({
   overflow: isAppMobile.value ? 'auto' : 'hidden',
 }))
 
+function onUserMapMove(event) {
+  if (event?.originalEvent) userMovedMap = true
+}
+
+function cancelPendingPointPick() {
+  if (!clickTimer) return
+  clearTimeout(clickTimer)
+  clickTimer = null
+}
+
+function onMapDblClick() {
+  cancelPendingPointPick()
+  ignoreClicksUntil = Date.now() + CLICK_SELECT_DELAY_MS
+}
+
+function unbindMapInteractions(map) {
+  map?.off?.('dblclick', onMapDblClick)
+  map?.off?.('movestart', onUserMapMove)
+}
+
 function onMapReady(map) {
-  fitToSites(map)
+  unbindMapInteractions(map)
+  map.on('dblclick', onMapDblClick)
+  map.on('movestart', onUserMapMove)
+  void centerOnUser(map)
+}
+
+function applyUserView(map, point) {
+  const leafletMap = map?.setView ? map : mapRef.value?.getMap?.()
+  if (!leafletMap || userMovedMap) return
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      if (userMovedMap) return
+      try {
+        leafletMap.invalidateSize?.()
+        leafletMap.setView?.([point.lat, point.lng], USER_POSITION_ZOOM)
+      } catch {
+        /* ignore */
+      }
+    })
+  })
+}
+
+async function centerOnUser(map) {
+  const point = await locate()
+  if (!point) {
+    fitToSites(map)
+    return
+  }
+  myPosition.value = point
+  applyUserView(map, point)
 }
 
 function invalidateMap() {
@@ -184,16 +239,6 @@ function fitToSites(map) {
   )
 }
 
-watch(
-  () => sitesWithCoords.value.map((s) => s.id).join(','),
-  () => fitToSites(),
-)
-
-watch(
-  () => positionsWithCoords.value.map((p) => p.id).join(','),
-  () => fitToSites(),
-)
-
 watch(pickedPoint, (point) => {
   if (point) {
     createForm.value = {
@@ -222,12 +267,16 @@ onMounted(() => {
   teleportTo.value = inlineHost.value
 })
 
+onBeforeUnmount(() => {
+  cancelPendingPointPick()
+  unbindMapInteractions(mapRef.value?.getMap?.())
+})
+
 async function onDialogShow() {
   await nextTick()
   teleportTo.value = dialogHost.value
   await nextTick()
   invalidateMap()
-  fitToSites()
 }
 
 function selectSite(site) {
@@ -249,9 +298,15 @@ function onMapClick({ lat, lng, originalEvent }) {
   if (target?.closest?.('.leaflet-marker-icon, .app-map-pin, .leaflet-popup')) {
     return
   }
-  pickedPoint.value = { lat, lng }
-  selectedId.value = null
-  assignSiteId.value = null
+  if (Date.now() < ignoreClicksUntil) return
+  cancelPendingPointPick()
+  clickTimer = setTimeout(() => {
+    clickTimer = null
+    if (Date.now() < ignoreClicksUntil) return
+    pickedPoint.value = { lat, lng }
+    selectedId.value = null
+    assignSiteId.value = null
+  }, CLICK_SELECT_DELAY_MS)
 }
 
 function clearPickedPoint() {
@@ -609,14 +664,45 @@ function siteVariant(site) {
             :lat="pickedPoint.lat"
             :lng="pickedPoint.lng"
             variant="picked"
+            auto-open
           >
-            Point sélectionné
+            <div class="picked-point-popup">
+              <div class="picked-point-popup__head">
+                <span class="picked-point-popup__badge" aria-hidden="true">
+                  <i class="pi pi-map-marker" />
+                </span>
+                <div class="picked-point-popup__title">
+                  <strong>Position sélectionnée</strong>
+                  <span>Point libre sur la carte</span>
+                </div>
+              </div>
+              <div class="picked-point-popup__coords">
+                <div>
+                  <span>Latitude</span>
+                  <code>{{ pickedPoint.lat.toFixed(6) }}</code>
+                </div>
+                <div>
+                  <span>Longitude</span>
+                  <code>{{ pickedPoint.lng.toFixed(6) }}</code>
+                </div>
+              </div>
+              <div class="picked-point-popup__actions">
+                <button type="button" @click="openWithMaps(pickedPoint.lat, pickedPoint.lng)">
+                  <i class="pi pi-external-link" />
+                  Maps
+                </button>
+                <button type="button" class="picked-point-popup__clear" @click="clearPickedPoint">
+                  <i class="pi pi-times" />
+                  Effacer
+                </button>
+              </div>
+            </div>
           </AppMapMarker>
 
           <AppMapRoute :coordinates="routeCoords" />
         </AppMap>
         <p class="site-map-panel__map-hint">
-          Cliquez sur la carte pour sélectionner un point.
+          Clic simple pour sélectionner un point. Double-clic pour zoomer.
         </p>
       </div>
 
@@ -771,7 +857,7 @@ function siteVariant(site) {
         <template v-else>
           <div class="site-map-side__empty">
             <i class="pi pi-map" />
-            <p>Sélectionnez un site ou cliquez sur la carte pour choisir un point.</p>
+            <p>Sélectionnez un site, ou faites un clic simple sur la carte pour choisir un point. Double-clic pour zoomer.</p>
           </div>
         </template>
       </aside>
@@ -1009,6 +1095,135 @@ function siteVariant(site) {
   display: flex;
   flex-wrap: wrap;
   gap: 0.15rem;
+}
+
+.picked-point-popup {
+  min-width: 15.5rem;
+  font-family: inherit;
+}
+
+.picked-point-popup__head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 2rem 0.65rem 0.75rem;
+  background: linear-gradient(180deg, #fff7ed 0%, #fff 100%);
+  border-bottom: 1px solid #ffedd5;
+}
+
+.picked-point-popup__badge {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  background: #ea580c;
+  box-shadow: 0 4px 10px rgb(234 88 12 / 28%);
+}
+
+.picked-point-popup__title strong {
+  display: block;
+  font-size: 0.875rem;
+  line-height: 1.25;
+  color: #9a3412;
+}
+
+.picked-point-popup__title span {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.75rem;
+  color: #c2410c;
+}
+
+.picked-point-popup__coords {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.picked-point-popup__coords span {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--layout-text-muted, #64748b);
+}
+
+.picked-point-popup__coords code {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--layout-text, #0f172a);
+  word-break: break-all;
+}
+
+.picked-point-popup__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.picked-point-popup__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid #fed7aa;
+  border-radius: 0.45rem;
+  background: #fff;
+  color: #9a3412;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+}
+
+.picked-point-popup__actions button:hover {
+  background: #fff7ed;
+}
+
+.picked-point-popup__clear {
+  border-color: var(--layout-border, #e5e7eb) !important;
+  color: var(--layout-text-muted, #64748b) !important;
+}
+
+.picked-point-popup__clear:hover {
+  background: var(--layout-surface-muted, #f8fafc) !important;
+}
+
+:deep(.leaflet-popup:has(.picked-point-popup) .leaflet-popup-content-wrapper) {
+  padding: 0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid #fdba74;
+  box-shadow: 0 12px 28px rgb(15 23 42 / 16%);
+}
+
+:deep(.leaflet-popup:has(.picked-point-popup) .leaflet-popup-content) {
+  margin: 0;
+  line-height: 1.35;
+}
+
+:deep(.leaflet-popup:has(.picked-point-popup) .leaflet-popup-tip) {
+  background: #fff;
+}
+
+:deep(.leaflet-popup:has(.picked-point-popup) .leaflet-popup-close-button) {
+  top: 0.35rem;
+  right: 0.4rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  font-size: 1.15rem;
+  color: #c2410c;
 }
 
 @media (max-width: 900px) {

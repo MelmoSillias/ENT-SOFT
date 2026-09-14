@@ -1,6 +1,8 @@
 /** Default map center (Ouagadougou area — adjust per deployment). */
 export const DEFAULT_MAP_CENTER = [12.3714, -1.5197]
 export const DEFAULT_MAP_ZOOM = 12
+/** Zoom used when centering a map on the user's current position. */
+export const USER_POSITION_ZOOM = 15
 
 export const OSM_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 export const OSM_ATTRIBUTION =

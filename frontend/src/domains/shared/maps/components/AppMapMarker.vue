@@ -1,5 +1,5 @@
 <script setup>
-import { computed, shallowRef, watch } from 'vue'
+import { computed, nextTick, shallowRef, watch } from 'vue'
 import { LMarker, LPopup, LIcon } from '@vue-leaflet/vue-leaflet'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
@@ -19,11 +19,14 @@ const props = defineProps({
     default: 'default',
     validator: (v) => ['default', 'picked', 'selected', 'me', 'employee'].includes(v),
   },
+  /** Open the popup as soon as the marker is ready (and when it moves). */
+  autoOpen: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['dragend', 'click'])
 
 const customIcon = shallowRef(null)
+const markerRef = shallowRef(null)
 let Leaflet = null
 
 const latNum = computed(() => Number(props.lat))
@@ -62,6 +65,26 @@ function onDragEnd(event) {
   emit('dragend', { lat: pos.lat, lng: pos.lng })
 }
 
+function openPopup(marker) {
+  if (!props.autoOpen || !marker) return
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      try {
+        marker.openPopup?.()
+      } catch {
+        /* ignore */
+      }
+    })
+  })
+}
+
+function onMarkerReady(marker) {
+  markerRef.value = marker
+  openPopup(marker)
+}
+
+watch(latLng, () => openPopup(markerRef.value))
+
 function onClick(event) {
   try {
     Leaflet?.DomEvent?.stopPropagation?.(event)
@@ -79,6 +102,7 @@ function onClick(event) {
     :lat-lng="latLng"
     :icon="useDefaultIcon ? undefined : customIcon"
     :draggable="draggable"
+    @ready="onMarkerReady"
     @dragend="onDragEnd"
     @click="onClick"
   >

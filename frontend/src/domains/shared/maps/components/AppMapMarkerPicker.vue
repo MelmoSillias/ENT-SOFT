@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import InputNumber from 'primevue/inputnumber'
 import Button from 'primevue/button'
 import AutoComplete from 'primevue/autocomplete'
@@ -8,7 +8,7 @@ import AppMapMarker from '@/domains/shared/maps/components/AppMapMarker.vue'
 import { useGeolocation } from '@/domains/shared/maps/composables/useGeolocation'
 import { fitMapToPoints } from '@/domains/shared/maps/composables/useMapFitBounds'
 import { geocodeSearch, reverseGeocode } from '@/domains/shared/maps/services/geoService'
-import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '@/domains/shared/maps/mapDefaults'
+import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, USER_POSITION_ZOOM } from '@/domains/shared/maps/mapDefaults'
 
 const latitude = defineModel('latitude', { default: null })
 const longitude = defineModel('longitude', { default: null })
@@ -30,6 +30,15 @@ const { locating, error: geoError, locate } = useGeolocation()
 
 let reverseTimer = null
 let reverseSeq = 0
+let userMovedMap = false
+
+function onUserMapMove(event) {
+  if (event?.originalEvent) userMovedMap = true
+}
+
+onBeforeUnmount(() => {
+  mapRef.value?.getMap?.()?.off?.('movestart', onUserMapMove)
+})
 
 const hasPoint = computed(
   () => Number.isFinite(Number(latitude.value)) && Number.isFinite(Number(longitude.value)),
@@ -55,16 +64,35 @@ function setPoint(lat, lng, { reverse = true } = {}) {
   }
 }
 
-function onMapReady() {
-  if (!hasPoint.value) return
+async function onMapReady() {
   const map = mapRef.value?.getMap?.()
-  fitMapToPoints(map, [{ lat: latNum.value, lng: lngNum.value }], { maxZoom: 16 })
+  map?.off?.('movestart', onUserMapMove)
+  map?.on?.('movestart', onUserMapMove)
   requestAnimationFrame(() => {
     try {
       map?.invalidateSize?.()
     } catch {
       /* ignore */
     }
+  })
+  if (hasPoint.value) {
+    fitMapToPoints(map, [{ lat: latNum.value, lng: lngNum.value }], { maxZoom: 16 })
+    return
+  }
+  const point = await locate()
+  if (!point || hasPoint.value || userMovedMap) return
+  const leafletMap = mapRef.value?.getMap?.() ?? map
+  if (!leafletMap) return
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      if (hasPoint.value || userMovedMap) return
+      try {
+        leafletMap.invalidateSize?.()
+        leafletMap.setView?.([point.lat, point.lng], USER_POSITION_ZOOM)
+      } catch {
+        /* ignore */
+      }
+    })
   })
 }
 
