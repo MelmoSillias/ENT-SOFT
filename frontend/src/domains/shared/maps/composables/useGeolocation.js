@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { onScopeDispose, ref, shallowRef, watch } from 'vue'
 
 /** Shared across map instances so opening a dialog does not re-prompt GPS. */
 const POSITION_CACHE_MS = 3 * 60 * 1000
@@ -8,6 +8,12 @@ let cachedPosition = null
 let cachedAt = 0
 /** @type {Promise<{ lat: number, lng: number, accuracy: number|null }> | null} */
 let sharedPending = null
+
+const livePosition = shallowRef(null)
+const liveError = ref(null)
+/** @type {number | null} */
+let watchId = null
+let watchSubscribers = 0
 
 function clonePoint(point) {
   return point ? { lat: point.lat, lng: point.lng, accuracy: point.accuracy ?? null } : null
@@ -21,6 +27,30 @@ function readCache() {
 function storeCache(point) {
   cachedPosition = clonePoint(point)
   cachedAt = Date.now()
+}
+
+function publishPoint(point) {
+  const next = clonePoint(point)
+  storeCache(next)
+  livePosition.value = next
+  liveError.value = null
+  return next
+}
+
+function geoErrorMessage(error) {
+  const code = error?.code
+  if (code === 1) return 'Autorisation de localisation refusée.'
+  if (code === 2) return 'Position indisponible.'
+  if (code === 3) return 'Délai dépassé pour obtenir la position.'
+  return error?.message || 'Impossible d’obtenir la position.'
+}
+
+function toPoint(position) {
+  return {
+    lat: position.coords.latitude,
+    lng: position.coords.longitude,
+    accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
+  }
 }
 
 function wantsFreshFix(options) {
@@ -41,19 +71,12 @@ async function requestPosition(options = {}) {
       ...geoOptions,
     })
   })
-  return {
-    lat: position.coords.latitude,
-    lng: position.coords.longitude,
-    accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
-  }
+  return toPoint(position)
 }
 
 function startSharedLocate(options, { share }) {
   const request = requestPosition(options)
-    .then((point) => {
-      storeCache(point)
-      return point
-    })
+    .then((point) => publishPoint(point))
     .finally(() => {
       if (share && sharedPending === request) sharedPending = null
     })
@@ -61,15 +84,72 @@ function startSharedLocate(options, { share }) {
   return request
 }
 
+function ensureWatch() {
+  if (watchId != null) return
+  if (typeof navigator === 'undefined' || !navigator.geolocation?.watchPosition) {
+    liveError.value = 'La géolocalisation n’est pas supportée par ce navigateur.'
+    return
+  }
+  const cached = readCache()
+  if (cached && !livePosition.value) livePosition.value = cached
+
+  watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      publishPoint(toPoint(position))
+    },
+    (error) => {
+      liveError.value = geoErrorMessage(error)
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 1000,
+    },
+  )
+}
+
+function releaseWatch() {
+  watchSubscribers = Math.max(0, watchSubscribers - 1)
+  if (watchSubscribers > 0 || watchId == null) return
+  navigator.geolocation.clearWatch(watchId)
+  watchId = null
+}
+
 /**
  * Browser geolocation helper.
- * Successful fixes are cached for a few minutes and shared while in flight,
+ * Successful one-shot fixes are cached for a few minutes and shared while in flight,
  * unless the caller asks for a fresh reading (`maximumAge: 0` or `force: true`).
- * @returns {{ locating: import('vue').Ref<boolean>, error: import('vue').Ref<string|null>, locate: (options?: PositionOptions & { force?: boolean }) => Promise<{lat:number,lng:number,accuracy:number|null}|null> }}
+ * `startWatch()` follows the device with `watchPosition` (one shared watch).
  */
 export function useGeolocation() {
   const locating = ref(false)
   const error = ref(null)
+  const position = shallowRef(clonePoint(livePosition.value) || readCache())
+  let subscribed = false
+
+  const stopSync = watch(livePosition, (point) => {
+    if (!subscribed) return
+    position.value = clonePoint(point)
+  })
+  const stopErrorSync = watch(liveError, (message) => {
+    if (!subscribed || !message) return
+    error.value = message
+  })
+
+  function startWatch() {
+    if (subscribed) return
+    subscribed = true
+    watchSubscribers += 1
+    position.value = clonePoint(livePosition.value) || readCache()
+    error.value = liveError.value
+    ensureWatch()
+  }
+
+  function stopWatch() {
+    if (!subscribed) return
+    subscribed = false
+    releaseWatch()
+  }
 
   async function locate(options = {}) {
     const fresh = wantsFreshFix(options)
@@ -85,12 +165,18 @@ export function useGeolocation() {
       const request = pending ?? startSharedLocate(options, { share: !fresh })
       return clonePoint(await request)
     } catch (e) {
-      error.value = e?.message || 'Impossible d’obtenir la position.'
+      error.value = geoErrorMessage(e)
       return null
     } finally {
       locating.value = false
     }
   }
 
-  return { locating, error, locate }
+  onScopeDispose(() => {
+    stopWatch()
+    stopSync()
+    stopErrorSync()
+  })
+
+  return { locating, error, position, locate, startWatch, stopWatch }
 }

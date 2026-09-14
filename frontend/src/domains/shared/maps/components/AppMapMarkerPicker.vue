@@ -27,6 +27,9 @@ const geocodeQuery = ref(null)
 const reverseBusy = ref(false)
 const geocodeBusy = ref(false)
 const { locating, error: geoError, locate } = useGeolocation()
+const locationError = ref(null)
+let centeredOnUser = false
+let pendingUserPoint = null
 
 let reverseTimer = null
 let reverseSeq = 0
@@ -64,7 +67,7 @@ function setPoint(lat, lng, { reverse = true } = {}) {
   }
 }
 
-async function onMapReady() {
+function onMapReady() {
   const map = mapRef.value?.getMap?.()
   map?.off?.('movestart', onUserMapMove)
   map?.on?.('movestart', onUserMapMove)
@@ -79,10 +82,14 @@ async function onMapReady() {
     fitMapToPoints(map, [{ lat: latNum.value, lng: lngNum.value }], { maxZoom: 16 })
     return
   }
-  const point = await locate()
-  if (!point || hasPoint.value || userMovedMap) return
-  const leafletMap = mapRef.value?.getMap?.() ?? map
+  centerOnLiveUser(pendingUserPoint)
+}
+
+function centerOnLiveUser(point) {
+  if (!point || centeredOnUser || hasPoint.value || userMovedMap) return
+  const leafletMap = mapRef.value?.getMap?.()
   if (!leafletMap) return
+  centeredOnUser = true
   nextTick(() => {
     requestAnimationFrame(() => {
       if (hasPoint.value || userMovedMap) return
@@ -94,6 +101,16 @@ async function onMapReady() {
       }
     })
   })
+}
+
+function onLiveUserPosition(point) {
+  locationError.value = null
+  pendingUserPoint = point
+  centerOnLiveUser(point)
+}
+
+function onLiveLocationError(message) {
+  locationError.value = message || 'Position indisponible.'
 }
 
 function onMapClick({ lat, lng }) {
@@ -220,6 +237,8 @@ watch(
       :cursor="mapCursor"
       @ready="onMapReady"
       @click="onMapClick"
+      @user-position="onLiveUserPosition"
+      @user-location-error="onLiveLocationError"
     >
       <AppMapMarker
         v-if="hasPoint"
@@ -264,7 +283,9 @@ watch(
       <i class="pi pi-map-marker" />
       {{ reverseBusy ? '…' : addressLabel }}
     </p>
-    <p v-if="geoError" class="app-map-marker-picker__error">{{ geoError }}</p>
+    <p v-if="geoError || locationError" class="app-map-marker-picker__error">
+      {{ geoError || locationError }}
+    </p>
 
     <div class="app-map-marker-picker__actions">
       <Button

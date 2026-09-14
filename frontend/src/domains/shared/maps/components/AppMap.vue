@@ -3,6 +3,7 @@ import { computed, shallowRef, ref } from 'vue'
 import { LMap, LTileLayer } from '@vue-leaflet/vue-leaflet'
 import 'leaflet/dist/leaflet.css'
 import '@/domains/shared/maps/mapMarkers.css'
+import AppMapUserLocation from '@/domains/shared/maps/components/AppMapUserLocation.vue'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
@@ -37,9 +38,14 @@ const props = defineProps({
     default: 'grab',
     validator: (v) => ['grab', 'crosshair', 'default', 'pointer'].includes(v),
   },
+  /** Live GPS puck of the connected user (double blue circle). */
+  showUserLocation: {
+    type: Boolean,
+    default: true,
+  },
 })
 
-const emit = defineEmits(['ready', 'click'])
+const emit = defineEmits(['ready', 'click', 'user-position', 'user-location-error'])
 
 const mapReady = ref(false)
 const leafletObject = shallowRef(null)
@@ -111,6 +117,11 @@ defineExpose({
     >
       <LTileLayer :url="OSM_TILE_URL" :attribution="OSM_ATTRIBUTION" layer-type="base" name="OSM" />
       <slot />
+      <AppMapUserLocation
+        v-if="showUserLocation"
+        @update="emit('user-position', $event)"
+        @error="emit('user-location-error', $event)"
+      />
     </LMap>
   </div>
 </template>

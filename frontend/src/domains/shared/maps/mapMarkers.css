@@ -43,3 +43,59 @@
 .app-map-pin--employee .app-map-pin__glyph {
   background: #7c3aed;
 }
+
+/* Live user location: outer blue ring + inner blue dot. */
+.leaflet-div-icon.app-map-user-location {
+  background: transparent;
+  border: none;
+}
+
+.app-map-user-location__ring,
+.app-map-user-location__dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+}
+
+.app-map-user-location__ring {
+  width: 26px;
+  height: 26px;
+  background: rgb(37 99 235 / 22%);
+  border: 2px solid #2563eb;
+  animation: app-map-user-pulse 2.2s ease-in-out infinite;
+}
+
+.app-map-user-location__dot {
+  width: 12px;
+  height: 12px;
+  background: #2563eb;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 28%);
+}
+
+.app-map-user-popup__accuracy {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+@keyframes app-map-user-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.16);
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-map-user-location__ring {
+    animation: none;
+  }
+}

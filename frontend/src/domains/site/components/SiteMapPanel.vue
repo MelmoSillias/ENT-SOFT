@@ -166,11 +166,28 @@ function unbindMapInteractions(map) {
   map?.off?.('movestart', onUserMapMove)
 }
 
+let followedOnce = false
+let lastFollowed = null
+let locationFailed = false
+
+function movedEnough(from, to, meters = 8) {
+  if (!from || !to) return true
+  const dLat = (to.lat - from.lat) * 111320
+  const dLng = (to.lng - from.lng) * 111320 * Math.cos((from.lat * Math.PI) / 180)
+  return Math.hypot(dLat, dLng) >= meters
+}
+
 function onMapReady(map) {
   unbindMapInteractions(map)
   map.on('dblclick', onMapDblClick)
   map.on('movestart', onUserMapMove)
-  void centerOnUser(map)
+  if (myPosition.value && !userMovedMap) {
+    followedOnce = true
+    lastFollowed = myPosition.value
+    applyUserView(map, myPosition.value)
+    return
+  }
+  if (locationFailed && !userMovedMap) fitToSites(map)
 }
 
 function applyUserView(map, point) {
@@ -189,14 +206,36 @@ function applyUserView(map, point) {
   })
 }
 
-async function centerOnUser(map) {
-  const point = await locate()
-  if (!point) {
-    fitToSites(map)
+function panToUser(point) {
+  const leafletMap = mapRef.value?.getMap?.()
+  if (!leafletMap || userMovedMap) return
+  try {
+    leafletMap.panTo?.([point.lat, point.lng], { animate: true, duration: 0.5 })
+  } catch {
+    /* ignore */
+  }
+}
+
+function onLiveUserPosition(point) {
+  myPosition.value = point
+  locationFailed = false
+  if (userMovedMap) return
+  const map = mapRef.value?.getMap?.()
+  if (!map) return
+  if (!followedOnce) {
+    followedOnce = true
+    lastFollowed = point
+    applyUserView(map, point)
     return
   }
-  myPosition.value = point
-  applyUserView(map, point)
+  if (!movedEnough(lastFollowed, point)) return
+  lastFollowed = point
+  panToUser(point)
+}
+
+function onUserLocationError() {
+  locationFailed = true
+  if (!myPosition.value && !userMovedMap && mapRef.value?.getMap?.()) fitToSites()
 }
 
 function invalidateMap() {
@@ -295,7 +334,7 @@ function openExpanded() {
 
 function onMapClick({ lat, lng, originalEvent }) {
   const target = originalEvent?.originalEvent?.target || originalEvent?.target
-  if (target?.closest?.('.leaflet-marker-icon, .app-map-pin, .leaflet-popup')) {
+  if (target?.closest?.('.leaflet-marker-icon, .app-map-pin, .leaflet-popup, .app-map-user-location, .app-map-user-accuracy')) {
     return
   }
   if (Date.now() < ignoreClicksUntil) return
@@ -366,13 +405,17 @@ function openActiveWithMaps() {
 }
 
 async function captureMyPosition() {
-  const point = await locate()
+  userMovedMap = false
+  followedOnce = false
+  const point = myPosition.value || (await locate({ force: true }))
   if (!point) {
     toast.add({ severity: 'warn', summary: 'Géo', detail: 'Position indisponible.' })
     return
   }
   myPosition.value = point
-  fitToSites()
+  lastFollowed = point
+  followedOnce = true
+  applyUserView(mapRef.value?.getMap?.(), point)
 }
 
 function clearRoute() {
@@ -592,6 +635,8 @@ function siteVariant(site) {
           cursor="crosshair"
           @ready="onMapReady"
           @click="onMapClick"
+          @user-position="onLiveUserPosition"
+          @user-location-error="onUserLocationError"
         >
           <AppMapMarker
             v-for="site in sitesWithCoords"
@@ -648,15 +693,6 @@ function siteVariant(site) {
                 />
               </div>
             </div>
-          </AppMapMarker>
-
-          <AppMapMarker
-            v-if="myPosition"
-            :lat="myPosition.lat"
-            :lng="myPosition.lng"
-            variant="me"
-          >
-            Ma position
           </AppMapMarker>
 
           <AppMapMarker
