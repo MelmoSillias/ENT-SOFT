@@ -24,7 +24,7 @@ import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
-import { sortByField } from '@/domains/shared/utils/sortByField'
+import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import TaskFormFields from '@/domains/task/components/TaskFormFields.vue'
 import TaskPreviewPopover from '@/domains/task/components/TaskPreviewPopover.vue'
 import TaskResourceTimeline from '@/domains/task/components/timeline/TaskResourceTimeline.vue'
@@ -32,7 +32,7 @@ import { listTasks, createTask, updateTask, deleteTask } from '@/domains/task/se
 import { listSites } from '@/domains/site/services/siteService'
 import { listEmployees } from '@/domains/employee/services/employeeService'
 import { taskStatusLabel, taskStatusSeverity, formatDateFr, TASK_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
-import { toApiDate, parseApiDate, toApiDateTime, parseApiDateTime, periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate, toApiDateTime, parseApiDateTime, periodToApiParams, matchesDisplayedPeriod } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import AppPersonNameCell from '@/domains/shared/components/AppPersonNameCell.vue'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
@@ -171,7 +171,7 @@ watch([filterSiteId, filterEmployeeId, filterStatus, filterPeriod], () => { if (
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  let list = items.value
+  let list = items.value.filter((item) => matchesDisplayedPeriod(item, filterPeriod.value, 'dateDue'))
   if (q) {
     list = list.filter((item) =>
       [item.title, item.description, siteMap.value[item.siteId], employeeMap.value[item.employeeId]].filter(Boolean).join(' ').toLowerCase().includes(q),
@@ -457,7 +457,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               paginator
               :rows="tableRows"
               striped-rows
-              :sort-field="sortField === 'site' || sortField === 'employee' ? undefined : (sortField || undefined)"
+              :sort-field="sortField === 'site' || sortField === 'employee' ? undefined : tableSortField(sortField)"
               :sort-order="sortOrder"
               @row-contextmenu="onRowContextMenu"
               v-model:first="tableFirst">
@@ -480,7 +480,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
                   <span v-else>—</span>
                 </template>
               </Column>
-              <Column v-if="isColVisible('dateDue')" field="dateDue" header="Échéance" sortable>
+              <Column v-if="isColVisible('dateDue')" field="dateDue" sort-field="dateDue__at" header="Échéance" sortable>
                 <template #body="{ data }">
                   <AppDateTimeCell :value="data.dateDue" :time-from="data.createdAt" />
                 </template>

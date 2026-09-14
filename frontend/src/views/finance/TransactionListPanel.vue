@@ -14,7 +14,7 @@ import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { useClientPagination } from '@/domains/shared/composables/useClientPagination'
-import { sortByField } from '@/domains/shared/utils/sortByField'
+import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import TransactionFormFields from '@/domains/finance/components/TransactionFormFields.vue'
@@ -38,7 +38,7 @@ import {
   transactionTypeLabel,
   DEFAULT_EXPENSE_CATEGORY,
 } from '@/domains/shared/utils/entLabels'
-import { toApiDate, parseApiDate, periodToApiParams, currentMonthRange } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate, periodToApiParams, currentMonthRange, matchesDisplayedPeriod } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
@@ -185,7 +185,7 @@ watch(filterPeriod, () => {
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  let list = items.value
+  let list = items.value.filter((item) => matchesDisplayedPeriod(item, filterPeriod.value, 'date'))
   if (q) {
     list = list.filter((item) =>
       [item.fromParty, item.toParty, item.description, item.category].filter(Boolean).join(' ').toLowerCase().includes(q),
@@ -447,7 +447,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       :rows="tableRows"
       striped-rows
       data-key="id"
-      :sort-field="sortField === 'category' || sortField === 'type' ? undefined : (sortField || undefined)"
+      :sort-field="sortField === 'category' || sortField === 'type' ? undefined : tableSortField(sortField)"
       :sort-order="sortOrder"
       @row-contextmenu="onRowContextMenu"
       v-model:first="tableFirst">
@@ -455,7 +455,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       <Column v-if="showIndex" header="#" style="width: 3.5rem">
         <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
       </Column>
-      <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
+      <Column v-if="isColVisible('date')" field="date" sort-field="date__at" header="Date" sortable>
         <template #body="{ data }">
           <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
         </template>

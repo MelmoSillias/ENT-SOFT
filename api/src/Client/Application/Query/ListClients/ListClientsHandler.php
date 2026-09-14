@@ -20,8 +20,8 @@ final class ListClientsHandler
             static fn ($client) => ClientResponseDto::fromEntity($client)->toArray(),
             $this->clientRepository->findAllEnabled(
                 $query->search,
-                PeriodBounds::from($query->from),
-                PeriodBounds::to($query->to),
+                PeriodBounds::instant($query->from),
+                PeriodBounds::instant($query->to),
             ),
         );
     }

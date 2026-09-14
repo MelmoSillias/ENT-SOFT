@@ -10,7 +10,7 @@ import AppTableSettingsPopover from '@/domains/shared/components/AppTableSetting
 import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
-import { sortByField } from '@/domains/shared/utils/sortByField'
+import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import {
@@ -172,7 +172,7 @@ defineExpose({ load })
           :rows="tableRows"
           striped-rows
           data-key="id"
-          :sort-field="sortField || undefined"
+          :sort-field="tableSortField(sortField)"
           :sort-order="sortOrder"
           @row-contextmenu="onRowContextMenu"
           v-model:first="tableFirst">
@@ -185,7 +185,7 @@ defineExpose({ load })
             </template>
           </Column>
           <Column v-if="isColVisible('code')" field="code" header="Code" sortable />
-          <Column v-if="isColVisible('updatedAt')" header="Supprimé le" field="updatedAt" sortable>
+          <Column v-if="isColVisible('updatedAt')" header="Supprimé le" field="updatedAt" sort-field="updatedAt__at" sortable>
             <template #body="{ data }">
               {{ formatDate(data.updatedAt) }}
             </template>

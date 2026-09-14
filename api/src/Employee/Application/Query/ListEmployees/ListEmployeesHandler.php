@@ -20,8 +20,8 @@ final class ListEmployeesHandler
             static fn ($e) => EmployeeResponseDto::fromEntity($e)->toArray(),
             $this->employeeRepository->findAllEnabled(
                 $query->search,
-                PeriodBounds::from($query->from),
-                PeriodBounds::to($query->to),
+                PeriodBounds::instant($query->from),
+                PeriodBounds::instant($query->to),
             ),
         );
     }

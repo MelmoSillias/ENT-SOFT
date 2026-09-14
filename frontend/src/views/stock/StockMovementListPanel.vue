@@ -15,7 +15,7 @@ import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
-import { sortByField } from '@/domains/shared/utils/sortByField'
+import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import StockMovementFormFields from '@/domains/stock/components/StockMovementFormFields.vue'
 import { listStockMovements, createStockMovement, updateStockMovement, deleteStockMovement } from '@/domains/stock/services/stockMovementService'
 import { listEquipment } from '@/domains/stock/services/equipmentService'
@@ -23,7 +23,7 @@ import { listClients } from '@/domains/client/services/clientService'
 import { listProjects } from '@/domains/project/services/projectService'
 import { listSites } from '@/domains/site/services/siteService'
 import { formatDateFr, stockDirectionLabel, stockDirectionSeverity, equipmentUnitLabel } from '@/domains/shared/utils/entLabels'
-import { toApiDate, parseApiDate, periodToApiParams, lastMonthsRange } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate, periodToApiParams, lastMonthsRange, matchesDisplayedPeriod } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { useConfirm } from 'primevue/useconfirm'
@@ -176,7 +176,7 @@ function quantityLabel(item) {
 
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  let list = items.value
+  let list = items.value.filter((item) => matchesDisplayedPeriod(item, filterPeriod.value, 'date'))
   if (q) {
     list = list.filter((item) =>
       [stockDirectionLabel(item.direction), lineLabel(item)].join(' ').toLowerCase().includes(q),
@@ -340,14 +340,14 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         paginator
         :rows="tableRows"
         striped-rows
-        :sort-field="sortField === 'equipment' ? undefined : (sortField || undefined)"
+        :sort-field="sortField === 'equipment' ? undefined : tableSortField(sortField)"
         :sort-order="sortOrder"
         @row-contextmenu="onRowContextMenu"
         v-model:first="tableFirst">
         <Column v-if="showIndex" header="#" style="width: 3.5rem">
           <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
         </Column>
-        <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
+        <Column v-if="isColVisible('date')" field="date" sort-field="date__at" header="Date" sortable>
           <template #body="{ data }">
             <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
           </template>

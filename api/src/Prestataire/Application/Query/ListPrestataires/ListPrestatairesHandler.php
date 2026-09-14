@@ -21,8 +21,8 @@ final class ListPrestatairesHandler
             fn ($p) => $this->assembler->toPrestataireDto($p)->toArray(),
             $this->prestataireRepository->findAllEnabled(
                 $query->search,
-                PeriodBounds::from($query->from),
-                PeriodBounds::to($query->to),
+                PeriodBounds::instant($query->from),
+                PeriodBounds::instant($query->to),
             ),
         );
     }

@@ -5,7 +5,6 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
-import DatePicker from 'primevue/datepicker'
 import Tag from 'primevue/tag'
 import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
 import AppTableState from '@/domains/shared/components/AppTableState.vue'
@@ -13,13 +12,15 @@ import AppTableSettingsPopover from '@/domains/shared/components/AppTableSetting
 import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue'
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
+import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import AppPersonNameCell from '@/domains/shared/components/AppPersonNameCell.vue'
 import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
-import { sortByField } from '@/domains/shared/utils/sortByField'
+import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { personDisplayName } from '@/domains/shared/utils/personDisplay'
+import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
 
 const toast = useAppToast()
 const { isAppMobile } = useAppMobileLayout()
@@ -79,8 +80,7 @@ function buildParams() {
   }
   if (filterAction.value) params.action = filterAction.value
   if (filterUserId.value) params.utilisateur_id = filterUserId.value
-  if (filterPeriod.value?.[0]) params.from = startOfDay(filterPeriod.value[0]).toISOString()
-  if (filterPeriod.value?.[1]) params.to = endOfDay(filterPeriod.value[1]).toISOString()
+  Object.assign(params, periodToApiParams(filterPeriod.value))
   return params
 }
 
@@ -134,18 +134,6 @@ function onPage(event) {
     return
   }
   load()
-}
-
-function startOfDay(date) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function endOfDay(date) {
-  const d = new Date(date)
-  d.setHours(23, 59, 59, 999)
-  return d
 }
 
 function formatDateTime(iso) {
@@ -306,18 +294,7 @@ function onRowContextMenu(event) {
             >
               <template #filters>
                 <p class="app-table-settings__title">Filtres</p>
-                <DatePicker
-                  v-model="filterPeriod"
-                  selection-mode="range"
-                  date-format="dd/mm/yy"
-                  show-icon
-                  icon-display="button"
-                  show-clear
-                  placeholder="Période"
-                  fluid
-                  size="small"
-                  class="app-table-settings__mb"
-                />
+                <AppPeriodFilter v-model="filterPeriod" />
                 <AppFilterSelect
                   v-model="filterAction"
                   :options="actionOptions"
@@ -414,7 +391,7 @@ function onRowContextMenu(event) {
             :total-records="totalRecords"
             :rows-per-page-options="ROW_OPTIONS"
             striped-rows
-            :sort-field="sortField === 'utilisateur' || sortField === 'action' ? undefined : (sortField || undefined)"
+            :sort-field="sortField === 'utilisateur' || sortField === 'action' ? undefined : tableSortField(sortField)"
             :sort-order="sortOrder"
             @page="onPage"
             @row-contextmenu="onRowContextMenu"
@@ -422,7 +399,7 @@ function onRowContextMenu(event) {
             <Column v-if="showIndex" header="#" style="width: 3.5rem">
               <template #body="{ index }">{{ first + index + 1 }}</template>
             </Column>
-            <Column v-if="isColVisible('date_action')" field="date_action" header="Date" style="width: 10.5rem" sortable>
+            <Column v-if="isColVisible('date_action')" field="date_action" sort-field="date_action__at" header="Date" style="width: 10.5rem" sortable>
               <template #body="{ data }">
                 <AppDateTimeCell :value="data.date_action" />
               </template>

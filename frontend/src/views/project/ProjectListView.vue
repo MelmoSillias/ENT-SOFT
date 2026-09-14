@@ -17,7 +17,7 @@ import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
-import { sortByField } from '@/domains/shared/utils/sortByField'
+import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import ProjectFormFields from '@/domains/project/components/ProjectFormFields.vue'
 import { listProjects, createProject, updateProject, deleteProject } from '@/domains/project/services/projectService'
 import { listClients } from '@/domains/client/services/clientService'
@@ -344,7 +344,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             paginator
             :rows="tableRows"
             striped-rows
-            :sort-field="sortField || undefined"
+            :sort-field="tableSortField(sortField)"
             :sort-order="sortOrder"
             @row-contextmenu="onRowContextMenu"
             v-model:first="tableFirst">
@@ -362,7 +362,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             <Column v-if="isColVisible('budget')" field="budget" header="Budget" sortable>
               <template #body="{ data }">{{ formatMontant(data.budget, DEVISE_APP) }}</template>
             </Column>
-            <Column v-if="isColVisible('dateDebut')" field="dateDebut" header="Début" sortable>
+            <Column v-if="isColVisible('dateDebut')" field="dateDebut" sort-field="dateDebut__at" header="Début" sortable>
               <template #body="{ data }">
                 <AppDateTimeCell :value="data.dateDebut" :time-from="data.createdAt" />
               </template>

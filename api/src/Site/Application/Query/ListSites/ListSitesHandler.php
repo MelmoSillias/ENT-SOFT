@@ -20,8 +20,8 @@ final class ListSitesHandler
             static fn ($item) => SiteResponseDto::fromEntity($item)->toArray(),
             $this->siteRepository->findAllEnabled(
                 $query->search,
-                PeriodBounds::from($query->from),
-                PeriodBounds::to($query->to),
+                PeriodBounds::instant($query->from),
+                PeriodBounds::instant($query->to),
             ),
         );
     }

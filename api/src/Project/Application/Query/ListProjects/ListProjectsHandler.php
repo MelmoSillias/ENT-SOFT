@@ -20,8 +20,8 @@ final class ListProjectsHandler
     {
         $projects = $this->projectRepository->findAllEnabled(
             $query->search,
-            PeriodBounds::from($query->from),
-            PeriodBounds::to($query->to),
+            PeriodBounds::instant($query->from),
+            PeriodBounds::instant($query->to),
         );
         $siteCounts = $this->projectSiteRepository->countByProjectIds(
             array_map(static fn ($p) => $p->getId(), $projects),

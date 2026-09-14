@@ -19,8 +19,8 @@ final class ListUsersHandler
         return array_map(
             static fn ($user) => UserResponseDto::fromEntity($user)->toArray(),
             $this->utilisateurRepository->findAll(
-                PeriodBounds::from($query->from),
-                PeriodBounds::to($query->to),
+                PeriodBounds::instant($query->from),
+                PeriodBounds::instant($query->to),
             ),
         );
     }

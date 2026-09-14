@@ -46,14 +46,74 @@ export function endOfDay(date) {
 }
 
 /**
- * Convertit une période [start, end] (DatePicker range) en params API { from, to } (ISO).
+ * Convertit une période [start, end] en params API { from, to } (ISO).
+ * Conserve l'heure choisie. Les bornes sont ordonnées (la plus ancienne en from).
  * Retourne un objet vide si aucune période n'est sélectionnée.
  */
 export function periodToApiParams(period) {
   const params = {}
-  if (period?.[0]) params.from = startOfDay(period[0]).toISOString()
-  if (period?.[1]) params.to = endOfDay(period[1]).toISOString()
+  let from = period?.[0] ? new Date(period[0]) : null
+  let to = period?.[1] ? new Date(period[1]) : null
+  if (from && Number.isNaN(from.getTime())) from = null
+  if (to && Number.isNaN(to.getTime())) to = null
+  if (from && to && from.getTime() > to.getTime()) {
+    ;[from, to] = [to, from]
+  }
+  if (from) params.from = from.toISOString()
+  if (to) params.to = to.toISOString()
   return params
+}
+
+function parseLocalDate(value) {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : new Date(value.getTime())
+  if (value == null || value === '') return null
+  const s = String(value).trim()
+  const day = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (day) return new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]))
+  const d = new Date(s)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function hasClock(value) {
+  if (value == null || value === '') return false
+  if (value instanceof Date) {
+    return value.getHours() !== 0 || value.getMinutes() !== 0 || value.getSeconds() !== 0 || value.getMilliseconds() !== 0
+  }
+  const s = String(value).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
+  return /T|\d{1,2}:\d{2}/.test(s)
+}
+
+/**
+ * Datetime affiché d'une colonne date : heure de la valeur, sinon heure de timeFrom (ex. createdAt).
+ */
+export function displayedDateTime(value, timeFrom = null) {
+  const date = parseLocalDate(value)
+  if (!date) return null
+  if (hasClock(value) || !hasClock(timeFrom)) return date
+  const time = timeFrom instanceof Date ? timeFrom : new Date(timeFrom)
+  if (Number.isNaN(time.getTime())) return date
+  date.setHours(time.getHours(), time.getMinutes(), time.getSeconds(), time.getMilliseconds())
+  return date
+}
+
+/**
+ * Vrai si la date affichée (date + heure) est dans la période choisie, bornes incluses.
+ */
+export function matchesDisplayedPeriod(item, period, dateField = 'date', timeField = 'createdAt') {
+  if (!period?.[0] && !period?.[1]) return true
+  const at = displayedDateTime(item?.[dateField], item?.[timeField] ?? item?.created_at ?? item?.dateCreation)
+  if (!at) return false
+  let from = period[0] ? new Date(period[0]) : null
+  let to = period[1] ? new Date(period[1]) : null
+  if (from && Number.isNaN(from.getTime())) from = null
+  if (to && Number.isNaN(to.getTime())) to = null
+  if (from && to && from.getTime() > to.getTime()) {
+    ;[from, to] = [to, from]
+  }
+  if (from && at < from) return false
+  if (to && at > to) return false
+  return true
 }
 
 /**

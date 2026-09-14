@@ -53,7 +53,7 @@ import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
-import { sortByField } from '@/domains/shared/utils/sortByField'
+import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import { personDisplayName } from '@/domains/shared/utils/personDisplay'
 import ExportFormatMenu from '@/domains/impression/components/ExportFormatMenu.vue'
 import ExcelJS from 'exceljs'
@@ -670,14 +670,14 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                 paginator
                 :rows="tableRows"
                 striped-rows
-                :sort-field="sortField || undefined"
+                :sort-field="tableSortField(sortField)"
                 :sort-order="sortOrder"
                 @row-contextmenu="onPrestationRowContextMenu"
                 v-model:first="tableFirst">
                 <Column v-if="showIndex" header="#" style="width: 3.5rem">
                   <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
                 </Column>
-                <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
+                <Column v-if="isColVisible('date')" field="date" sort-field="date__at" header="Date" sortable>
                   <template #body="{ data }">
                     <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
                   </template>
@@ -702,10 +702,10 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                     <Tag :value="PAYMENT_STATUS_LABEL[data.paymentStatus] || data.paymentStatus" :severity="PAYMENT_STATUS_SEVERITY[data.paymentStatus]" />
                   </template>
                 </Column>
-                <Column v-if="isColVisible('createdAt')" field="createdAt" header="Créé le" sortable>
+                <Column v-if="isColVisible('createdAt')" field="createdAt" sort-field="createdAt__at" header="Créé le" sortable>
                   <template #body="{ data }"><AppDateTimeCell :value="data.createdAt" /></template>
                 </Column>
-                <Column v-if="isColVisible('updatedAt')" field="updatedAt" header="Modifié le" sortable>
+                <Column v-if="isColVisible('updatedAt')" field="updatedAt" sort-field="updatedAt__at" header="Modifié le" sortable>
                   <template #body="{ data }"><AppDateTimeCell :value="data.updatedAt" /></template>
                 </Column>
                 <Column header="Actions" style="width: 5rem">

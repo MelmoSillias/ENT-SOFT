@@ -37,8 +37,8 @@ final class ListEquipmentHandler
             )->toArray(),
             $this->equipmentRepository->findAllEnabled(
                 $query->search,
-                PeriodBounds::from($query->from),
-                PeriodBounds::to($query->to),
+                PeriodBounds::instant($query->from),
+                PeriodBounds::instant($query->to),
             ),
         );
     }

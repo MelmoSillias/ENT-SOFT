@@ -32,8 +32,8 @@ final class AuditLogController extends AbstractController
         $page = max(1, (int) $request->query->get('page', 1));
         $limit = min(100, max(1, (int) $request->query->get('limit', 50)));
 
-        $fromDate = is_string($from) ? PeriodBounds::from($from) : null;
-        $toDate = is_string($to) ? PeriodBounds::to($to) : null;
+        $fromDate = is_string($from) ? PeriodBounds::instant($from) : null;
+        $toDate = is_string($to) ? PeriodBounds::instant($to) : null;
         $utilisateurUuid = is_string($utilisateurId) && $utilisateurId !== '' ? Uuid::fromString($utilisateurId) : null;
         $excludeUtilisateurId = $this->utilisateurRepository->findSystemAdmin()?->getId();
 

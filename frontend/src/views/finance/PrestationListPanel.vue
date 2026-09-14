@@ -30,12 +30,12 @@ import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import AppPersonNameCell from '@/domains/shared/components/AppPersonNameCell.vue'
 import { useFormFieldErrors } from '@/domains/shared/composables/useFormFieldErrors'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
-import { toApiDate, parseApiDate, periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import { toApiDate, parseApiDate, periodToApiParams, matchesDisplayedPeriod } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { formatDateFr } from '@/domains/shared/utils/entLabels'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
-import { sortByField } from '@/domains/shared/utils/sortByField'
+import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
@@ -152,6 +152,7 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update') |
 const filteredItems = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
   let list = items.value
+  list = list.filter((p) => matchesDisplayedPeriod(p, filterPeriod.value, 'date'))
   if (filterWorkStatus.value) list = list.filter((p) => p.workStatus === filterWorkStatus.value)
   if (filterPaymentStatus.value) list = list.filter((p) => p.paymentStatus === filterPaymentStatus.value)
   if (q) {
@@ -477,14 +478,14 @@ const { run: runReset } = useAsyncAction(async (item) => {
         paginator
         :rows="tableRows"
         striped-rows
-        :sort-field="sortField === 'prestataire' ? 'prestataireName' : (sortField || undefined)"
+        :sort-field="sortField === 'prestataire' ? 'prestataireName' : tableSortField(sortField)"
         :sort-order="sortOrder"
         @row-contextmenu="onRowContextMenu"
         v-model:first="tableFirst">
         <Column v-if="showIndex" header="#" style="width: 3.5rem">
           <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
         </Column>
-        <Column v-if="isColVisible('date')" field="date" header="Date" sortable>
+        <Column v-if="isColVisible('date')" field="date" sort-field="date__at" header="Date" sortable>
           <template #body="{ data }">
             <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
           </template>
@@ -521,10 +522,10 @@ const { run: runReset } = useAsyncAction(async (item) => {
             <Tag :value="PAYMENT_STATUS_LABEL[data.paymentStatus] || data.paymentStatus" :severity="PAYMENT_STATUS_SEVERITY[data.paymentStatus]" />
           </template>
         </Column>
-        <Column v-if="isColVisible('createdAt')" field="createdAt" header="Créé le" sortable>
+        <Column v-if="isColVisible('createdAt')" field="createdAt" sort-field="createdAt__at" header="Créé le" sortable>
           <template #body="{ data }"><AppDateTimeCell :value="data.createdAt" /></template>
         </Column>
-        <Column v-if="isColVisible('updatedAt')" field="updatedAt" header="Modifié le" sortable>
+        <Column v-if="isColVisible('updatedAt')" field="updatedAt" sort-field="updatedAt__at" header="Modifié le" sortable>
           <template #body="{ data }"><AppDateTimeCell :value="data.updatedAt" /></template>
         </Column>
         <Column header="Actions" style="width: 5rem">
