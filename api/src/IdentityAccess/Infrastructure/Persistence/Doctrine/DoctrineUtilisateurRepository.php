@@ -4,6 +4,7 @@ namespace App\IdentityAccess\Infrastructure\Persistence\Doctrine;
 
 use App\IdentityAccess\Domain\Entity\Utilisateur;
 use App\IdentityAccess\Domain\Repository\UtilisateurRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -56,12 +57,7 @@ class DoctrineUtilisateurRepository extends ServiceEntityRepository implements U
             UuidQueryParameter::neq($qb, 'u.id', 'systemAdminId', $systemAdmin->getId());
         }
 
-        if ($from !== null) {
-            $qb->andWhere('u.createdAt >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('u.createdAt <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDateTime($qb, 'u.createdAt', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

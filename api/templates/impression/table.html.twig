@@ -1,5 +1,56 @@
 {% extends 'impression/_layout.html.twig' %}
 
+{% block extra_styles %}
+<style>
+    .doc-table th.col-left, .doc-table td.col-left { text-align: left; }
+    .doc-table th.col-center, .doc-table td.col-center { text-align: center; }
+    .doc-table th.col-right, .doc-table td.col-right {
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+    .doc-table tfoot td {
+        background: var(--accent-soft);
+        font-weight: 700;
+        border-top: 2px solid var(--accent);
+    }
+    .doc-results {
+        margin-top: 14px;
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        background: #f9fbfd;
+        padding: 8px 12px;
+    }
+    .doc-results__title {
+        margin: 0 0 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .doc-results__grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+    }
+    .doc-results__item {
+        min-width: 140px;
+    }
+    .doc-results__label {
+        display: block;
+        color: var(--muted);
+        font-size: 10.5px;
+    }
+    .doc-results__value {
+        display: block;
+        font-weight: 700;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
     <div class="doc-title-band">
         <div>
@@ -18,7 +69,7 @@
         <thead>
             <tr>
                 {% for col in data.columns %}
-                    <th>{{ col.label }}</th>
+                    <th class="col-{{ col.align|default('left') }}">{{ col.label }}</th>
                 {% endfor %}
             </tr>
         </thead>
@@ -27,7 +78,8 @@
                 <tr>
                     {% for col in data.columns %}
                         {% set val = row[col.key]|default('') %}
-                        <td class="{{ col.key matches '/montant|taux|source|destination/' ? 'col-num' : '' }}">{{ val }}</td>
+                        {% set align = col.align|default('left') %}
+                        <td class="col-{{ align }}{% if col.type|default('text') in ['money', 'number', 'quantity'] %} col-num{% endif %}">{{ val }}</td>
                     {% endfor %}
                 </tr>
             {% else %}
@@ -36,5 +88,30 @@
                 </tr>
             {% endfor %}
         </tbody>
+        {% if data.totals is defined and data.totals|length > 0 %}
+            <tfoot>
+                {% for total in data.totals %}
+                    <tr>
+                        {% for cell in total.cells %}
+                            <td class="col-{{ cell.align|default('left') }}">{{ cell.value }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tfoot>
+        {% endif %}
     </table>
+
+    {% if data.results is defined and data.results|length > 0 %}
+        <div class="doc-results">
+            <p class="doc-results__title">Résultats</p>
+            <div class="doc-results__grid">
+                {% for result in data.results %}
+                    <div class="doc-results__item">
+                        <span class="doc-results__label">{{ result.label }}</span>
+                        <span class="doc-results__value">{{ result.value }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
 {% endblock %}

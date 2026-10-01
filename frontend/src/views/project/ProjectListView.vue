@@ -21,7 +21,9 @@ import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import ProjectFormFields from '@/domains/project/components/ProjectFormFields.vue'
 import { listProjects, createProject, updateProject, deleteProject } from '@/domains/project/services/projectService'
 import { listClients } from '@/domains/client/services/clientService'
-import { projectStatusLabel, projectStatusSeverity } from '@/domains/shared/utils/entLabels'
+import { projectStatusLabel, projectStatusSeverity, formatDateFr } from '@/domains/shared/utils/entLabels'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload, moneyTotal } from '@/domains/impression/composables/useTableExportPayload'
 import { toApiDate, parseApiDate, periodToApiParams } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
 import { hasRequiredText, requiredMessage } from '@/domains/shared/utils/formValidation'
@@ -55,9 +57,9 @@ const rowContextMenu = ref()
 const PROJECT_COLUMNS = [
   { key: 'code', label: 'Code', defaultVisible: true },
   { key: 'title', label: 'Titre', defaultVisible: true },
-  { key: 'status', label: 'Statut', defaultVisible: true },
-  { key: 'nbSites', label: 'Nb sites', defaultVisible: true },
-  { key: 'budget', label: 'Budget', defaultVisible: true },
+  { key: 'status', label: 'Statut', defaultVisible: true, align: 'center' },
+  { key: 'nbSites', label: 'Nb sites', defaultVisible: true, type: 'quantity', align: 'right' },
+  { key: 'budget', label: 'Budget', defaultVisible: true, type: 'money', align: 'right' },
   { key: 'dateDebut', label: 'Début', defaultVisible: true },
 ]
 
@@ -182,6 +184,24 @@ const filteredItems = computed(() => {
     )
   }
   return sortByField(list, sortField.value, sortOrder.value)
+})
+
+const printExport = useTableExportPayload({
+  tableType: 'projects',
+  title: 'Projets',
+  columns: PROJECT_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'status') return projectStatusLabel(item.status)
+    if (key === 'budget') return formatMontant(item.budget, DEVISE_APP)
+    if (key === 'dateDebut') return formatDateFr(item.dateDebut) || '—'
+    if (key === 'nbSites') return item.nbSites ?? ''
+    return item[key] ?? ''
+  },
+  buildTotals: ({ items }) => [moneyTotal('Total budget', items, 'budget')],
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
 })
 
 const countLabel = computed(() => `${filteredItems.value.length}${searchTerm.value.trim() ? ` / ${items.value.length}` : ''}`)
@@ -319,6 +339,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
                 <AppPeriodFilter v-model="filterPeriod" />
               </template>
             </AppTableSettingsPopover>
+            <AppTablePrintExportBar
+              :table-type="printExport.tableType"
+              :title="printExport.title"
+              :columns="printExport.columns"
+              :rows="printExport.rows"
+              :totals="printExport.totals"
+              :results="printExport.results"
+              :filters-summary="printExport.filtersSummary"
+              :search-term="printExport.searchTerm"
+            />
           </template>
         </AppTablePanelHeader>
       </template>

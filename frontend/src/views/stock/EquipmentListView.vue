@@ -35,6 +35,8 @@ import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload, quantityTotal } from '@/domains/impression/composables/useTableExportPayload'
 
 const router = useRouter()
 const toast = useAppToast()
@@ -61,7 +63,7 @@ const rowContextMenu = ref()
 const EQUIPMENT_COLUMNS = [
   { key: 'code', label: 'Code', defaultVisible: true },
   { key: 'title', label: 'Titre', defaultVisible: true },
-  { key: 'quantity', label: 'Quantité', defaultVisible: true },
+  { key: 'quantity', label: 'Quantité', defaultVisible: true, type: 'quantity', align: 'right' },
   { key: 'unit', label: 'Unité', defaultVisible: true },
   { key: 'client', label: 'Client', defaultVisible: true },
 ]
@@ -165,6 +167,23 @@ const filteredItems = computed(() => {
   const fieldMap = { client: '_client', unit: '_unitLabel' }
   const field = fieldMap[sortField.value] || sortField.value
   return sortByField(enriched, field, sortOrder.value)
+})
+
+const printExport = useTableExportPayload({
+  tableType: 'equipment',
+  title: 'Matériel',
+  columns: EQUIPMENT_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'unit') return equipmentUnitLabel(item.unit)
+    if (key === 'client') return clientMap.value[item.clientId] || '—'
+    if (key === 'quantity') return item.quantity ?? ''
+    return item[key] ?? ''
+  },
+  buildTotals: ({ items }) => [quantityTotal('Total quantité', items, 'quantity')],
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
 })
 
 const countLabel = computed(() => `${filteredItems.value.length}`)
@@ -324,6 +343,16 @@ function quantityDisplay(item) {
                   <AppPeriodFilter v-model="filterPeriod" />
                 </template>
               </AppTableSettingsPopover>
+              <AppTablePrintExportBar
+                :table-type="printExport.tableType"
+                :title="printExport.title"
+                :columns="printExport.columns"
+                :rows="printExport.rows"
+                :totals="printExport.totals"
+                :results="printExport.results"
+                :filters-summary="printExport.filtersSummary"
+                :search-term="printExport.searchTerm"
+              />
             </template>
           </AppTablePanelHeader>
           <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">

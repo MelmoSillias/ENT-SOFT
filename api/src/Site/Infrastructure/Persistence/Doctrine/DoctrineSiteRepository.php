@@ -4,6 +4,7 @@ namespace App\Site\Infrastructure\Persistence\Doctrine;
 
 use App\Site\Domain\Entity\Site;
 use App\Site\Domain\Repository\SiteRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -53,12 +54,7 @@ class DoctrineSiteRepository extends ServiceEntityRepository implements SiteRepo
                 ->setParameter('search', '%'.trim($search).'%');
         }
 
-        if ($from !== null) {
-            $qb->andWhere('s.createdAt >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('s.createdAt <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDateTime($qb, 's.createdAt', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

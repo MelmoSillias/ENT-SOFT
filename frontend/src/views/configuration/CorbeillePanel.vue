@@ -17,6 +17,8 @@ import {
   listCorbeilleClients,
   restoreCorbeilleClient,
 } from '@/domains/configuration/services/corbeilleService'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload } from '@/domains/impression/composables/useTableExportPayload'
 
 const toast = useAppToast()
 const { isAppMobile } = useAppMobileLayout()
@@ -73,6 +75,21 @@ const filteredClients = computed(() => {
     )
   }
   return sortByField(list, sortField.value === 'title' ? 'title' : sortField.value, sortOrder.value)
+})
+
+const printExport = useTableExportPayload({
+  tableType: 'corbeille',
+  title: 'Corbeille',
+  columns: COLUMNS,
+  visibleColKeys,
+  items: filteredClients,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'title') return clientLabel(item)
+    if (key === 'updatedAt') return formatDate(item.updatedAt)
+    return item[key] ?? ''
+  },
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
 })
 
 function clientActions(item) {
@@ -142,6 +159,16 @@ defineExpose({ load })
             :row-options="ROW_OPTIONS"
             :sort-options="sortOptions"
             @toggle-col="toggleCol"
+          />
+          <AppTablePrintExportBar
+            :table-type="printExport.tableType"
+            :title="printExport.title"
+            :columns="printExport.columns"
+            :rows="printExport.rows"
+            :totals="printExport.totals"
+            :results="printExport.results"
+            :filters-summary="printExport.filtersSummary"
+            :search-term="printExport.searchTerm"
           />
         </template>
       </AppTablePanelHeader>

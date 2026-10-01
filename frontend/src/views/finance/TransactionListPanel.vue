@@ -47,6 +47,8 @@ import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload, moneyTotal } from '@/domains/impression/composables/useTableExportPayload'
 
 const props = defineProps({
   expenseOnly: { type: Boolean, default: false },
@@ -86,12 +88,12 @@ const TRANSACTION_COLUMNS = computed(() => {
   }
   cols.push(
     { key: 'category', label: 'Catégorie', defaultVisible: true },
-    { key: 'amount', label: 'Montant', defaultVisible: true },
+    { key: 'amount', label: 'Montant', defaultVisible: true, type: 'money', align: 'right' },
     { key: 'fromParty', label: 'Émetteur', defaultVisible: true },
     { key: 'toParty', label: 'Destinataire', defaultVisible: true },
   )
   if (!props.expenseOnly) {
-    cols.push({ key: 'status', label: 'Statut', defaultVisible: true })
+    cols.push({ key: 'status', label: 'Statut', defaultVisible: true, align: 'center' })
   }
   return cols
 })
@@ -208,6 +210,25 @@ const {
   onPage: onMobilePage,
   rankOf: mobileRankOf,
 } = useClientPagination(filteredItems, tableRows)
+
+const printExport = useTableExportPayload({
+  tableType: computed(() => (props.expenseOnly ? 'expenses' : 'transactions')),
+  title: computed(() => props.title),
+  columns: TRANSACTION_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'date') return formatDateFr(item.date) || '—'
+    if (key === 'type') return transactionTypeLabel(item.type)
+    if (key === 'category') return transactionCategoryLabel(item.category)
+    if (key === 'amount') return formatMontant(item.amount, DEVISE_APP)
+    if (key === 'status') return transactionStatusLabel(item.status)
+    return item[key] ?? ''
+  },
+  buildTotals: ({ items }) => [moneyTotal('Total montant', items, 'amount')],
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
+})
 
 const dialogTitle = computed(() => (editingId.value ? 'Modifier' : props.createLabel))
 
@@ -374,6 +395,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           <AppPeriodFilter v-model="filterPeriod" />
         </template>
       </AppTableSettingsPopover>
+      <AppTablePrintExportBar
+        :table-type="printExport.tableType"
+        :title="printExport.title"
+        :columns="printExport.columns"
+        :rows="printExport.rows"
+        :totals="printExport.totals"
+        :results="printExport.results"
+        :filters-summary="printExport.filtersSummary"
+        :search-term="printExport.searchTerm"
+      />
     </template>
   </AppTablePanelHeader>
   <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">

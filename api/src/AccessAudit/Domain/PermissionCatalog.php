@@ -69,6 +69,8 @@ final class PermissionCatalog
             ['code' => 'access.permissions.manage', 'libelle' => 'Gérer les permissions', 'module' => 'access', 'description' => 'Attribuer ou retirer des permissions individuelles'],
             ['code' => 'access.roles.manage', 'libelle' => 'Gérer les rôles', 'module' => 'access', 'description' => 'Créer, modifier et masquer les rôles et leurs permissions par défaut'],
             ['code' => 'access.audit.view', 'libelle' => 'Consulter le journal d\'audit', 'module' => 'access', 'description' => 'Consulter l\'historique des actions'],
+            ['code' => 'impression.documents.print', 'libelle' => 'Imprimer les documents', 'module' => 'impression', 'description' => 'Imprimer les documents et tableaux'],
+            ['code' => 'impression.tables.export', 'libelle' => 'Exporter les tableaux', 'module' => 'impression', 'description' => 'Exporter les tableaux (PDF, Excel, CSV, Word)'],
             ['code' => 'referentiel.devises.view', 'libelle' => 'Consulter les devises', 'module' => 'referentiel', 'description' => 'Lister et consulter les devises'],
             ['code' => 'referentiel.pays.view', 'libelle' => 'Consulter les pays', 'module' => 'referentiel', 'description' => 'Lister et consulter les pays'],
         ];
@@ -102,6 +104,7 @@ final class PermissionCatalog
             'stock.equipment.view',
             'stock.movements.view',
             'document.documents.view', 'document.documents.upload',
+            'impression.documents.print', 'impression.tables.export',
             'referentiel.devises.view', 'referentiel.pays.view',
         ];
 

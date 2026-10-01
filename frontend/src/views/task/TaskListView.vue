@@ -41,6 +41,8 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload } from '@/domains/impression/composables/useTableExportPayload'
 
 const toast = useAppToast()
 const confirm = useConfirm()
@@ -86,7 +88,7 @@ const TASK_COLUMNS = [
   { key: 'site', label: 'Site', defaultVisible: true },
   { key: 'employee', label: 'Employé', defaultVisible: true },
   { key: 'dateDue', label: 'Échéance', defaultVisible: true },
-  { key: 'status', label: 'Statut', defaultVisible: true },
+  { key: 'status', label: 'Statut', defaultVisible: true, align: 'center' },
 ]
 
 const {
@@ -185,6 +187,23 @@ const filteredItems = computed(() => {
   const fieldMap = { site: '_site', employee: '_employee' }
   const field = fieldMap[sortField.value] || sortField.value
   return sortByField(enriched, field, sortOrder.value)
+})
+
+const printExport = useTableExportPayload({
+  tableType: 'tasks',
+  title: 'Tâches',
+  columns: TASK_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'site') return siteMap.value[item.siteId] || '—'
+    if (key === 'employee') return employeeMap.value[item.employeeId] || '—'
+    if (key === 'dateDue') return formatDateFr(item.dateDue) || '—'
+    if (key === 'status') return taskStatusLabel(item.status)
+    return item[key] ?? ''
+  },
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
 })
 
 const STATUS_COLORS = {
@@ -424,6 +443,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
                 />
               </template>
             </AppTableSettingsPopover>
+            <AppTablePrintExportBar
+              :table-type="printExport.tableType"
+              :title="printExport.title"
+              :columns="printExport.columns"
+              :rows="printExport.rows"
+              :totals="printExport.totals"
+              :results="printExport.results"
+              :filters-summary="printExport.filtersSummary"
+              :search-term="printExport.searchTerm"
+            />
           </template>
         </AppTablePanelHeader>
       </template>

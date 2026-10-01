@@ -2,6 +2,7 @@
 
 namespace App\Employee\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Employee\Domain\Entity\Employee;
 use App\Employee\Domain\Repository\EmployeeRepositoryInterface;
@@ -65,12 +66,7 @@ class DoctrineEmployeeRepository extends ServiceEntityRepository implements Empl
                 ->setParameter('search', '%'.trim($search).'%');
         }
 
-        if ($from !== null) {
-            $qb->andWhere('e.createdAt >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('e.createdAt <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDateTime($qb, 'e.createdAt', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

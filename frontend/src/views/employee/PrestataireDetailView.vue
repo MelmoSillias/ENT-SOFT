@@ -55,9 +55,12 @@ import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLay
 import { useTableSettings } from '@/domains/shared/composables/useTableSettings'
 import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import { personDisplayName } from '@/domains/shared/utils/personDisplay'
-import ExportFormatMenu from '@/domains/impression/components/ExportFormatMenu.vue'
-import ExcelJS from 'exceljs'
-import { saveAs } from 'file-saver'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import {
+  useTableExportPayload,
+  moneyTotal,
+  totalLine,
+} from '@/domains/impression/composables/useTableExportPayload'
 
 const route = useRoute()
 const router = useRouter()
@@ -81,7 +84,6 @@ const editingId = ref(null)
 const currentItem = ref(null)
 const actionMenu = ref()
 const menuModel = ref([])
-const exportMenu = ref()
 const rowContextMenu = ref()
 const searchTerm = ref('')
 const filterWorkStatus = ref(null)
@@ -91,10 +93,10 @@ const PRESTATION_COLUMNS = [
   { key: 'date', label: 'Date', defaultVisible: true },
   { key: 'description', label: 'Description', defaultVisible: true },
   { key: 'site', label: 'Site', defaultVisible: true },
-  { key: 'amount', label: 'Montant', defaultVisible: true },
-  { key: 'paidAmount', label: 'Payé', defaultVisible: true },
-  { key: 'workStatus', label: 'Statut', defaultVisible: true },
-  { key: 'paymentStatus', label: 'Paiement', defaultVisible: true },
+  { key: 'amount', label: 'Montant', defaultVisible: true, type: 'money', align: 'right' },
+  { key: 'paidAmount', label: 'Payé', defaultVisible: true, type: 'money', align: 'right' },
+  { key: 'workStatus', label: 'Statut', defaultVisible: true, align: 'center' },
+  { key: 'paymentStatus', label: 'Paiement', defaultVisible: true, align: 'center' },
   { key: 'createdAt', label: 'Créé le', defaultVisible: false },
   { key: 'updatedAt', label: 'Modifié le', defaultVisible: false },
 ]
@@ -153,6 +155,43 @@ const filteredPrestations = computed(() => {
     })
   }
   return sortByField(list, sortField.value, sortOrder.value)
+})
+
+const printExport = useTableExportPayload({
+  tableType: 'prestataire_prestations',
+  title: computed(() => `Prestations — ${personDisplayName(prestataire.value) || 'Prestataire'}`),
+  columns: PRESTATION_COLUMNS,
+  visibleColKeys,
+  items: filteredPrestations,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'date') return formatDateFr(item.date) || '—'
+    if (key === 'site') return item.siteId ? (siteMap.value[item.siteId] || '—') : '—'
+    if (key === 'amount') return formatMontant(item.amount, DEVISE_APP)
+    if (key === 'paidAmount') return formatMontant(item.paidAmount ?? 0, DEVISE_APP)
+    if (key === 'workStatus') return WORK_STATUS_LABEL[item.workStatus] || item.workStatus || '—'
+    if (key === 'paymentStatus') return PAYMENT_STATUS_LABEL[item.paymentStatus] || item.paymentStatus || '—'
+    if (key === 'createdAt' || key === 'updatedAt') return formatDateFr(item[key]) || '—'
+    return item[key] ?? ''
+  },
+  buildTotals: ({ items }) => {
+    const reliquat = items.reduce(
+      (acc, p) => acc + Math.max(0, Number(p.amount) - Number(p.paidAmount || 0)),
+      0,
+    )
+    return [
+      moneyTotal('Total montant', items, 'amount'),
+      moneyTotal('Total payé', items, 'paidAmount'),
+      totalLine('Total reliquat', formatMontant(reliquat, DEVISE_APP), { key: 'paidAmount', align: 'right' }),
+    ]
+  },
+  filtersSummary: () => {
+    const parts = []
+    if (searchTerm.value.trim()) parts.push(`Recherche : ${searchTerm.value.trim()}`)
+    if (filterWorkStatus.value) parts.push(`Travail : ${WORK_STATUS_LABEL[filterWorkStatus.value] || filterWorkStatus.value}`)
+    if (filterPaymentStatus.value) parts.push(`Paiement : ${PAYMENT_STATUS_LABEL[filterPaymentStatus.value] || filterPaymentStatus.value}`)
+    return parts.join(' · ')
+  },
 })
 
 const prestataireTabItems = computed(() => [
@@ -481,53 +520,6 @@ const { run: runReset } = useAsyncAction(async (item) => {
   }
 })
 
-async function exportTable(format) {
-  if (format === 'pdf' || format === 'word') {
-    printTable()
-    return
-  }
-  const rows = prestations.value.map((p) => ({
-    Date: formatDateFr(p.date),
-    Description: p.description,
-    Site: p.siteId ? (siteMap.value[p.siteId] || p.siteId) : '',
-    Montant: p.amount,
-    Payé: p.paidAmount ?? 0,
-    Reliquat: p.remainingAmount ?? Math.max(0, p.amount - (p.paidAmount || 0)),
-    Statut: WORK_STATUS_LABEL[p.workStatus] || p.workStatus,
-    Paiement: PAYMENT_STATUS_LABEL[p.paymentStatus] || p.paymentStatus,
-  }))
-
-  if (format === 'csv') {
-    const headers = Object.keys(rows[0] || { Description: '' })
-    const csv = [headers.join(';'), ...rows.map((r) => headers.map((h) => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(';'))].join('\n')
-    saveAs(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `prestations-${new Date().toISOString().slice(0, 10)}.csv`)
-    return
-  }
-
-  const wb = new ExcelJS.Workbook()
-  const ws = wb.addWorksheet('Prestations')
-  if (rows.length) {
-    ws.columns = Object.keys(rows[0]).map((k) => ({ header: k, key: k, width: 18 }))
-    rows.forEach((r) => ws.addRow(r))
-  }
-  const buffer = await wb.xlsx.writeBuffer()
-  saveAs(new Blob([buffer]), `prestations-${new Date().toISOString().slice(0, 10)}.xlsx`)
-}
-
-function printTable() {
-  const win = window.open('', '_blank')
-  if (!win) return
-  const rows = prestations.value
-    .map(
-      (p) =>
-        `<tr><td>${formatDateFr(p.date)}</td><td>${p.description}</td><td>${p.siteId ? siteMap.value[p.siteId] || '' : ''}</td><td>${p.amount}</td><td>${WORK_STATUS_LABEL[p.workStatus] || ''}</td><td>${PAYMENT_STATUS_LABEL[p.paymentStatus] || ''}</td></tr>`,
-    )
-    .join('')
-  win.document.write(`<html><head><title>Prestations</title></head><body><h1>Prestations — ${prestataire.value?.name || ''}</h1><table border="1" cellpadding="6"><thead><tr><th>Date</th><th>Description</th><th>Site</th><th>Montant</th><th>Statut</th><th>Paiement</th></tr></thead><tbody>${rows}</tbody></table></body></html>`)
-  win.document.close()
-  win.print()
-}
-
 const canCreate = computed(() => hasPermission('employee.prestataires.update'))
 </script>
 
@@ -600,11 +592,17 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
                     size="small"
                     @click="openMultiPay"
                   />
-                  <div v-if="!isAppMobile" class="prestations-toolbar__export">
-                    <Button icon="pi pi-print" text rounded v-tooltip.top="'Imprimer'" @click="printTable" />
-                    <Button icon="pi pi-download" text rounded v-tooltip.top="'Exporter'" @click="(e) => exportMenu?.toggle(e)" />
-                    <ExportFormatMenu ref="exportMenu" @select="exportTable" />
-                  </div>
+                  <AppTablePrintExportBar
+                    v-if="!isAppMobile"
+                    :table-type="printExport.tableType"
+                    :title="printExport.title"
+                    :columns="printExport.columns"
+                    :rows="printExport.rows"
+                    :totals="printExport.totals"
+                    :results="printExport.results"
+                    :filters-summary="printExport.filtersSummary"
+                    :search-term="printExport.searchTerm"
+                  />
                   <AppTableSettingsPopover
                     v-model:visible-col-keys="visibleColKeys"
                     v-model:rows="tableRows"
@@ -902,10 +900,6 @@ const canCreate = computed(() => hasPermission('employee.prestataires.update'))
   justify-content: space-between;
   margin-bottom: 0.75rem;
   gap: 0.5rem;
-}
-.prestations-toolbar__export {
-  display: inline-flex;
-  gap: 0.15rem;
 }
 .field {
   display: flex;

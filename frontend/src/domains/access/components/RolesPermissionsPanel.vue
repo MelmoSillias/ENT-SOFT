@@ -30,6 +30,8 @@ import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { createRole, deleteRole, listRoles, updateRole } from '@/domains/access/services/roleService'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload } from '@/domains/impression/composables/useTableExportPayload'
 
 defineProps({
   embedded: {
@@ -48,8 +50,8 @@ const canManage = computed(() => hasPermission('access.roles.manage'))
 const ROLE_COLUMNS = [
   { key: 'libelle', label: 'Libellé', defaultVisible: true },
   { key: 'code', label: 'Code', defaultVisible: true },
-  { key: 'isSystem', label: 'Type', defaultVisible: true },
-  { key: 'isEnabled', label: 'Statut', defaultVisible: true },
+  { key: 'isSystem', label: 'Type', defaultVisible: true, align: 'center' },
+  { key: 'isEnabled', label: 'Statut', defaultVisible: true, align: 'center' },
   { key: 'permissions', label: 'Permissions', defaultVisible: true, sortable: false },
 ]
 
@@ -151,6 +153,25 @@ const filteredItems = computed(() => {
     )
   }
   return sortByField(list, sortField.value, sortOrder.value)
+})
+
+const printExport = useTableExportPayload({
+  tableType: 'roles',
+  title: 'Rôles',
+  columns: ROLE_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'isSystem') return item.isSystem ? 'Système' : 'Métier'
+    if (key === 'isEnabled') return item.isEnabled ? 'Actif' : 'Masqué'
+    if (key === 'permissions') {
+      const n = (item.permissions ?? []).length
+      return `${n} permission${n === 1 ? '' : 's'}`
+    }
+    return item[key] ?? ''
+  },
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
 })
 
 onMounted(async () => {
@@ -307,6 +328,16 @@ function setPermGranted(code, granted) {
               :sort-options="sortOptions"
               @toggle-col="toggleCol"
             />
+            <AppTablePrintExportBar
+              :table-type="printExport.tableType"
+              :title="printExport.title"
+              :columns="printExport.columns"
+              :rows="printExport.rows"
+              :totals="printExport.totals"
+              :results="printExport.results"
+              :filters-summary="printExport.filtersSummary"
+              :search-term="printExport.searchTerm"
+            />
           </template>
         </AppTablePanelHeader>
         <AppTableState
@@ -393,6 +424,16 @@ function setPermGranted(code, granted) {
             :row-options="ROW_OPTIONS"
             :sort-options="sortOptions"
             @toggle-col="toggleCol"
+          />
+          <AppTablePrintExportBar
+            :table-type="printExport.tableType"
+            :title="printExport.title"
+            :columns="printExport.columns"
+            :rows="printExport.rows"
+            :totals="printExport.totals"
+            :results="printExport.results"
+            :filters-summary="printExport.filtersSummary"
+            :search-term="printExport.searchTerm"
           />
         </template>
       </AppTablePanelHeader>

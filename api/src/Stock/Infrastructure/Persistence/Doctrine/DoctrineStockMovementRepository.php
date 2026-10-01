@@ -2,6 +2,7 @@
 
 namespace App\Stock\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Stock\Domain\Entity\StockMovement;
 use App\Stock\Domain\Repository\StockMovementRepositoryInterface;
@@ -38,12 +39,7 @@ class DoctrineStockMovementRepository extends ServiceEntityRepository implements
             ->setParameter('enabled', true)
             ->orderBy('m.date', 'DESC');
 
-        if ($from !== null) {
-            $qb->andWhere('m.date >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('m.date <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDate($qb, 'm.date', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

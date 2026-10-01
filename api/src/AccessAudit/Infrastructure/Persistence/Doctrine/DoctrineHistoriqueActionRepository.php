@@ -4,6 +4,7 @@ namespace App\AccessAudit\Infrastructure\Persistence\Doctrine;
 
 use App\AccessAudit\Domain\Entity\HistoriqueAction;
 use App\AccessAudit\Domain\Repository\HistoriqueActionRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -81,15 +82,7 @@ class DoctrineHistoriqueActionRepository extends ServiceEntityRepository impleme
                 ->setParameter('action', $action);
         }
 
-        if (null !== $from) {
-            $qb->andWhere('h.dateAction >= :from')
-                ->setParameter('from', $from);
-        }
-
-        if (null !== $to) {
-            $qb->andWhere('h.dateAction <= :to')
-                ->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDateTime($qb, 'h.dateAction', $from, $to);
 
         return $qb;
     }

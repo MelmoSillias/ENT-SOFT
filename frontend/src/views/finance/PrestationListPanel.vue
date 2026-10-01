@@ -47,6 +47,8 @@ import AppRowContextMenu from '@/domains/shared/components/AppRowContextMenu.vue
 import AppEntityDataView from '@/domains/shared/components/AppEntityDataView.vue'
 import AppFilterSelect from '@/domains/shared/components/AppFilterSelect.vue'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload, moneyTotal, totalLine } from '@/domains/impression/composables/useTableExportPayload'
 
 const toast = useAppToast()
 const confirm = useConfirm()
@@ -94,10 +96,10 @@ const PRESTATION_COLUMNS = [
   { key: 'prestataire', label: 'Prestataire', defaultVisible: true },
   { key: 'description', label: 'Description', defaultVisible: true },
   { key: 'site', label: 'Site', defaultVisible: true },
-  { key: 'amount', label: 'Montant', defaultVisible: true },
-  { key: 'paidAmount', label: 'Payé', defaultVisible: true },
-  { key: 'workStatus', label: 'Statut', defaultVisible: true },
-  { key: 'paymentStatus', label: 'Paiement', defaultVisible: true },
+  { key: 'amount', label: 'Montant', defaultVisible: true, type: 'money', align: 'right' },
+  { key: 'paidAmount', label: 'Payé', defaultVisible: true, type: 'money', align: 'right' },
+  { key: 'workStatus', label: 'Statut', defaultVisible: true, align: 'center' },
+  { key: 'paymentStatus', label: 'Paiement', defaultVisible: true, align: 'center' },
   { key: 'createdAt', label: 'Créé le', defaultVisible: false },
   { key: 'updatedAt', label: 'Modifié le', defaultVisible: false },
 ]
@@ -168,6 +170,38 @@ const filteredItems = computed(() => {
   }
   const field = sortField.value === 'prestataire' ? 'prestataireName' : sortField.value
   return sortByField(list, field, sortOrder.value)
+})
+
+const printExport = useTableExportPayload({
+  tableType: 'prestations',
+  title: 'Prestations',
+  columns: PRESTATION_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'date') return formatDateFr(item.date) || '—'
+    if (key === 'prestataire') return item.prestataireName || '—'
+    if (key === 'site') return item.siteId ? (siteMap.value[item.siteId] || '—') : '—'
+    if (key === 'amount') return formatMontant(item.amount, DEVISE_APP)
+    if (key === 'paidAmount') return formatMontant(item.paidAmount, DEVISE_APP)
+    if (key === 'workStatus') return WORK_STATUS_LABEL[item.workStatus] || item.workStatus || '—'
+    if (key === 'paymentStatus') return PAYMENT_STATUS_LABEL[item.paymentStatus] || item.paymentStatus || '—'
+    if (key === 'createdAt' || key === 'updatedAt') return formatDateFr(item[key]) || '—'
+    return item[key] ?? ''
+  },
+  buildTotals: ({ items }) => {
+    const reliquat = items.reduce(
+      (acc, p) => acc + (Number(p.amount) - Number(p.paidAmount)),
+      0,
+    )
+    return [
+      moneyTotal('Total montant', items, 'amount'),
+      moneyTotal('Total payé', items, 'paidAmount'),
+      totalLine('Total reliquat', formatMontant(reliquat, DEVISE_APP), { key: 'paidAmount', align: 'right' }),
+    ]
+  },
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
 })
 
 async function load() {
@@ -433,6 +467,16 @@ const { run: runReset } = useAsyncAction(async (item) => {
             />
           </template>
         </AppTableSettingsPopover>
+        <AppTablePrintExportBar
+          :table-type="printExport.tableType"
+          :title="printExport.title"
+          :columns="printExport.columns"
+          :rows="printExport.rows"
+          :totals="printExport.totals"
+          :results="printExport.results"
+          :filters-summary="printExport.filtersSummary"
+          :search-term="printExport.searchTerm"
+        />
       </template>
     </AppTablePanelHeader>
 

@@ -30,6 +30,8 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload, quantityTotal } from '@/domains/impression/composables/useTableExportPayload'
 
 const emit = defineEmits(['changed'])
 
@@ -57,7 +59,7 @@ const rowContextMenu = ref()
 const MOVEMENT_COLUMNS = [
   { key: 'date', label: 'Date', defaultVisible: true },
   { key: 'direction', label: 'Type', defaultVisible: true },
-  { key: 'quantity', label: 'Quantité', defaultVisible: true },
+  { key: 'quantity', label: 'Quantité', defaultVisible: true, type: 'quantity', align: 'right' },
   { key: 'equipment', label: 'Équipements', defaultVisible: true },
 ]
 
@@ -190,6 +192,24 @@ const filteredItems = computed(() => {
   return sortByField(enriched, field, sortOrder.value)
 })
 
+const printExport = useTableExportPayload({
+  tableType: 'stock_movements',
+  title: 'Mouvements de stock',
+  columns: MOVEMENT_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'date') return formatDateFr(item.date) || '—'
+    if (key === 'direction') return stockDirectionLabel(item.direction)
+    if (key === 'quantity') return quantityLabel(item)
+    if (key === 'equipment') return item._equipment || lineLabel(item)
+    return item[key] ?? ''
+  },
+  buildTotals: ({ items }) => [quantityTotal('Total quantité', items, 'quantity')],
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
+})
+
 function openCreate(opts = {}) {
   editingId.value = null
   form.value = {
@@ -318,6 +338,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             <AppPeriodFilter v-model="filterPeriod" />
           </template>
         </AppTableSettingsPopover>
+        <AppTablePrintExportBar
+          :table-type="printExport.tableType"
+          :title="printExport.title"
+          :columns="printExport.columns"
+          :rows="printExport.rows"
+          :totals="printExport.totals"
+          :results="printExport.results"
+          :filters-summary="printExport.filtersSummary"
+          :search-term="printExport.searchTerm"
+        />
       </template>
     </AppTablePanelHeader>
     <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">

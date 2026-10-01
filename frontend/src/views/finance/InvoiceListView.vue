@@ -37,6 +37,8 @@ import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import { usePrintDocument } from '@/domains/impression/composables/usePrintDocument'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload, moneyTotal } from '@/domains/impression/composables/useTableExportPayload'
 
 defineProps({
   embedded: { type: Boolean, default: false },
@@ -74,9 +76,9 @@ const INVOICE_COLUMNS = [
   { key: 'number', label: 'N°', defaultVisible: true },
   { key: 'date', label: 'Date', defaultVisible: true },
   { key: 'client', label: 'Client', defaultVisible: true },
-  { key: 'amount', label: 'Montant', defaultVisible: true },
-  { key: 'paidAmount', label: 'Payé', defaultVisible: true },
-  { key: 'status', label: 'Statut', defaultVisible: true },
+  { key: 'amount', label: 'Montant', defaultVisible: true, type: 'money', align: 'right' },
+  { key: 'paidAmount', label: 'Payé', defaultVisible: true, type: 'money', align: 'right' },
+  { key: 'status', label: 'Statut', defaultVisible: true, align: 'center' },
 ]
 
 const {
@@ -197,6 +199,28 @@ const {
   onPage: onMobilePage,
   rankOf: mobileRankOf,
 } = useClientPagination(filteredItems, tableRows)
+
+const printExport = useTableExportPayload({
+  tableType: 'invoices',
+  title: 'Factures',
+  columns: INVOICE_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'date') return formatDateFr(item.date) || '—'
+    if (key === 'client') return clientMap.value[item.clientId] || '—'
+    if (key === 'amount') return formatMontant(item.amount, DEVISE_APP)
+    if (key === 'paidAmount') return formatMontant(item.paidAmount, DEVISE_APP)
+    if (key === 'status') return invoiceStatusLabel(item.status)
+    return item[key] ?? ''
+  },
+  buildTotals: ({ items }) => [
+    moneyTotal('Total montant', items, 'amount'),
+    moneyTotal('Total payé', items, 'paidAmount'),
+  ],
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
+})
 
 const countLabel = computed(() => `${filteredItems.value.length}`)
 const dialogTitle = computed(() => (editingId.value ? 'Modifier facture' : 'Nouvelle facture'))
@@ -424,6 +448,16 @@ const printFormatItems = computed(() => [
             <AppPeriodFilter v-model="filterPeriod" />
           </template>
         </AppTableSettingsPopover>
+        <AppTablePrintExportBar
+          :table-type="printExport.tableType"
+          :title="printExport.title"
+          :columns="printExport.columns"
+          :rows="printExport.rows"
+          :totals="printExport.totals"
+          :results="printExport.results"
+          :filters-summary="printExport.filtersSummary"
+          :search-term="printExport.searchTerm"
+        />
       </template>
     </AppTablePanelHeader>
     <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">

@@ -4,6 +4,7 @@ namespace App\Prestataire\Infrastructure\Persistence\Doctrine;
 
 use App\Prestataire\Domain\Entity\Prestation;
 use App\Prestataire\Domain\Repository\PrestationRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -39,12 +40,7 @@ class DoctrinePrestationRepository extends ServiceEntityRepository implements Pr
             ->orderBy('p.date', 'DESC')
             ->addOrderBy('p.createdAt', 'DESC');
 
-        if ($from !== null) {
-            $qb->andWhere('p.date >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('p.date <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDate($qb, 'p.date', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

@@ -3,20 +3,16 @@
 namespace App\Impression\Application\Service;
 
 use App\Client\Domain\Repository\ClientRepositoryInterface;
-use App\Configuration\Application\Service\AgenceLogoUploadService;
-use App\Configuration\Domain\Repository\SettingRepositoryInterface;
 use App\Finance\Application\Service\InvoiceAssembler;
 use App\Finance\Application\Service\InvoiceNumberResolver;
 use App\Finance\Domain\Enum\InvoiceStatus;
 use App\Finance\Domain\Exception\InvoiceNotFoundException;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
 use App\Project\Domain\Repository\ProjectRepositoryInterface;
-use Dompdf\Dompdf;
-use Dompdf\Options;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\PhpWord;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Uid\Uuid;
@@ -30,23 +26,14 @@ final class InvoiceImpressionService
         private readonly InvoiceNumberResolver $numberResolver,
         private readonly ClientRepositoryInterface $clientRepository,
         private readonly ProjectRepositoryInterface $projectRepository,
-        private readonly SettingRepositoryInterface $settingRepository,
-        private readonly AgenceLogoUploadService $logoUploadService,
+        private readonly ImpressionDocumentSupport $support,
         private readonly Environment $twig,
     ) {
     }
 
     public function settings(): array
     {
-        return [
-            'default_page_table' => $this->setting('IMPRESSION_PAGE_TABLE', 'a4'),
-            'default_orientation_table' => $this->setting('IMPRESSION_ORIENTATION_TABLE', 'portrait'),
-            'default_page_invoice' => $this->setting('IMPRESSION_PAGE_INVOICE', 'a4'),
-            'default_orientation_invoice' => $this->setting('IMPRESSION_ORIENTATION_INVOICE', 'portrait'),
-            'default_export_format' => $this->setting('IMPRESSION_DEFAULT_EXPORT_FORMAT', 'pdf'),
-            'margin_mm' => (int) $this->setting('IMPRESSION_MARGIN_MM', '18'),
-            'footer_text' => $this->setting('IMPRESSION_FOOTER_TEXT', ''),
-        ];
+        return $this->support->settings();
     }
 
     public function renderInvoice(string $id, string $format, string $page, string $orientation, string $disposition): Response
@@ -100,8 +87,8 @@ final class InvoiceImpressionService
                 'projectName' => $projectName,
                 'amountInWords' => AmountInWordsFrench::format($amountRaw, documentLabel: $documentLabel),
             ],
-            'profile' => $this->profile(),
-            'page' => $this->pageContext($page, $orientation),
+            'profile' => $this->support->profile(),
+            'page' => $this->support->pageContext($page, $orientation),
             'auto_print' => $format === 'html' && $disposition === 'inline',
         ]);
 
@@ -109,67 +96,17 @@ final class InvoiceImpressionService
         $filename = $filenamePrefix.'-'.preg_replace('/[^\w.\-]+/', '-', $numberDisplay);
 
         return match ($format) {
-            'pdf' => $this->pdfResponse($html, $filename, $page, $orientation, $disposition),
+            'pdf' => $this->support->pdfResponse($html, $filename, $page, $orientation, $disposition),
             'csv' => $this->csvResponse($dto, $filename),
             'excel' => $this->excelResponse($dto, $filename),
             'word' => $this->wordResponse($dto, $filename, $documentLabel),
-            default => new Response($html, 200, [
-                'Content-Type' => 'text/html; charset=UTF-8',
-                'Content-Disposition' => ($disposition === 'attachment' ? 'attachment' : 'inline').'; filename="'.$filename.'.html"',
-            ]),
+            default => $this->support->htmlResponse($html, $filename, $disposition),
         };
     }
 
     private function documentLabel(InvoiceStatus $status): string
     {
         return $status === InvoiceStatus::INVOICED ? 'Facture' : 'Facture proforma';
-    }
-
-    /** @return array<string, mixed> */
-    private function profile(): array
-    {
-        $logo = $this->setting('AGENCE_LOGO_URL', '');
-        $phone = $this->setting('AGENCE_TELEPHONE', '');
-        $ville = $this->setting('AGENCE_VILLE', '');
-
-        return [
-            'shop_name' => $this->setting('AGENCE_NOM', 'ENT TECHNOLOGY'),
-            'show_logo' => in_array(strtolower($this->setting('IMPRESSION_SHOW_LOGO', 'false')), ['1', 'true', 'yes', 'on'], true),
-            'logo_url' => $this->logoUploadService->resolveForDocuments($logo ?: null),
-            'address' => $this->setting('AGENCE_ADRESSE', ''),
-            'ville' => $ville,
-            'ville_bracket' => $ville !== '' ? '['.$ville.']' : '',
-            'nina' => $this->setting('AGENCE_NINA', ''),
-            'nif_fiscal' => $this->setting('AGENCE_NIF_FISCAL', ''),
-            'phones' => $phone !== '' ? [$phone] : [],
-            'phone' => $phone,
-            'email' => $this->setting('AGENCE_EMAIL', ''),
-            'website' => $this->setting('AGENCE_SITE_WEB', ''),
-            'payee' => $this->setting('AGENCE_PAYEE', ''),
-            'footer_text' => $this->setting('IMPRESSION_FOOTER_TEXT', ''),
-            'address_lines' => array_values(array_filter([
-                $this->setting('AGENCE_ADRESSE', ''),
-                $ville,
-            ])),
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private function pageContext(string $page, string $orientation): array
-    {
-        $sizes = [
-            'a4' => ['portrait' => '210mm 297mm', 'landscape' => '297mm 210mm'],
-            'a5' => ['portrait' => '148mm 210mm', 'landscape' => '210mm 148mm'],
-        ];
-        $format = $page === 'a5' ? 'a5' : 'a4';
-        $orient = $orientation === 'landscape' ? 'landscape' : 'portrait';
-
-        return [
-            'format' => $format,
-            'orientation' => $orient,
-            'margin_mm' => (int) $this->setting('IMPRESSION_MARGIN_MM', '18'),
-            'css_page_size' => $sizes[$format][$orient],
-        ];
     }
 
     private function formatAmount(float|int|string $value): string
@@ -195,24 +132,6 @@ final class InvoiceImpressionService
         }
 
         return implode(' ', $parts).(str_ends_with(implode(' ', $parts), '-') ? '' : ' -');
-    }
-
-    private function pdfResponse(string $html, string $filename, string $page, string $orientation, string $disposition): Response
-    {
-        $options = new Options();
-        $options->set('isRemoteEnabled', true);
-        $options->set('defaultFont', 'DejaVu Serif');
-        $dompdf = new Dompdf($options);
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper($page === 'a5' ? 'A5' : 'A4', $orientation === 'landscape' ? 'landscape' : 'portrait');
-        $dompdf->render();
-
-        $contentDisposition = ($disposition === 'attachment' ? 'attachment' : 'inline').'; filename="'.$filename.'.pdf"';
-
-        return new Response($dompdf->output(), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => $contentDisposition,
-        ]);
     }
 
     /** @param array<string, mixed> $dto */
@@ -291,10 +210,5 @@ final class InvoiceImpressionService
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'Content-Disposition' => 'attachment; filename="'.$filename.'.docx"',
         ]);
-    }
-
-    private function setting(string $cle, string $default): string
-    {
-        return $this->settingRepository->findByCle($cle)?->getValeur() ?? $default;
     }
 }

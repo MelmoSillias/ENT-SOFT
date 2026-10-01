@@ -7,8 +7,13 @@ import { useAuthStore } from '@/domains/auth/stores/auth'
 
 const props = defineProps({
   tableType: { type: String, required: true },
+  title: { type: String, default: '' },
   filters: { type: Object, default: () => ({}) },
+  filtersSummary: { type: String, default: '' },
   columns: { type: Array, default: () => [] },
+  rows: { type: Array, default: () => [] },
+  totals: { type: Array, default: () => [] },
+  results: { type: Array, default: () => [] },
   searchTerm: { type: String, default: '' },
   permissionPrint: { type: String, default: 'impression.documents.print' },
   permissionExport: { type: String, default: 'impression.tables.export' },
@@ -23,8 +28,13 @@ const canPrint = computed(() => authStore.hasPermission(props.permissionPrint))
 const canExport = computed(() => authStore.hasPermission(props.permissionExport))
 
 const payload = () => ({
+  title: props.title,
   filters: props.filters,
+  filters_summary: props.filtersSummary,
   columns: props.columns,
+  rows: props.rows,
+  totals: props.totals,
+  results: props.results,
   search: props.searchTerm,
 })
 
@@ -44,7 +54,7 @@ const openExportMenu = (event) => {
 </script>
 
 <template>
-  <div class="app-table-print-export-bar">
+  <div v-if="canPrint || canExport" class="app-table-print-export-bar">
     <Button
       v-if="canPrint"
       icon="pi pi-print"

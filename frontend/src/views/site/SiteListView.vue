@@ -30,6 +30,8 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload } from '@/domains/impression/composables/useTableExportPayload'
 import { formatDateTimeFr } from '@/domains/shared/utils/entLabels'
 
 const SiteMapPanel = defineAsyncComponent(() => import('@/domains/site/components/SiteMapPanel.vue'))
@@ -215,6 +217,21 @@ const filteredItems = computed(() => {
     )
   }
   return sortByField(list, sortField.value, sortOrder.value)
+})
+
+const printExport = useTableExportPayload({
+  tableType: 'sites',
+  title: 'Sites',
+  columns: SITE_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'client') return clientMap.value[item.clientId] || '—'
+    if (key === 'location') return locationLabel(item)
+    return item[key] ?? ''
+  },
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
 })
 
 const filteredPositions = computed(() => {
@@ -427,6 +444,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
                 <AppPeriodFilter v-model="filterPeriod" />
               </template>
             </AppTableSettingsPopover>
+            <AppTablePrintExportBar
+              :table-type="printExport.tableType"
+              :title="printExport.title"
+              :columns="printExport.columns"
+              :rows="printExport.rows"
+              :totals="printExport.totals"
+              :results="printExport.results"
+              :filters-summary="printExport.filtersSummary"
+              :search-term="printExport.searchTerm"
+            />
           </template>
         </AppTablePanelHeader>
       </template>

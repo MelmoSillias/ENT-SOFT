@@ -32,6 +32,8 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useAsyncAction } from '@/domains/shared/composables/useAsyncAction'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload } from '@/domains/impression/composables/useTableExportPayload'
 
 defineProps({
   fabEnabled: {
@@ -51,7 +53,7 @@ const EMPLOYEE_COLUMNS = [
   { key: 'email', label: 'Email', defaultVisible: true },
   { key: 'phone', label: 'Téléphone', defaultVisible: true },
   { key: 'roleCode', label: 'Fonction', defaultVisible: true },
-  { key: 'isEnabled', label: 'Statut', defaultVisible: true },
+  { key: 'isEnabled', label: 'Statut', defaultVisible: true, align: 'center' },
 ]
 
 const {
@@ -158,6 +160,22 @@ const filteredItems = computed(() => {
   }
   const field = sortField.value === 'name' ? 'nom' : sortField.value
   return sortByField(list, field, sortOrder.value)
+})
+
+const printExport = useTableExportPayload({
+  tableType: 'employees',
+  title: 'Employés',
+  columns: EMPLOYEE_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'name') return item.name || personDisplayName(item)
+    if (key === 'roleCode') return roleLabel(item.roleCode)
+    if (key === 'isEnabled') return item.isEnabled ? 'Actif' : 'Inactif'
+    return item[key] ?? ''
+  },
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
 })
 
 const countLabel = computed(() => `${filteredItems.value.length}`)
@@ -318,6 +336,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               <AppPeriodFilter v-model="filterPeriod" />
             </template>
           </AppTableSettingsPopover>
+          <AppTablePrintExportBar
+            :table-type="printExport.tableType"
+            :title="printExport.title"
+            :columns="printExport.columns"
+            :rows="printExport.rows"
+            :totals="printExport.totals"
+            :results="printExport.results"
+            :filters-summary="printExport.filtersSummary"
+            :search-term="printExport.searchTerm"
+          />
         </template>
       </AppTablePanelHeader>
     </template>

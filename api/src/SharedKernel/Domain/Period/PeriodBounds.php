@@ -3,9 +3,9 @@
 namespace App\SharedKernel\Domain\Period;
 
 /**
- * Bornes d'un filtre de période.
+ * Bornes d'un filtre de période (bornes inclusives).
  *
- * - from / to : journée entière (00:00:00 → 23:59:59), pour les colonnes date.
+ * - from / to : journée entière (00:00:00 → 23:59:59.999999), pour les colonnes date.
  * - instant : conserve l'heure choisie (filtres datetime, ordre début → fin).
  */
 final class PeriodBounds
@@ -17,7 +17,7 @@ final class PeriodBounds
 
     public static function to(?string $value): ?\DateTimeImmutable
     {
-        return self::parse($value)?->setTime(23, 59, 59);
+        return self::parse($value)?->setTime(23, 59, 59, 999999);
     }
 
     /** Conserve l'instant choisi (date + heure). */

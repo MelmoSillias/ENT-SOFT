@@ -87,19 +87,30 @@ export function usePrintDocument() {
   return { printDocument, exportDocument }
 }
 
+function tablePayloadBase(options = {}) {
+  return {
+    title: options.title || '',
+    filters: options.filters || {},
+    filters_summary: options.filters_summary || options.filtersSummary || '',
+    columns: options.columns || [],
+    rows: options.rows || [],
+    totals: options.totals || [],
+    results: options.results || [],
+    search: options.search || '',
+  }
+}
+
 export function useTablePrint() {
   const printSettingsStore = usePrintSettingsStore()
   const toast = useAppToast()
 
-  const printTable = async (tableType, { filters = {}, columns = [], search = '', page, orientation } = {}) => {
+  const printTable = async (tableType, options = {}) => {
     try {
       await printSettingsStore.fetchSettings()
       const blob = await impressionService.printTable(tableType, {
-        filters,
-        columns,
-        search,
-        page: page || printSettingsStore.defaultPageFor('table'),
-        orientation: orientation || printSettingsStore.defaultOrientationFor('table'),
+        ...tablePayloadBase(options),
+        page: options.page || printSettingsStore.defaultPageFor('table'),
+        orientation: options.orientation || printSettingsStore.defaultOrientationFor('table'),
       })
       openBlob(blob, { openInNewTab: true })
     } catch (error) {
@@ -114,17 +125,15 @@ export function useTableExport() {
   const printSettingsStore = usePrintSettingsStore()
   const toast = useAppToast()
 
-  const exportTable = async (tableType, format, { filters = {}, columns = [], search = '', page, orientation } = {}) => {
+  const exportTable = async (tableType, format, options = {}) => {
     try {
       await printSettingsStore.fetchSettings()
       const resolvedFormat = format || printSettingsStore.defaultExportFormat
       const blob = await impressionService.exportTable(tableType, {
         format: resolvedFormat,
-        filters,
-        columns,
-        search,
-        page: page || printSettingsStore.defaultPageFor('table'),
-        orientation: orientation || printSettingsStore.defaultOrientationFor('table'),
+        ...tablePayloadBase(options),
+        page: options.page || printSettingsStore.defaultPageFor('table'),
+        orientation: options.orientation || printSettingsStore.defaultOrientationFor('table'),
       })
       const filename = `${tableType}-${new Date().toISOString().slice(0, 10)}.${extensionForFormat(resolvedFormat)}`
       openBlob(blob, {

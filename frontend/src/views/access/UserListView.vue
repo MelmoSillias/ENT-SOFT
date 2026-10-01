@@ -46,6 +46,8 @@ import AppPhotoUploadField from '@/domains/shared/components/AppPhotoUploadField
 import { deleteUserPhoto, uploadUserPhoto } from '@/domains/shared/services/photoUploadService'
 import { personDisplayName } from '@/domains/shared/utils/personDisplay'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload } from '@/domains/impression/composables/useTableExportPayload'
 
 const toast = useAppToast()
 const confirm = useConfirm()
@@ -56,7 +58,7 @@ const USER_COLUMNS = [
   { key: 'name', label: 'Nom', defaultVisible: true },
   { key: 'login', label: 'Login', defaultVisible: true },
   { key: 'role', label: 'Rôle', defaultVisible: true },
-  { key: 'isActive', label: 'Actif', defaultVisible: true },
+  { key: 'isActive', label: 'Actif', defaultVisible: true, align: 'center' },
 ]
 
 const {
@@ -422,6 +424,24 @@ const filteredItems = computed(() => {
   return sortByField(list, sortField.value, sortOrder.value)
 })
 
+const printExport = useTableExportPayload({
+  tableType: 'users',
+  title: 'Utilisateurs',
+  columns: USER_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'name') return personDisplayName(item, item.login)
+    if (key === 'role') {
+      return roleOptions.value.find((r) => r.value === item.role)?.label ?? item.role ?? ''
+    }
+    if (key === 'isActive') return item.isActive ? 'Oui' : 'Non'
+    return item[key] ?? ''
+  },
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
+})
+
 function onRowContextMenu(event) {
   rowContextMenu.value?.onContextMenu(event.originalEvent, event.data)
 }
@@ -477,6 +497,16 @@ function onRowContextMenu(event) {
                   <AppPeriodFilter v-model="filterPeriod" />
                 </template>
               </AppTableSettingsPopover>
+              <AppTablePrintExportBar
+                :table-type="printExport.tableType"
+                :title="printExport.title"
+                :columns="printExport.columns"
+                :rows="printExport.rows"
+                :totals="printExport.totals"
+                :results="printExport.results"
+                :filters-summary="printExport.filtersSummary"
+                :search-term="printExport.searchTerm"
+              />
             </template>
           </AppTablePanelHeader>
           <AppTableState

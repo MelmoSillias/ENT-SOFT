@@ -2,6 +2,7 @@
 
 namespace App\Client\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Client\Domain\Entity\Client;
 use App\Client\Domain\Repository\ClientRepositoryInterface;
@@ -43,12 +44,7 @@ class DoctrineClientRepository extends ServiceEntityRepository implements Client
                 ->setParameter('search', '%'.trim($search).'%');
         }
 
-        if ($from !== null) {
-            $qb->andWhere('c.createdAt >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('c.createdAt <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDateTime($qb, 'c.createdAt', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

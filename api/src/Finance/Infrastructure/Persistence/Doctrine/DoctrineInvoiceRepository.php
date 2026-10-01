@@ -5,6 +5,7 @@ namespace App\Finance\Infrastructure\Persistence\Doctrine;
 use App\Finance\Domain\Entity\Invoice;
 use App\Finance\Domain\Enum\InvoiceStatus;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -39,12 +40,7 @@ class DoctrineInvoiceRepository extends ServiceEntityRepository implements Invoi
             ->setParameter('enabled', true)
             ->orderBy('i.date', 'DESC');
 
-        if ($from !== null) {
-            $qb->andWhere('i.date >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('i.date <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDate($qb, 'i.date', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

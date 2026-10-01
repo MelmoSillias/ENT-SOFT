@@ -21,6 +21,8 @@ import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { personDisplayName } from '@/domains/shared/utils/personDisplay'
 import { periodToApiParams } from '@/domains/shared/utils/dateUtils'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload } from '@/domains/impression/composables/useTableExportPayload'
 
 const toast = useAppToast()
 const { isAppMobile } = useAppMobileLayout()
@@ -42,7 +44,7 @@ const knownActions = ref(new Set())
 
 const AUDIT_COLUMNS = [
   { key: 'date_action', label: 'Date', defaultVisible: true },
-  { key: 'action', label: 'Action', defaultVisible: true },
+  { key: 'action', label: 'Action', defaultVisible: true, align: 'center' },
   { key: 'utilisateur', label: 'Utilisateur', defaultVisible: true },
   { key: 'description', label: 'Description', defaultVisible: true },
 ]
@@ -234,6 +236,29 @@ const displayItems = computed(() => {
   return sortByField(enriched, field, sortOrder.value)
 })
 
+const printExport = useTableExportPayload({
+  tableType: 'audit_logs',
+  title: 'Journal d\'audit',
+  columns: AUDIT_COLUMNS,
+  visibleColKeys,
+  items: displayItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'date_action') return formatDateTime(item.date_action)
+    if (key === 'action') return formatActionLabel(item.action)
+    if (key === 'utilisateur') return userDisplayName(item.utilisateur_id)
+    if (key === 'description') return item.description || '—'
+    return item[key] ?? ''
+  },
+  filtersSummary: () => {
+    const parts = []
+    if (searchTerm.value.trim()) parts.push(`Recherche : ${searchTerm.value.trim()}`)
+    if (filterAction.value) parts.push(`Action : ${formatActionLabel(filterAction.value)}`)
+    if (filterUserId.value) parts.push(`Utilisateur : ${userLabel(filterUserId.value)}`)
+    return parts.join(' · ')
+  },
+})
+
 const countLabel = computed(() => `${totalRecords.value}`)
 
 function resetFilters() {
@@ -329,6 +354,16 @@ function onRowContextMenu(event) {
                 />
               </template>
             </AppTableSettingsPopover>
+            <AppTablePrintExportBar
+              :table-type="printExport.tableType"
+              :title="printExport.title"
+              :columns="printExport.columns"
+              :rows="printExport.rows"
+              :totals="printExport.totals"
+              :results="printExport.results"
+              :filters-summary="printExport.filtersSummary"
+              :search-term="printExport.searchTerm"
+            />
           </template>
         </AppTablePanelHeader>
       </template>

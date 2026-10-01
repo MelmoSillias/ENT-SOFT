@@ -10,12 +10,30 @@ export function toApiDate(value) {
 
 /**
  * Convertit une valeur (Date ou string) en datetime ISO 8601 pour l'API, ou null.
+ * Conserve le décalage local pour que le calendrier (jour) reste celui choisi.
  */
 export function toApiDateTime(value) {
   if (!value) return null
   const d = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(d.getTime())) return null
-  return d.toISOString()
+  return toLocalOffsetIso(d)
+}
+
+function toLocalOffsetIso(d) {
+  const pad = (n, len = 2) => String(n).padStart(len, '0')
+  const y = d.getFullYear()
+  const m = pad(d.getMonth() + 1)
+  const day = pad(d.getDate())
+  const h = pad(d.getHours())
+  const min = pad(d.getMinutes())
+  const s = pad(d.getSeconds())
+  const ms = pad(d.getMilliseconds(), 3)
+  const offsetMin = -d.getTimezoneOffset()
+  const sign = offsetMin >= 0 ? '+' : '-'
+  const abs = Math.abs(offsetMin)
+  const oh = pad(Math.floor(abs / 60))
+  const om = pad(abs % 60)
+  return `${y}-${m}-${day}T${h}:${min}:${s}.${ms}${sign}${oh}:${om}`
 }
 
 /**
@@ -59,8 +77,8 @@ export function periodToApiParams(period) {
   if (from && to && from.getTime() > to.getTime()) {
     ;[from, to] = [to, from]
   }
-  if (from) params.from = from.toISOString()
-  if (to) params.to = to.toISOString()
+  if (from) params.from = toLocalOffsetIso(from)
+  if (to) params.to = toLocalOffsetIso(to)
   return params
 }
 

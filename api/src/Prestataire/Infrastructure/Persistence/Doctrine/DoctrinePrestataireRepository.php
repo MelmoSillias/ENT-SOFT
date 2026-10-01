@@ -4,6 +4,7 @@ namespace App\Prestataire\Infrastructure\Persistence\Doctrine;
 
 use App\Prestataire\Domain\Entity\Prestataire;
 use App\Prestataire\Domain\Repository\PrestataireRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -44,12 +45,7 @@ class DoctrinePrestataireRepository extends ServiceEntityRepository implements P
                 ->setParameter('search', '%'.trim($search).'%');
         }
 
-        if ($from !== null) {
-            $qb->andWhere('p.createdAt >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('p.createdAt <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDateTime($qb, 'p.createdAt', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

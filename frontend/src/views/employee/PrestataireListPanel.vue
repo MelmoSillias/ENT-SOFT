@@ -38,6 +38,8 @@ import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
+import AppTablePrintExportBar from '@/domains/impression/components/AppTablePrintExportBar.vue'
+import { useTableExportPayload, moneyTotal } from '@/domains/impression/composables/useTableExportPayload'
 
 defineProps({
   fabEnabled: {
@@ -56,9 +58,9 @@ const PRESTATAIRE_COLUMNS = [
   { key: 'name', label: 'Nom', defaultVisible: true },
   { key: 'email', label: 'Email', defaultVisible: true },
   { key: 'phone', label: 'Téléphone', defaultVisible: true },
-  { key: 'openPrestationsCount', label: 'Prestations non clôturées', defaultVisible: true },
-  { key: 'unpaidCompletedReliquat', label: 'Reliquat total', defaultVisible: true },
-  { key: 'isEnabled', label: 'Statut', defaultVisible: true },
+  { key: 'openPrestationsCount', label: 'Prestations non clôturées', defaultVisible: true, type: 'quantity', align: 'right' },
+  { key: 'unpaidCompletedReliquat', label: 'Reliquat total', defaultVisible: true, type: 'money', align: 'right' },
+  { key: 'isEnabled', label: 'Statut', defaultVisible: true, align: 'center' },
 ]
 
 const {
@@ -152,6 +154,23 @@ const filteredItems = computed(() => {
   }
   const field = sortField.value === 'name' ? 'nom' : sortField.value
   return sortByField(list, field, sortOrder.value)
+})
+
+const printExport = useTableExportPayload({
+  tableType: 'prestataires',
+  title: 'Prestataires',
+  columns: PRESTATAIRE_COLUMNS,
+  visibleColKeys,
+  items: filteredItems,
+  searchTerm,
+  getValue: (item, key) => {
+    if (key === 'name') return item.name || personDisplayName(item)
+    if (key === 'unpaidCompletedReliquat') return formatMontant(item.unpaidCompletedReliquat, DEVISE_APP)
+    if (key === 'isEnabled') return item.isEnabled ? 'Actif' : 'Inactif'
+    return item[key] ?? ''
+  },
+  buildTotals: ({ items }) => [moneyTotal('Total reliquat', items, 'unpaidCompletedReliquat')],
+  filtersSummary: () => (searchTerm.value.trim() ? `Recherche : ${searchTerm.value.trim()}` : ''),
 })
 
 const countLabel = computed(() => `${filteredItems.value.length}`)
@@ -340,6 +359,16 @@ function onPendingPhoto(file) {
               <AppPeriodFilter v-model="filterPeriod" />
             </template>
           </AppTableSettingsPopover>
+          <AppTablePrintExportBar
+            :table-type="printExport.tableType"
+            :title="printExport.title"
+            :columns="printExport.columns"
+            :rows="printExport.rows"
+            :totals="printExport.totals"
+            :results="printExport.results"
+            :filters-summary="printExport.filtersSummary"
+            :search-term="printExport.searchTerm"
+          />
         </template>
       </AppTablePanelHeader>
     </template>

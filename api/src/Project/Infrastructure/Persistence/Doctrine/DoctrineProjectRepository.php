@@ -5,6 +5,7 @@ namespace App\Project\Infrastructure\Persistence\Doctrine;
 use App\Project\Domain\Entity\Project;
 use App\Project\Domain\Enum\ProjectStatus;
 use App\Project\Domain\Repository\ProjectRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -44,12 +45,7 @@ class DoctrineProjectRepository extends ServiceEntityRepository implements Proje
                 ->setParameter('search', '%'.trim($search).'%');
         }
 
-        if ($from !== null) {
-            $qb->andWhere('p.createdAt >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('p.createdAt <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDateTime($qb, 'p.createdAt', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

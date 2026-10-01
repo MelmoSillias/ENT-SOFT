@@ -7,6 +7,7 @@ use App\Finance\Domain\Enum\TransactionCategory;
 use App\Finance\Domain\Enum\TransactionStatus;
 use App\Finance\Domain\Enum\TransactionType;
 use App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface;
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -41,12 +42,7 @@ class DoctrineFinancialTransactionRepository extends ServiceEntityRepository imp
             ->setParameter('enabled', true)
             ->orderBy('t.date', 'DESC');
 
-        if ($from !== null) {
-            $qb->andWhere('t.date >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('t.date <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDate($qb, 't.date', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

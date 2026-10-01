@@ -2,6 +2,7 @@
 
 namespace App\Stock\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Stock\Domain\Entity\Equipment;
 use App\Stock\Domain\Repository\EquipmentRepositoryInterface;
@@ -43,12 +44,7 @@ class DoctrineEquipmentRepository extends ServiceEntityRepository implements Equ
                 ->setParameter('search', '%'.trim($search).'%');
         }
 
-        if ($from !== null) {
-            $qb->andWhere('e.createdAt >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('e.createdAt <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDateTime($qb, 'e.createdAt', $from, $to);
 
         return $qb->getQuery()->getResult();
     }

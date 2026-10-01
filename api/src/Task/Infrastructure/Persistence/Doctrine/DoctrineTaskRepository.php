@@ -2,11 +2,13 @@
 
 namespace App\Task\Infrastructure\Persistence\Doctrine;
 
+use App\SharedKernel\Infrastructure\Persistence\Doctrine\PeriodQueryParameter;
 use App\SharedKernel\Infrastructure\Persistence\Doctrine\UuidQueryParameter;
 use App\Task\Domain\Entity\Task;
 use App\Task\Domain\Enum\TaskStatus;
 use App\Task\Domain\Repository\TaskRepositoryInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
@@ -53,12 +55,7 @@ class DoctrineTaskRepository extends ServiceEntityRepository implements TaskRepo
         if ($status !== null) {
             $qb->andWhere('t.status = :status')->setParameter('status', $status);
         }
-        if ($from !== null) {
-            $qb->andWhere('t.dateDue >= :from')->setParameter('from', $from);
-        }
-        if ($to !== null) {
-            $qb->andWhere('t.dateDue <= :to')->setParameter('to', $to);
-        }
+        PeriodQueryParameter::applyDate($qb, 't.dateDue', $from, $to);
 
         return $qb->getQuery()->getResult();
     }
@@ -75,8 +72,8 @@ class DoctrineTaskRepository extends ServiceEntityRepository implements TaskRepo
             ->andWhere('t.dateDue < :tomorrow')
             ->andWhere('t.status != :cancelled')
             ->setParameter('enabled', true)
-            ->setParameter('today', $today)
-            ->setParameter('tomorrow', $tomorrow)
+            ->setParameter('today', $today, Types::DATE_IMMUTABLE)
+            ->setParameter('tomorrow', $tomorrow, Types::DATE_IMMUTABLE)
             ->setParameter('cancelled', TaskStatus::CANCELLED)
             ->getQuery()
             ->getSingleScalarResult();
