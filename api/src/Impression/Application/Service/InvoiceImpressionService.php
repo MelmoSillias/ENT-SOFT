@@ -60,6 +60,21 @@ final class InvoiceImpressionService
         }
 
         $amountRaw = (float) ($dto['amount'] ?? 0);
+        $paidAmountRaw = (float) ($dto['paidAmount'] ?? 0);
+        $hasPayments = (bool) ($dto['hasPayments'] ?? false);
+        $remainingAmountRaw = max(0.0, $amountRaw - $paidAmountRaw);
+        $lastPaymentDate = null;
+        if ($hasPayments) {
+            $payments = $dto['payments'] ?? [];
+            $lastPaymentRaw = $payments[0]['date'] ?? null;
+            if (is_string($lastPaymentRaw) && $lastPaymentRaw !== '') {
+                try {
+                    $lastPaymentDate = (new \DateTimeImmutable($lastPaymentRaw))->format('d/m/Y');
+                } catch (\Exception) {
+                    $lastPaymentDate = $lastPaymentRaw;
+                }
+            }
+        }
         $dateDisplay = $invoice->getDate()->format('d/m/Y');
         $numberDisplay = $this->numberResolver->resolve($invoice);
         $documentLabel = $this->documentLabel($invoice->getStatus());
@@ -86,6 +101,12 @@ final class InvoiceImpressionService
                 'serviceLines' => $serviceLines,
                 'projectName' => $projectName,
                 'amountInWords' => AmountInWordsFrench::format($amountRaw, documentLabel: $documentLabel),
+                'paymentSummary' => [
+                    'hasPayments' => $hasPayments,
+                    'paidAmount' => $this->formatAmount($paidAmountRaw),
+                    'remainingAmount' => $this->formatAmount($remainingAmountRaw),
+                    'lastPaymentDate' => $lastPaymentDate,
+                ],
             ],
             'profile' => $this->support->profile(),
             'page' => $this->support->pageContext($page, $orientation),

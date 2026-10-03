@@ -8,7 +8,9 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
+import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { INVOICE_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
+import { useBreakpoint } from '@/domains/layout/composables/useBreakpoint'
 import { computed, watch } from 'vue'
 
 const form = defineModel({ type: Object, required: true })
@@ -19,6 +21,7 @@ defineProps({
   projectOptions: { type: Array, default: () => [] },
 })
 
+const { isMobile } = useBreakpoint()
 const statusOptions = INVOICE_STATUS_OPTIONS
 let lineUid = 0
 
@@ -54,6 +57,15 @@ function addLine() {
 
 function removeLine(index) {
   lines.value = lines.value.filter((_, i) => i !== index)
+}
+
+function moveLine(index, delta) {
+  const target = index + delta
+  if (target < 0 || target >= lines.value.length) return
+  const next = [...lines.value]
+  const [item] = next.splice(index, 1)
+  next.splice(target, 0, item)
+  lines.value = next
 }
 
 function lineAmount(line) {
@@ -133,7 +145,77 @@ function onProjectLabelInput() {
     </div>
     <AppFieldError :message="errors.lines" />
 
+    <!-- Mobile: stacked cards -->
+    <div v-if="isMobile" class="invoice-lines__cards">
+      <p v-if="!lines.length" class="invoice-lines__empty">Aucune ligne. Ajoutez-en une à la volée.</p>
+      <div v-for="(line, index) in lines" :key="line._key" class="invoice-lines__card">
+        <div class="invoice-lines__card-top">
+          <span class="invoice-lines__card-index">Ligne {{ index + 1 }}</span>
+          <div class="invoice-lines__card-actions">
+            <Button
+              icon="pi pi-arrow-up"
+              text
+              rounded
+              size="small"
+              :disabled="index === 0"
+              aria-label="Monter la ligne"
+              @click="moveLine(index, -1)"
+            />
+            <Button
+              icon="pi pi-arrow-down"
+              text
+              rounded
+              size="small"
+              :disabled="index === lines.length - 1"
+              aria-label="Descendre la ligne"
+              @click="moveLine(index, 1)"
+            />
+            <Button
+              icon="pi pi-trash"
+              text
+              rounded
+              size="small"
+              severity="danger"
+              aria-label="Supprimer la ligne"
+              @click="removeLine(index)"
+            />
+          </div>
+        </div>
+        <div class="field">
+          <label>Libellé</label>
+          <InputText v-model="line.description" placeholder="Libellé" fluid />
+        </div>
+        <div class="invoice-lines__card-row">
+          <div class="field">
+            <label>Unité</label>
+            <InputText v-model="line.unit" placeholder="Unit" fluid />
+          </div>
+          <div class="field">
+            <label>Qté</label>
+            <InputNumber v-model="line.quantity" :min="0" :min-fraction-digits="0" :max-fraction-digits="2" fluid />
+          </div>
+        </div>
+        <div class="field">
+          <label>Prix unit.</label>
+          <InputNumber
+            v-model="line.unitPrice"
+            mode="currency"
+            :currency="DEVISE_APP.code"
+            locale="fr-FR"
+            :min-fraction-digits="0"
+            :max-fraction-digits="0"
+            fluid
+          />
+        </div>
+        <p class="invoice-lines__card-amount">
+          Montant : {{ formatMontant(lineAmount(line), DEVISE_APP) }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Desktop: editable table -->
     <DataTable
+      v-else
       :value="lines"
       data-key="_key"
       size="small"
@@ -185,7 +267,7 @@ function onProjectLabelInput() {
       </Column>
     </DataTable>
 
-    <p class="invoice-lines__total">Total : {{ linesTotal }} {{ DEVISE_APP.symbole }}</p>
+    <p class="invoice-lines__total">Total : {{ formatMontant(linesTotal, DEVISE_APP) }}</p>
   </div>
 </template>
 
@@ -200,6 +282,7 @@ function onProjectLabelInput() {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .field--project-label {
@@ -226,6 +309,8 @@ function onProjectLabelInput() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .invoice-lines__header h3 {
@@ -240,13 +325,62 @@ function onProjectLabelInput() {
 }
 
 .invoice-lines__amount,
-.invoice-lines__total {
+.invoice-lines__total,
+.invoice-lines__card-amount {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
 .invoice-lines__total {
   margin: 0.25rem 0 0;
+  text-align: right;
+}
+
+.invoice-lines__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.invoice-lines__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid var(--layout-panel-border);
+  border-radius: var(--layout-radius-sm, 0.5rem);
+  background: color-mix(in srgb, var(--layout-panel-bg) 96%, transparent);
+  min-width: 0;
+}
+
+.invoice-lines__card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.invoice-lines__card-index {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--layout-text-muted);
+}
+
+.invoice-lines__card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.invoice-lines__card-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.65rem;
+}
+
+.invoice-lines__card-amount {
+  margin: 0;
+  font-size: 0.9rem;
   text-align: right;
 }
 
@@ -275,5 +409,11 @@ function onProjectLabelInput() {
 
 .invoice-lines__table :deep(.p-datatable-dragpoint-bottom) {
   box-shadow: inset 0 -2px 0 0 var(--p-primary-color, #3b82f6);
+}
+
+@media (max-width: 767px) {
+  .ent-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

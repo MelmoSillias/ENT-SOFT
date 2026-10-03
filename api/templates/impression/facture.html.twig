@@ -124,6 +124,24 @@
         text-align: right;
         padding-right: 10px;
     }
+    .inv-table .row-payment td {
+        font-weight: 700;
+        text-align: right;
+    }
+    .inv-table .row-payment .total-label {
+        text-align: right;
+        padding-right: 10px;
+    }
+    .inv-table .row-actualisation td {
+        font-weight: 400;
+        font-style: italic;
+        text-align: right;
+        font-size: 10pt;
+    }
+    .inv-table .row-actualisation .total-label {
+        text-align: right;
+        padding-right: 10px;
+    }
 
     .inv-words {
         margin: 12px 0 18px;
@@ -225,6 +243,21 @@
                 <td colspan="4" class="total-label">TOTAL</td>
                 <td class="col-amt">{{ data.invoice.amount }}</td>
             </tr>
+            {% if data.paymentSummary.hasPayments|default(false) %}
+                <tr class="row-payment">
+                    <td colspan="4" class="total-label">TOTAL PAYÉ</td>
+                    <td class="col-amt">{{ data.paymentSummary.paidAmount }}</td>
+                </tr>
+                <tr class="row-payment">
+                    <td colspan="4" class="total-label">RESTE</td>
+                    <td class="col-amt">{{ data.paymentSummary.remainingAmount }}</td>
+                </tr>
+                {% if data.paymentSummary.lastPaymentDate %}
+                    <tr class="row-actualisation">
+                        <td colspan="5" class="total-label">Actualisé le {{ data.paymentSummary.lastPaymentDate }}</td>
+                    </tr>
+                {% endif %}
+            {% endif %}
         </tbody>
     </table>
 

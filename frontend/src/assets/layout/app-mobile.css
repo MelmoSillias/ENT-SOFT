@@ -515,9 +515,26 @@
   padding-block: 0.4rem;
 }
 
+/* Form grids: single column so labels/inputs are not squeezed side-by-side */
+@media (max-width: 767px) {
+  .ent-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+[data-app-mobile] .p-dialog .ent-form-grid {
+  grid-template-columns: 1fr !important;
+  gap: 0.65rem;
+}
+
 [data-app-mobile] .p-dialog .field {
   gap: 0.25rem;
   margin-bottom: 0.65rem;
+  min-width: 0;
+}
+
+[data-app-mobile] .p-dialog .ent-form-grid > .field {
+  margin-bottom: 0;
 }
 
 [data-app-mobile] .p-dialog .field label,
