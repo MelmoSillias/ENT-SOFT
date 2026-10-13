@@ -86,8 +86,12 @@ const TRANSACTION_COLUMNS = computed(() => {
   if (!props.expenseOnly) {
     cols.push({ key: 'type', label: 'Type', defaultVisible: true })
   }
+  if (props.expenseOnly) {
+    cols.push({ key: 'description', label: 'Description', defaultVisible: true })
+  } else {
+    cols.push({ key: 'category', label: 'Catégorie', defaultVisible: true })
+  }
   cols.push(
-    { key: 'category', label: 'Catégorie', defaultVisible: true },
     { key: 'amount', label: 'Montant', defaultVisible: true, type: 'money', align: 'right' },
     { key: 'fromParty', label: 'Émetteur', defaultVisible: true },
     { key: 'toParty', label: 'Destinataire', defaultVisible: true },
@@ -109,7 +113,7 @@ const {
   sortOptions,
   isColVisible,
   toggleCol,
-} = useTableSettings('table_transactions', TRANSACTION_COLUMNS.value, {
+} = useTableSettings(props.expenseOnly ? 'table_expenses' : 'table_transactions', TRANSACTION_COLUMNS.value, {
   defaultSortField: 'date',
   defaultSortOrder: -1,
 })
@@ -117,6 +121,18 @@ const {
 const tableFirst = ref(0)
 
 const canCreate = computed(() => hasPermission('finance.transactions.create'))
+
+function expenseDescription(item) {
+  return String(item?.description || '').trim()
+}
+
+function expensePrimaryLabel(item) {
+  return expenseDescription(item) || transactionCategoryLabel(item.category)
+}
+
+function expenseCategoryHint(item) {
+  return expenseDescription(item) ? transactionCategoryLabel(item.category) : ''
+}
 
 function emptyForm() {
   return {
@@ -197,8 +213,9 @@ const filteredItems = computed(() => {
     ...item,
     _category: transactionCategoryLabel(item.category),
     _type: transactionTypeLabel(item.type),
+    _description: String(item.description || '').trim() || transactionCategoryLabel(item.category),
   }))
-  const fieldMap = { category: '_category', type: '_type' }
+  const fieldMap = { category: '_category', type: '_type', description: '_description' }
   const field = fieldMap[sortField.value] || sortField.value
   return sortByField(enriched, field, sortOrder.value)
 })
@@ -222,6 +239,11 @@ const printExport = useTableExportPayload({
     if (key === 'date') return formatDateFr(item.date) || '—'
     if (key === 'type') return transactionTypeLabel(item.type)
     if (key === 'category') return transactionCategoryLabel(item.category)
+    if (key === 'description') {
+      const desc = String(item.description || '').trim()
+      const category = transactionCategoryLabel(item.category)
+      return desc ? `${desc} (${category})` : category
+    }
     if (key === 'amount') return formatMontant(item.amount, DEVISE_APP)
     if (key === 'status') return transactionStatusLabel(item.status)
     return item[key] ?? ''
@@ -434,7 +456,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             <p class="app-entity-card__subtitle">
               {{ formatDateFr(item.date) }}
               <template v-if="!expenseOnly"> · {{ transactionTypeLabel(item.type) }}</template>
-              · {{ transactionCategoryLabel(item.category) }}
+              <template v-else> · {{ expensePrimaryLabel(item) }}</template>
+              <template v-if="!expenseOnly"> · {{ transactionCategoryLabel(item.category) }}</template>
             </p>
           </div>
           <div @click.stop>
@@ -454,7 +477,10 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
             :severity="transactionStatusSeverity(item.status)"
             rounded
           />
-          <span class="app-entity-card__meta">{{ [item.fromParty, item.toParty].filter(Boolean).join(' → ') }}</span>
+          <span class="app-entity-card__meta">
+            <template v-if="expenseOnly && expenseCategoryHint(item)">{{ expenseCategoryHint(item) }} · </template>
+            {{ [item.fromParty, item.toParty].filter(Boolean).join(' → ') }}
+          </span>
         </div>
         <div v-if="expandedMobileId === item.id" class="tx-expansion" @click.stop>
           <p v-if="item.description">{{ item.description }}</p>
@@ -478,7 +504,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       :rows="tableRows"
       striped-rows
       data-key="id"
-      :sort-field="sortField === 'category' || sortField === 'type' ? undefined : tableSortField(sortField)"
+      :sort-field="sortField === 'category' || sortField === 'type' || sortField === 'description' ? undefined : tableSortField(sortField)"
       :sort-order="sortOrder"
       @row-contextmenu="onRowContextMenu"
       v-model:first="tableFirst">
@@ -494,7 +520,15 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
       <Column v-if="!expenseOnly && isColVisible('type')" field="type" header="Type" sortable>
         <template #body="{ data }">{{ transactionTypeLabel(data.type) }}</template>
       </Column>
-      <Column v-if="isColVisible('category')" field="category" header="Catégorie" sortable>
+      <Column v-if="expenseOnly && isColVisible('description')" field="description" header="Description" sortable>
+        <template #body="{ data }">
+          <div class="tx-desc-cell">
+            <span>{{ expensePrimaryLabel(data) }}</span>
+            <small v-if="expenseCategoryHint(data)">{{ expenseCategoryHint(data) }}</small>
+          </div>
+        </template>
+      </Column>
+      <Column v-else-if="!expenseOnly && isColVisible('category')" field="category" header="Catégorie" sortable>
         <template #body="{ data }">{{ transactionCategoryLabel(data.category) }}</template>
       </Column>
       <Column v-if="isColVisible('amount')" field="amount" header="Montant" sortable>
@@ -579,6 +613,16 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
 }
 .tx-expansion {
   padding: 0.75rem 0.5rem 1rem 2.5rem;
+}
+.tx-desc-cell {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  line-height: 1.25;
+}
+.tx-desc-cell small {
+  color: var(--layout-text-muted, var(--p-text-muted-color));
+  font-size: 0.75rem;
 }
 .tx-amount--expense {
   color: var(--content-tone-danger, var(--p-red-500, #ef4444));

@@ -55,6 +55,7 @@ const expandedMobileId = ref(null)
 const clientOptions = ref([])
 const projectOptions = ref([])
 const clientMap = ref({})
+const projectMap = ref({})
 const searchTerm = ref('')
 const loading = ref(true)
 const error = ref(null)
@@ -76,8 +77,8 @@ const INVOICE_COLUMNS = [
   { key: 'number', label: 'N°', defaultVisible: true },
   { key: 'date', label: 'Date', defaultVisible: true },
   { key: 'client', label: 'Client', defaultVisible: true },
+  { key: 'project', label: 'Projet', defaultVisible: true },
   { key: 'amount', label: 'Montant', defaultVisible: true, type: 'money', align: 'right' },
-  { key: 'paidAmount', label: 'Payé', defaultVisible: true, type: 'money', align: 'right' },
   { key: 'status', label: 'Statut', defaultVisible: true, align: 'center' },
 ]
 
@@ -92,7 +93,7 @@ const {
   sortOptions,
   isColVisible,
   toggleCol,
-} = useTableSettings('table_invoices', INVOICE_COLUMNS, {
+} = useTableSettings('table_invoices_v2', INVOICE_COLUMNS, {
   defaultSortField: 'date',
   defaultSortOrder: -1,
 })
@@ -141,6 +142,18 @@ async function loadRefs() {
   clientOptions.value = clients.map((c) => ({ label: `${c.code} — ${c.title}`, value: c.id }))
   projectOptions.value = projects.map((p) => ({ label: `${p.code} — ${p.title}`, value: p.id }))
   clientMap.value = Object.fromEntries(clients.map((c) => [c.id, c.title]))
+  projectMap.value = Object.fromEntries(projects.map((p) => [p.id, p.title]))
+}
+
+function invoiceProjectLabel(item) {
+  const free = String(item?.projectLabel || '').trim()
+  if (free) return free
+  if (item?.projectId) return projectMap.value[item.projectId] || '—'
+  return '—'
+}
+
+function remainingAmount(item) {
+  return Math.max(0, Number(item?.amount || 0) - Number(item?.paidAmount || 0))
 }
 
 const filterPeriod = ref(currentMonthRange())
@@ -181,14 +194,16 @@ const filteredItems = computed(() => {
   let list = items.value.filter((item) => matchesDisplayedPeriod(item, filterPeriod.value, 'date'))
   if (q) {
     list = list.filter((item) =>
-      [item.number, clientMap.value[item.clientId]].filter(Boolean).join(' ').toLowerCase().includes(q),
+      [item.number, clientMap.value[item.clientId], invoiceProjectLabel(item)].filter(Boolean).join(' ').toLowerCase().includes(q),
     )
   }
   const enriched = list.map((item) => ({
     ...item,
     _client: clientMap.value[item.clientId] || '',
+    _project: invoiceProjectLabel(item),
   }))
-  const field = sortField.value === 'client' ? '_client' : sortField.value
+  const fieldMap = { client: '_client', project: '_project' }
+  const field = fieldMap[sortField.value] || sortField.value
   return sortByField(enriched, field, sortOrder.value)
 })
 
@@ -210,8 +225,10 @@ const printExport = useTableExportPayload({
   getValue: (item, key) => {
     if (key === 'date') return formatDateFr(item.date) || '—'
     if (key === 'client') return clientMap.value[item.clientId] || '—'
-    if (key === 'amount') return formatMontant(item.amount, DEVISE_APP)
-    if (key === 'paidAmount') return formatMontant(item.paidAmount, DEVISE_APP)
+    if (key === 'project') return invoiceProjectLabel(item)
+    if (key === 'amount') {
+      return `${formatMontant(item.amount, DEVISE_APP)} · payé ${formatMontant(item.paidAmount, DEVISE_APP)}`
+    }
     if (key === 'status') return invoiceStatusLabel(item.status)
     return item[key] ?? ''
   },
@@ -482,7 +499,7 @@ const printFormatItems = computed(() => [
             <div style="min-width: 0; flex: 1">
               <p class="app-entity-card__code">{{ item.number }}</p>
               <h3 class="app-entity-card__title">{{ clientMap[item.clientId] || 'Client' }}</h3>
-              <p class="app-entity-card__subtitle">{{ formatDateFr(item.date) }} · {{ formatMontant(item.amount, DEVISE_APP) }}</p>
+              <p class="app-entity-card__subtitle">{{ formatDateFr(item.date) }} · {{ invoiceProjectLabel(item) }}</p>
             </div>
             <div @click.stop>
               <Button
@@ -496,16 +513,54 @@ const printFormatItems = computed(() => [
           </div>
           <div class="app-entity-card__meta-row">
             <Tag :value="invoiceStatusLabel(item.status)" :severity="invoiceStatusSeverity(item.status)" rounded />
-            <span class="app-entity-card__meta">Payé {{ formatMontant(item.paidAmount, DEVISE_APP) }}</span>
+            <span class="app-entity-card__meta">
+              {{ formatMontant(item.amount, DEVISE_APP) }}
+              · payé {{ formatMontant(item.paidAmount, DEVISE_APP) }}
+            </span>
           </div>
           <div v-if="expandedMobileId === item.id" class="invoice-expansion" @click.stop>
+            <dl class="invoice-details">
+              <div>
+                <dt>N°</dt>
+                <dd>{{ item.number }}</dd>
+              </div>
+              <div>
+                <dt>Date</dt>
+                <dd>{{ formatDateFr(item.date) || '—' }}</dd>
+              </div>
+              <div>
+                <dt>Client</dt>
+                <dd>{{ clientMap[item.clientId] || '—' }}</dd>
+              </div>
+              <div>
+                <dt>Projet</dt>
+                <dd>{{ invoiceProjectLabel(item) }}</dd>
+              </div>
+              <div>
+                <dt>Statut</dt>
+                <dd>{{ invoiceStatusLabel(item.status) }}</dd>
+              </div>
+              <div>
+                <dt>Montant</dt>
+                <dd>{{ formatMontant(item.amount, DEVISE_APP) }}</dd>
+              </div>
+              <div>
+                <dt>Payé</dt>
+                <dd>{{ formatMontant(item.paidAmount, DEVISE_APP) }}</dd>
+              </div>
+              <div>
+                <dt>Reste</dt>
+                <dd>{{ formatMontant(remainingAmount(item), DEVISE_APP) }}</dd>
+              </div>
+            </dl>
             <div class="invoice-expansion__section">
               <p class="invoice-expansion__title">Lignes</p>
               <p v-if="!(item.lines ?? []).length" class="invoice-expansion__empty">Aucune ligne.</p>
               <div v-for="(line, idx) in item.lines" :key="line.id || idx" class="invoice-payments__row">
                 <div>
                   <strong>{{ line.description }}</strong>
-                  — {{ line.quantity }} × {{ formatMontant(line.unitPrice, DEVISE_APP) }}
+                  — {{ line.quantity }} {{ line.unit || 'Lot' }} × {{ formatMontant(line.unitPrice, DEVISE_APP) }}
+                  = {{ formatMontant(line.amount ?? Number(line.quantity || 0) * Number(line.unitPrice || 0), DEVISE_APP) }}
                 </div>
               </div>
             </div>
@@ -516,6 +571,7 @@ const printFormatItems = computed(() => [
                 <div>
                   <strong>{{ formatDateFr(payment.date) }}</strong>
                   — {{ formatMontant(payment.amount, DEVISE_APP) }}
+                  <span v-if="payment.description"> · {{ payment.description }}</span>
                 </div>
                 <TransactionAttachments :owner-id="payment.id" />
               </div>
@@ -539,41 +595,93 @@ const printFormatItems = computed(() => [
         :rows="tableRows"
         striped-rows
         data-key="id"
-        :sort-field="sortField === 'client' ? undefined : tableSortField(sortField)"
+        :sort-field="sortField === 'client' || sortField === 'project' ? undefined : tableSortField(sortField)"
         :sort-order="sortOrder"
+        table-style="table-layout: fixed; width: 100%"
         @row-contextmenu="onRowContextMenu"
         v-model:first="tableFirst">
-        <Column expander style="width: 3rem" />
-        <Column v-if="showIndex" header="#" style="width: 3.5rem">
+        <Column expander style="width: 2.5rem" />
+        <Column v-if="showIndex" header="#" style="width: 2.75rem">
           <template #body="{ index }">{{ tableFirst + index + 1 }}</template>
         </Column>
-        <Column v-if="isColVisible('number')" field="number" header="N°" sortable />
-        <Column v-if="isColVisible('date')" field="date" sort-field="date__at" header="Date" sortable>
+        <Column v-if="isColVisible('number')" field="number" header="N°" sortable style="width: 5.5rem" />
+        <Column v-if="isColVisible('date')" field="date" sort-field="date__at" header="Date" sortable style="width: 6.25rem">
           <template #body="{ data }">
             <AppDateTimeCell :value="data.date" :time-from="data.createdAt" />
           </template>
         </Column>
-        <Column v-if="isColVisible('client')" header="Client">
-          <template #body="{ data }">{{ clientMap[data.clientId] || '—' }}</template>
+        <Column v-if="isColVisible('client')" header="Client" style="width: 8.5rem">
+          <template #body="{ data }">
+            <span class="invoice-cell-ellipsis">{{ clientMap[data.clientId] || '—' }}</span>
+          </template>
         </Column>
-        <Column v-if="isColVisible('amount')" field="amount" header="Montant" sortable>
-          <template #body="{ data }">{{ formatMontant(data.amount, DEVISE_APP) }}</template>
+        <Column v-if="isColVisible('project')" header="Projet">
+          <template #body="{ data }">
+            <span class="invoice-cell-ellipsis">{{ invoiceProjectLabel(data) }}</span>
+          </template>
         </Column>
-        <Column v-if="isColVisible('paidAmount')" field="paidAmount" header="Payé" sortable>
-          <template #body="{ data }">{{ formatMontant(data.paidAmount, DEVISE_APP) }}</template>
+        <Column v-if="isColVisible('amount')" field="amount" header="Montant" sortable style="width: 7.75rem">
+          <template #body="{ data }">
+            <div class="invoice-amount-cell">
+              <span>{{ formatMontant(data.amount, DEVISE_APP) }}</span>
+              <small>Payé {{ formatMontant(data.paidAmount, DEVISE_APP) }}</small>
+            </div>
+          </template>
         </Column>
-        <Column v-if="isColVisible('status')" field="status" header="Statut" sortable>
+        <Column v-if="isColVisible('status')" field="status" header="Statut" sortable style="width: 6.25rem">
           <template #body="{ data }">
             <Tag :value="invoiceStatusLabel(data.status)" :severity="invoiceStatusSeverity(data.status)" />
           </template>
         </Column>
-        <Column header="Actions" style="width: 5rem">
+        <Column header="Actions" style="width: 4.25rem">
           <template #body="{ data }">
             <Button v-if="buildMenuItems(data).length" icon="pi pi-ellipsis-v" text rounded @click="toggleMenu($event, data)" />
           </template>
         </Column>
         <template #expansion="{ data }">
           <div class="invoice-expansion">
+            <dl class="invoice-details">
+              <div>
+                <dt>N°</dt>
+                <dd>{{ data.number }}</dd>
+              </div>
+              <div>
+                <dt>N° séquentiel</dt>
+                <dd>{{ data.numberSequential || '—' }}</dd>
+              </div>
+              <div>
+                <dt>N° mensuel</dt>
+                <dd>{{ data.numberMonthly || '—' }}</dd>
+              </div>
+              <div>
+                <dt>Date</dt>
+                <dd>{{ formatDateFr(data.date) || '—' }}</dd>
+              </div>
+              <div>
+                <dt>Client</dt>
+                <dd>{{ clientMap[data.clientId] || '—' }}</dd>
+              </div>
+              <div>
+                <dt>Projet</dt>
+                <dd>{{ invoiceProjectLabel(data) }}</dd>
+              </div>
+              <div>
+                <dt>Statut</dt>
+                <dd>{{ invoiceStatusLabel(data.status) }}</dd>
+              </div>
+              <div>
+                <dt>Montant</dt>
+                <dd>{{ formatMontant(data.amount, DEVISE_APP) }}</dd>
+              </div>
+              <div>
+                <dt>Payé</dt>
+                <dd>{{ formatMontant(data.paidAmount, DEVISE_APP) }}</dd>
+              </div>
+              <div>
+                <dt>Reste</dt>
+                <dd>{{ formatMontant(remainingAmount(data), DEVISE_APP) }}</dd>
+              </div>
+            </dl>
             <div class="invoice-expansion__section">
               <p class="invoice-expansion__title">Lignes</p>
               <p v-if="!(data.lines ?? []).length" class="invoice-expansion__empty">Aucune ligne.</p>
@@ -657,6 +765,47 @@ const printFormatItems = computed(() => [
 </template>
 
 <style scoped>
+.invoice-cell-ellipsis {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invoice-amount-cell {
+  display: grid;
+  gap: 0.1rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.invoice-amount-cell small {
+  color: var(--layout-text-muted, var(--p-text-muted-color));
+  font-size: 0.75rem;
+}
+
+.invoice-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: 0.65rem 1rem;
+  margin: 0;
+}
+
+.invoice-details dt {
+  margin: 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--layout-text-muted, var(--p-text-muted-color));
+}
+
+.invoice-details dd {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+
 .invoice-expansion {
   padding: 0.75rem 0.5rem 1rem 2.5rem;
   display: flex;
