@@ -121,6 +121,9 @@ services:
     App\Task\Domain\Repository\TaskRepositoryInterface:
         alias: App\Task\Infrastructure\Persistence\Doctrine\DoctrineTaskRepository
 
+    App\Task\Domain\Repository\DayGroupPlanningRepositoryInterface:
+        alias: App\Task\Infrastructure\Persistence\Doctrine\DoctrineDayGroupPlanningRepository
+
     App\Finance\Domain\Repository\InvoiceRepositoryInterface:
         alias: App\Finance\Infrastructure\Persistence\Doctrine\DoctrineInvoiceRepository
 

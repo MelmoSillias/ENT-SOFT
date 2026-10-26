@@ -28,6 +28,7 @@ import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import TaskFormFields from '@/domains/task/components/TaskFormFields.vue'
 import TaskPreviewPopover from '@/domains/task/components/TaskPreviewPopover.vue'
 import TaskResourceTimeline from '@/domains/task/components/timeline/TaskResourceTimeline.vue'
+import GroupPlanningBoard from '@/domains/task/components/group-planning/GroupPlanningBoard.vue'
 import { listTasks, createTask, updateTask, deleteTask } from '@/domains/task/services/taskService'
 import { listSites } from '@/domains/site/services/siteService'
 import { listEmployees } from '@/domains/employee/services/employeeService'
@@ -50,6 +51,8 @@ const { hasPermission } = usePermissions()
 const { isAppMobile } = useAppMobileLayout()
 
 const items = ref([])
+const siteRecords = ref([])
+const employeeRecords = ref([])
 const siteOptions = ref([])
 const employeeOptions = ref([])
 const siteMap = ref({})
@@ -60,7 +63,8 @@ const filterSiteId = ref(null)
 const filterEmployeeId = ref(null)
 const filterStatus = ref(null)
 const filterPeriod = ref(null)
-const viewMode = ref('table')
+const viewMode = ref('groupe')
+const groupReloadTick = ref(0)
 const loading = ref(true)
 const error = ref(null)
 const reloading = ref(false)
@@ -76,6 +80,7 @@ const canUpdate = computed(() => hasPermission('task.tasks.update'))
 const canDelete = computed(() => hasPermission('task.tasks.delete'))
 
 const viewOptions = [
+  { label: 'Groupe', value: 'groupe' },
   { label: 'Tableau', value: 'table' },
   { label: 'Calendrier', value: 'calendar' },
   { label: 'Planning', value: 'timeline' },
@@ -131,11 +136,42 @@ const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFiel
 
 async function loadRefs() {
   const [sites, employees] = await Promise.all([listSites(), listEmployees()])
+  siteRecords.value = sites
+  employeeRecords.value = employees
   siteOptions.value = sites.map((s) => ({ label: `${s.code} — ${s.title}`, value: s.id }))
   employeeOptions.value = employees.map((e) => ({ label: e.name, value: e.id, photoUrl: e.photoUrl || null }))
   siteMap.value = Object.fromEntries(sites.map((s) => [s.id, s.title]))
   employeeMap.value = Object.fromEntries(employees.map((e) => [e.id, e.name]))
   employeePhotoMap.value = Object.fromEntries(employees.map((e) => [e.id, e.photoUrl || null]))
+}
+
+const planningEmployees = computed(() =>
+  employeeRecords.value
+    .filter((employee) => employee.isEnabled !== false)
+    .map((employee) => ({
+      id: employee.id,
+      name: employee.name,
+      mention: employee.mention || '',
+      photoUrl: employee.photoUrl || null,
+    })),
+)
+
+const planningSites = computed(() =>
+  siteRecords.value
+    .filter((site) => site.isEnabled !== false)
+    .map((site) => ({
+      id: site.id,
+      code: site.code || '',
+      title: site.title || '',
+    })),
+)
+
+function onPanelReload() {
+  if (viewMode.value === 'groupe') {
+    groupReloadTick.value += 1
+    return
+  }
+  reload()
 }
 
 async function fetchItems() {
@@ -374,16 +410,17 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         <AppTablePanelHeader
           title="Planning & Tâches"
           :count-label="countLabel"
+          :show-count="viewMode !== 'groupe'"
           create-label="Nouvelle tâche"
-          :show-create="canCreate"
+          :show-create="canCreate && viewMode !== 'groupe'"
           :hide-create-on-mobile="isAppMobile"
           :sticky="isAppMobile"
           :reloading="reloading"
-          show-search
+          :show-search="viewMode !== 'groupe'"
           v-model:search-term="searchTerm"
           search-placeholder="Rechercher…"
           @create="openCreate"
-          @reload="reload"
+          @reload="onPanelReload"
         >
           <template #actions>
             <Select
@@ -396,6 +433,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               aria-label="Mode d'affichage"
             />
             <AppTableSettingsPopover
+              v-if="viewMode !== 'groupe'"
               v-model:visible-col-keys="visibleColKeys"
               v-model:rows="tableRows"
               v-model:show-index="showIndex"
@@ -444,6 +482,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               </template>
             </AppTableSettingsPopover>
             <AppTablePrintExportBar
+              v-if="viewMode !== 'groupe'"
               :table-type="printExport.tableType"
               :title="printExport.title"
               :columns="printExport.columns"
@@ -457,7 +496,14 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
         </AppTablePanelHeader>
       </template>
       <template #content>
-        <AppTableState :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
+        <GroupPlanningBoard
+          v-if="viewMode === 'groupe'"
+          :employees="planningEmployees"
+          :sites="planningSites"
+          :can-edit="canUpdate"
+          :reload-tick="groupReloadTick"
+        />
+        <AppTableState v-else :loading="loading" :error="error" :is-empty="!loading && !error && filteredItems.length === 0" @retry="load">
           <template v-if="viewMode === 'table'">
             <AppEntityDataView
               v-if="isAppMobile"
@@ -561,7 +607,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     />
 
     <AppMobileFab
-      v-if="isAppMobile && canCreate"
+      v-if="isAppMobile && canCreate && viewMode !== 'groupe'"
       aria-label="Nouvelle tâche"
       @click="openCreate"
     />
