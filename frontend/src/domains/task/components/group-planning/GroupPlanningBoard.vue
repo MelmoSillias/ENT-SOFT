@@ -37,6 +37,8 @@ const { isAppMobile, bottomNavOffset } = useAppMobileLayout()
 const planDate = ref(new Date())
 const groups = ref([])
 const pool = ref([])
+const withheldEmployeeIds = ref([])
+const withheldSiteIds = ref([])
 const loading = ref(false)
 const error = ref('')
 const saveState = ref('idle')
@@ -63,6 +65,7 @@ const apiDate = computed(() => toApiDate(planDate.value))
 const heading = computed(() => planningHeading(planDate.value))
 const isToday = computed(() => apiDate.value === toApiDate(new Date()))
 const assignedSiteIds = computed(() => groups.value.flatMap((group) => group.sites.map((site) => site.siteId)))
+const blockedSiteIds = computed(() => [...assignedSiteIds.value, ...withheldSiteIds.value])
 const pickedEmployeeId = computed(() => (picked.value?.kind === 'employee' ? picked.value.employee.id : null))
 const pickedSiteId = computed(() => (picked.value?.kind === 'site' ? picked.value.site.id : null))
 const carriedNote = computed(() => {
@@ -107,14 +110,21 @@ function newId() {
 function knownEmployee(id) {
   return props.employees.find((employee) => employee.id === id)
     || pool.value.find((employee) => employee.id === id)
-    || { id, name: 'Personne retirée', mention: '', photoUrl: null, kind: 'employee' }
+    || { id, name: 'Personne retirée', mention: '', phone: '', photoUrl: null, kind: 'employee' }
 }
 
 function knownSite(id) {
   return props.sites.find((site) => site.id === id) || { id, code: '', title: 'Site retiré' }
 }
 
-function applyDocument(rawGroups) {
+function uniqueIds(ids) {
+  return [...new Set((ids || []).filter((id) => typeof id === 'string' && id))]
+}
+
+function applyDocument(rawGroups, rawWithheldEmployees = [], rawWithheldSites = []) {
+  withheldEmployeeIds.value = uniqueIds(rawWithheldEmployees)
+  withheldSiteIds.value = uniqueIds(rawWithheldSites)
+  const hiddenEmployees = new Set(withheldEmployeeIds.value)
   const used = new Set()
   groups.value = (rawGroups || []).map((group) => {
     const members = (group.memberIds || [])
@@ -142,7 +152,7 @@ function applyDocument(rawGroups) {
     }
   })
   pool.value = props.employees
-    .filter((employee) => !used.has(employee.id))
+    .filter((employee) => !used.has(employee.id) && !hiddenEmployees.has(employee.id))
     .map((employee) => ({ ...employee }))
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
   if (!groups.value.some((group) => group.id === selectedGroupId.value)) {
@@ -151,18 +161,22 @@ function applyDocument(rawGroups) {
 }
 
 function serialize() {
-  return groups.value.map((group) => ({
-    id: group.id,
-    label: String(group.label || '').trim() || null,
-    leaderEmployeeId: group.members.some((member) => member.id === group.leaderEmployeeId)
-      ? group.leaderEmployeeId
-      : null,
-    memberIds: group.members.map((member) => member.id),
-    sites: group.sites.map((site) => ({
-      siteId: site.siteId,
-      description: String(site.description || '').trim() || null,
+  return {
+    groups: groups.value.map((group) => ({
+      id: group.id,
+      label: String(group.label || '').trim() || null,
+      leaderEmployeeId: group.members.some((member) => member.id === group.leaderEmployeeId)
+        ? group.leaderEmployeeId
+        : null,
+      memberIds: group.members.map((member) => member.id),
+      sites: group.sites.map((site) => ({
+        siteId: site.siteId,
+        description: String(site.description || '').trim() || null,
+      })),
     })),
-  }))
+    withheldEmployeeIds: withheldEmployeeIds.value,
+    withheldSiteIds: withheldSiteIds.value,
+  }
 }
 
 async function loadDay() {
@@ -179,7 +193,7 @@ async function loadDay() {
   try {
     const data = await getGroupPlanning(date)
     if (token !== loadToken) return
-    applyDocument(data.groups || [])
+    applyDocument(data.groups || [], data.withheldEmployeeIds || [], data.withheldSiteIds || [])
     carriedFrom.value = data.carriedOver ? (data.carriedFrom || '') : ''
     saveState.value = 'idle'
   } catch (err) {
@@ -258,6 +272,7 @@ watch(() => props.employees, () => {
   if (hydrating || loading.value) return
   silent = true
   const used = new Set()
+  const hiddenEmployees = new Set(withheldEmployeeIds.value)
   for (const group of groups.value) {
     group.members = group.members.map((member) => {
       used.add(member.id)
@@ -266,7 +281,7 @@ watch(() => props.employees, () => {
     })
   }
   pool.value = props.employees
-    .filter((employee) => !used.has(employee.id))
+    .filter((employee) => !used.has(employee.id) && !hiddenEmployees.has(employee.id))
     .map((employee) => ({ ...employee }))
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
   nextTick(() => {
@@ -314,12 +329,19 @@ function addGroup() {
 function removeGroup(group) {
   confirm.require({
     header: 'Supprimer le groupe',
-    message: 'Les personnes retournent dans l’équipe disponible.',
+    message: 'Les personnes et les sites de ce groupe ne reviennent pas dans les listes disponibles.',
     icon: 'pi pi-exclamation-triangle',
     rejectProps: { label: 'Annuler', severity: 'secondary', outlined: true },
     acceptProps: { label: 'Supprimer', severity: 'danger' },
     accept: () => {
-      pool.value = [...pool.value, ...group.members].sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+      withheldEmployeeIds.value = uniqueIds([
+        ...withheldEmployeeIds.value,
+        ...group.members.map((member) => member.id),
+      ])
+      withheldSiteIds.value = uniqueIds([
+        ...withheldSiteIds.value,
+        ...group.sites.map((site) => site.siteId),
+      ])
       groups.value = groups.value.filter((item) => item.id !== group.id)
       if (selectedGroupId.value === group.id) selectedGroupId.value = groups.value[0]?.id || null
     },
@@ -521,7 +543,7 @@ onBeforeUnmount(() => {
         <GroupPlanningPool
           v-model:pool="pool"
           :sites="sites"
-          :assigned-site-ids="assignedSiteIds"
+          :assigned-site-ids="blockedSiteIds"
           :can-edit="canEdit"
           :picked-employee-id="pickedEmployeeId"
           :picked-site-id="pickedSiteId"
@@ -565,10 +587,12 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div v-if="compact" class="group-planning__dock" :style="dockStyle">
-      <Button label="Personnes" icon="pi pi-users" size="small" severity="secondary" @click="peopleOpen = true" />
-      <Button label="Sites" icon="pi pi-map-marker" size="small" severity="secondary" @click="sitesOpen = true" />
-    </div>
+    <Teleport to="body">
+      <div v-if="compact" class="group-planning__dock" :style="dockStyle">
+        <Button label="Personnes" icon="pi pi-users" size="small" severity="secondary" @click="peopleOpen = true" />
+        <Button label="Sites" icon="pi pi-map-marker" size="small" severity="secondary" @click="sitesOpen = true" />
+      </div>
+    </Teleport>
 
     <Drawer
       v-model:visible="peopleOpen"
@@ -585,7 +609,7 @@ onBeforeUnmount(() => {
         section="people"
         compact
         :sites="sites"
-        :assigned-site-ids="assignedSiteIds"
+        :assigned-site-ids="blockedSiteIds"
         :can-edit="canEdit"
         :picked-employee-id="pickedEmployeeId"
         :picked-site-id="pickedSiteId"
@@ -610,7 +634,7 @@ onBeforeUnmount(() => {
         section="sites"
         compact
         :sites="sites"
-        :assigned-site-ids="assignedSiteIds"
+        :assigned-site-ids="blockedSiteIds"
         :can-edit="canEdit"
         :picked-employee-id="pickedEmployeeId"
         :picked-site-id="pickedSiteId"
@@ -649,6 +673,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.85rem;
   min-width: 0;
+  max-width: 100%;
 }
 
 .group-planning__toolbar,
@@ -659,6 +684,8 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.4rem;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .group-planning__toolbar {
@@ -671,7 +698,28 @@ onBeforeUnmount(() => {
 }
 
 .group-planning__picker {
-  width: 9.5rem;
+  width: min(100%, 11rem);
+  min-width: 0;
+  flex: 1 1 8rem;
+}
+
+.group-planning__picker :deep(input) {
+  min-width: 0;
+  width: 100%;
+}
+
+.group-planning.is-compact .group-planning__toolbar {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.group-planning.is-compact .group-planning__date,
+.group-planning.is-compact .group-planning__toolbar-actions {
+  width: 100%;
+}
+
+.group-planning.is-compact .group-planning__toolbar-actions {
+  justify-content: flex-start;
 }
 
 .group-planning__status,
@@ -707,6 +755,12 @@ onBeforeUnmount(() => {
   grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+  min-width: 0;
+}
+
+.group-planning__board {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .group-planning.is-compact .group-planning__layout {
@@ -737,7 +791,7 @@ onBeforeUnmount(() => {
 }
 
 .group-planning.is-compact {
-  padding-bottom: 4.75rem;
+  padding-bottom: 4.5rem;
 }
 
 .group-planning__dock {
@@ -745,7 +799,7 @@ onBeforeUnmount(() => {
   left: 50%;
   transform: translateX(-50%);
   bottom: var(--dock-bottom, 0.75rem);
-  z-index: 12;
+  z-index: 35;
   padding: 0.45rem;
   border: 1px solid var(--layout-panel-border);
   border-radius: 999px;
@@ -753,6 +807,7 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(10px);
   width: max-content;
   max-width: calc(100vw - 1.5rem);
+  box-shadow: var(--layout-shadow-panel);
 }
 
 .group-planning__dock :deep(.p-button) {
@@ -824,5 +879,10 @@ onBeforeUnmount(() => {
 
 .planning-drag-ghost {
   opacity: 0.45;
+}
+
+.group-planning-drawer {
+  width: min(100vw, 36rem) !important;
+  max-width: 100vw;
 }
 </style>

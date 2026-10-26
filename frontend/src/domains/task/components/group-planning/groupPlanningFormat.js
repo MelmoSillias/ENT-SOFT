@@ -28,9 +28,11 @@ function orderedMembers(group) {
 
 function memberLine(member, isLeader) {
   const mention = member.kind === 'prestataire' ? 'Prestataire' : String(member.mention || '').trim()
+  const phone = String(member.phone || '').trim()
   const name = String(member.name || 'Personne').trim()
   const base = mention ? `${name} (${mention})` : name
-  return isLeader ? `${base} — Chef` : base
+  const withPhone = phone ? `${base} — ${phone}` : base
+  return isLeader ? `${withPhone} — Chef` : withPhone
 }
 
 function siteLines(site) {

@@ -5,7 +5,15 @@ export async function getGroupPlanning(date) {
   return data
 }
 
-export async function saveGroupPlanning(date, groups) {
-  const { data } = await api.put('/group-plannings', { date, groups })
+export async function saveGroupPlanning(date, document) {
+  const groups = Array.isArray(document) ? document : (document?.groups || [])
+  const withheldEmployeeIds = Array.isArray(document) ? [] : (document?.withheldEmployeeIds || [])
+  const withheldSiteIds = Array.isArray(document) ? [] : (document?.withheldSiteIds || [])
+  const { data } = await api.put('/group-plannings', {
+    date,
+    groups,
+    withheldEmployeeIds,
+    withheldSiteIds,
+  })
   return data
 }

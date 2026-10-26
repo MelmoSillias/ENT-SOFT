@@ -13,20 +13,19 @@ final class GetDayGroupPlanningHandler
     ) {
     }
 
-    /** @return array{date: string, groups: list<array<string, mixed>>, updatedAt: ?string, carriedOver: bool, carriedFrom: ?string} */
+    /** @return array{date: string, groups: list<array<string, mixed>>, withheldEmployeeIds: list<string>, withheldSiteIds: list<string>, updatedAt: ?string, carriedOver: bool, carriedFrom: ?string} */
     public function handle(GetDayGroupPlanningQuery $query): array
     {
         $date = $this->normalizer->parseDate($query->date);
         $planning = $this->planningRepository->findByDate($date);
         if ($planning !== null) {
-            $groups = $planning->getPayload();
-            if (!is_array($groups) || !array_is_list($groups)) {
-                $groups = [];
-            }
+            $stored = $this->normalizer->readStored($planning->getPayload());
 
             return [
                 'date' => $date->format('Y-m-d'),
-                'groups' => $groups,
+                'groups' => $stored['groups'],
+                'withheldEmployeeIds' => $stored['withheldEmployeeIds'],
+                'withheldSiteIds' => $stored['withheldSiteIds'],
                 'updatedAt' => $planning->getUpdatedAt()->format(\DateTimeInterface::ATOM),
                 'carriedOver' => false,
                 'carriedFrom' => null,
@@ -37,8 +36,8 @@ final class GetDayGroupPlanningHandler
         $groups = [];
         $carriedFrom = null;
         if ($previous !== null) {
-            $payload = $previous->getPayload();
-            $groups = $this->normalizer->carryGroups(is_array($payload) ? $payload : []);
+            $stored = $this->normalizer->readStored($previous->getPayload());
+            $groups = $this->normalizer->carryGroups($stored['groups']);
             if ($groups !== []) {
                 $carriedFrom = $previous->getPlanDate()->format('Y-m-d');
             }
@@ -47,6 +46,8 @@ final class GetDayGroupPlanningHandler
         return [
             'date' => $date->format('Y-m-d'),
             'groups' => $groups,
+            'withheldEmployeeIds' => [],
+            'withheldSiteIds' => [],
             'updatedAt' => null,
             'carriedOver' => $carriedFrom !== null,
             'carriedFrom' => $carriedFrom,

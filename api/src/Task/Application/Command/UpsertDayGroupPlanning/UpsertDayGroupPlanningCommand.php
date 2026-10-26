@@ -7,6 +7,8 @@ final readonly class UpsertDayGroupPlanningCommand
     public function __construct(
         public string $date,
         public mixed $groups,
+        public mixed $withheldEmployeeIds = [],
+        public mixed $withheldSiteIds = [],
     ) {
     }
 }

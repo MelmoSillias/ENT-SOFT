@@ -3,6 +3,7 @@ import { computed, inject } from 'vue'
 import draggable from 'vuedraggable'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import Textarea from 'primevue/textarea'
 import AppPersonAvatar from '@/domains/shared/components/AppPersonAvatar.vue'
 
 const props = defineProps({
@@ -120,7 +121,7 @@ function personRole(member) {
 </script>
 
 <template>
-  <article class="group-card" :class="{ 'is-selected': selected }" @click="emit('select')">
+  <article class="group-card" :class="{ 'is-selected': selected, 'is-compact': compact }" @click="emit('select')">
     <header class="group-card__header">
       <button type="button" class="group-card__handle" aria-label="Déplacer le groupe" :disabled="!canEdit">
         <i class="pi pi-bars" />
@@ -157,7 +158,7 @@ function personRole(member) {
         @click.stop
       />
       <Button
-        class="no-drag"
+        class="group-card__remove no-drag"
         icon="pi pi-trash"
         text
         rounded
@@ -188,26 +189,30 @@ function personRole(member) {
         >
           <template #item="{ element, index: siteIndex }">
             <div class="site-row" data-planning-kind="site">
-              <div class="site-row__title">
-                <strong>{{ element.code }}</strong>
-                <span>{{ element.title }}</span>
+              <div class="site-row__head">
+                <div class="site-row__title">
+                  <strong>{{ element.code }}</strong>
+                  <span>{{ element.title }}</span>
+                </div>
+                <Button
+                  class="site-row__remove no-drag"
+                  icon="pi pi-times"
+                  text
+                  rounded
+                  severity="secondary"
+                  aria-label="Retirer le site"
+                  :disabled="!canEdit"
+                  @click.stop="removeSite(siteIndex)"
+                />
               </div>
-              <InputText
+              <Textarea
                 v-model="element.description"
                 class="site-row__task no-drag"
                 placeholder="Tâche sur ce site"
+                rows="1"
+                auto-resize
                 :disabled="!canEdit"
                 @click.stop
-              />
-              <Button
-                class="no-drag"
-                icon="pi pi-times"
-                text
-                rounded
-                severity="secondary"
-                aria-label="Retirer le site"
-                :disabled="!canEdit"
-                @click.stop="removeSite(siteIndex)"
               />
             </div>
           </template>
@@ -248,6 +253,7 @@ function personRole(member) {
               <div class="member-row__text">
                 <span>{{ element.name }}</span>
                 <small v-if="personRole(element)">{{ personRole(element) }}</small>
+                <small v-if="element.phone" class="member-row__phone"><i class="pi pi-phone" /> {{ element.phone }}</small>
               </div>
               <Button
                 class="no-drag"
@@ -291,6 +297,7 @@ function personRole(member) {
   background: color-mix(in srgb, var(--layout-panel-bg) 94%, var(--layout-page-bg, transparent));
   box-shadow: var(--layout-shadow-panel);
   min-width: 0;
+  max-width: 100%;
   cursor: pointer;
 }
 
@@ -353,7 +360,27 @@ function personRole(member) {
 .group-card__label {
   flex: 1 1 10rem;
   min-width: 0;
+  max-width: 100%;
   width: auto;
+}
+
+.group-card.is-compact .group-card__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "handle title moves remove"
+    "label label label label";
+  align-items: center;
+}
+
+.group-card.is-compact .group-card__handle { grid-area: handle; }
+.group-card.is-compact .group-card__identity { grid-area: title; }
+.group-card.is-compact .group-card__moves { grid-area: moves; }
+.group-card.is-compact .group-card__remove { grid-area: remove; }
+
+.group-card.is-compact .group-card__label {
+  grid-area: label;
+  width: 100%;
 }
 
 .group-zone {
@@ -441,12 +468,23 @@ function personRole(member) {
   background: var(--layout-panel-bg);
   border: 1px solid var(--layout-panel-border);
   min-height: 2.75rem;
+  max-width: 100%;
   cursor: grab;
 }
 
 .site-row {
-  align-items: stretch;
+  align-items: flex-start;
   flex-wrap: wrap;
+}
+
+.site-row__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  flex: 0 1 auto;
+  width: max-content;
+  max-width: 100%;
+  min-width: min(100%, max-content);
 }
 
 .site-row__title,
@@ -459,15 +497,43 @@ function personRole(member) {
 
 .site-row__title {
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.4rem;
-  flex: 1 1 8rem;
+  gap: 0.35rem 0.4rem;
+}
+
+.site-row__title strong,
+.site-row__title span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.site-row__remove {
+  flex: 0 0 auto;
 }
 
 .site-row__task {
-  flex: 2 1 12rem;
-  min-width: 8rem;
-  width: auto;
+  flex: 1 1 12rem;
+  width: 12rem;
+  min-width: min(100%, 12rem);
+  max-width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.member-row {
+  align-items: center;
+}
+
+.member-row > :first-child {
+  flex-shrink: 0;
+}
+
+.member-row :deep(.p-button) {
+  flex: 0 0 auto;
 }
 
 .member-row.is-leader {
@@ -476,13 +542,18 @@ function personRole(member) {
 }
 
 .member-row__text span,
-.site-row__title span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.member-row__text small {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .member-row__text small {
   color: var(--layout-text-muted, var(--p-text-muted-color));
+}
+
+.member-row__phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 </style>

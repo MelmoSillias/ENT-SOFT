@@ -94,6 +94,76 @@ final class DayGroupPlanningNormalizer
     }
 
     /**
+     * @param mixed $payload
+     * @return array{groups: list<array<string, mixed>>, withheldEmployeeIds: list<string>, withheldSiteIds: list<string>}
+     */
+    public function readStored(mixed $payload): array
+    {
+        if (!is_array($payload) || $payload === [] || array_is_list($payload)) {
+            return [
+                'groups' => is_array($payload) ? array_values($payload) : [],
+                'withheldEmployeeIds' => [],
+                'withheldSiteIds' => [],
+            ];
+        }
+
+        $groups = $payload['groups'] ?? [];
+
+        return [
+            'groups' => is_array($groups) ? array_values($groups) : [],
+            'withheldEmployeeIds' => $this->normalizeIdList($payload['withheldEmployeeIds'] ?? []),
+            'withheldSiteIds' => $this->normalizeIdList($payload['withheldSiteIds'] ?? []),
+        ];
+    }
+
+    /**
+     * @return array{groups: list<array<string, mixed>>, withheldEmployeeIds: list<string>, withheldSiteIds: list<string>}
+     */
+    public function normalizeDocument(mixed $groups, mixed $withheldEmployees, mixed $withheldSites): array
+    {
+        $normalizedGroups = $this->normalizeGroups($groups);
+        $memberIds = [];
+        $siteIds = [];
+        foreach ($normalizedGroups as $group) {
+            foreach ($group['memberIds'] as $memberId) {
+                $memberIds[$memberId] = true;
+            }
+            foreach ($group['sites'] as $site) {
+                $siteIds[$site['siteId']] = true;
+            }
+        }
+
+        return [
+            'groups' => $normalizedGroups,
+            'withheldEmployeeIds' => $this->normalizeIdList($withheldEmployees, $memberIds),
+            'withheldSiteIds' => $this->normalizeIdList($withheldSites, $siteIds),
+        ];
+    }
+
+    /**
+     * @param array<string, true> $excluded
+     * @return list<string>
+     */
+    private function normalizeIdList(mixed $ids, array $excluded = []): array
+    {
+        if (!is_array($ids)) {
+            return [];
+        }
+
+        $seen = [];
+        $normalized = [];
+        foreach ($ids as $id) {
+            if (!is_string($id) || $id === '' || isset($seen[$id]) || isset($excluded[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $normalized[] = $id;
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Reprend les groupes d’un jour précédent : mêmes personnes, aucun site.
      *
      * @param array<int, mixed> $groups

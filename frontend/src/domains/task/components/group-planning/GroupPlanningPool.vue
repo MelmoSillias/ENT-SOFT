@@ -60,7 +60,7 @@ const visiblePeople = computed(() => {
   if (!query) return null
   return new Set(
     pool.value
-      .filter((person) => `${person.name} ${person.mention || ''} ${person.kind === 'prestataire' ? 'prestataire' : 'employé'}`.toLowerCase().includes(query))
+      .filter((person) => `${person.name} ${person.mention || ''} ${person.phone || ''} ${person.kind === 'prestataire' ? 'prestataire' : 'employé'}`.toLowerCase().includes(query))
       .map((person) => person.id),
   )
 })
@@ -180,6 +180,7 @@ function cloneSite(site) {
             <button type="button" class="person-chip__body" @click="pickEmployee(element)">
               <span>{{ element.name }}</span>
               <small v-if="personRole(element)">{{ personRole(element) }}</small>
+              <small v-if="element.phone" class="person-chip__phone"><i class="pi pi-phone" /> {{ element.phone }}</small>
             </button>
             <Button
               v-if="pickedEmployeeId === element.id"
@@ -350,11 +351,18 @@ function cloneSite(site) {
 }
 
 .person-chip__body span,
-.site-chip__body span {
+.person-chip__body small,
+.site-chip__body span,
+.site-chip__body strong {
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.person-chip__phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .person-chip__body small,
@@ -365,8 +373,9 @@ function cloneSite(site) {
 
 .site-chip__body {
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.4rem;
+  gap: 0.25rem 0.4rem;
 }
 
 .site-chip__body strong {

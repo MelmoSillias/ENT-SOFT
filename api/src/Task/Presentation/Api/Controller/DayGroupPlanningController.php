@@ -33,6 +33,8 @@ final class DayGroupPlanningController extends AbstractController
         return $this->json($handler->handle(new UpsertDayGroupPlanningCommand(
             date: (string) ($data['date'] ?? ''),
             groups: $data['groups'] ?? [],
+            withheldEmployeeIds: $data['withheldEmployeeIds'] ?? [],
+            withheldSiteIds: $data['withheldSiteIds'] ?? [],
         )));
     }
 }

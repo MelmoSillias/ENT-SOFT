@@ -163,6 +163,7 @@ const planningEmployees = computed(() => {
       id: employee.id,
       name: employee.name,
       mention: employee.mention || '',
+      phone: employee.phone || '',
       photoUrl: employee.photoUrl || null,
       kind: 'employee',
     }))
@@ -172,6 +173,7 @@ const planningEmployees = computed(() => {
       id: person.id,
       name: personDisplayName(person, 'Prestataire'),
       mention: '',
+      phone: person.phone || '',
       photoUrl: person.photoUrl || null,
       kind: 'prestataire',
     }))

@@ -18,11 +18,11 @@ class DayGroupPlanning
     #[ORM\Column(type: 'date_immutable')]
     private \DateTimeImmutable $planDate;
 
-    /** @var list<array<string, mixed>> */
+    /** @var array<string, mixed> */
     #[ORM\Column(type: 'json')]
     private array $payload;
 
-    /** @param list<array<string, mixed>> $payload */
+    /** @param array<string, mixed> $payload */
     public function __construct(\DateTimeImmutable $planDate, array $payload = [])
     {
         $this->initializeUuid();
@@ -36,13 +36,13 @@ class DayGroupPlanning
         return $this->planDate;
     }
 
-    /** @return list<array<string, mixed>> */
+    /** @return array<string, mixed> */
     public function getPayload(): array
     {
         return $this->payload;
     }
 
-    /** @param list<array<string, mixed>> $payload */
+    /** @param array<string, mixed> $payload */
     public function replacePayload(array $payload): void
     {
         $this->payload = $payload;

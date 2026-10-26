@@ -14,24 +14,30 @@ final class UpsertDayGroupPlanningHandler
     ) {
     }
 
-    /** @return array{date: string, groups: list<array<string, mixed>>, updatedAt: string} */
+    /** @return array{date: string, groups: list<array<string, mixed>>, withheldEmployeeIds: list<string>, withheldSiteIds: list<string>, updatedAt: string} */
     public function handle(UpsertDayGroupPlanningCommand $command): array
     {
         $date = $this->normalizer->parseDate($command->date);
-        $groups = $this->normalizer->normalizeGroups($command->groups);
+        $document = $this->normalizer->normalizeDocument(
+            $command->groups,
+            $command->withheldEmployeeIds,
+            $command->withheldSiteIds,
+        );
         $planning = $this->planningRepository->findByDate($date);
 
         if ($planning === null) {
-            $planning = new DayGroupPlanning($date, $groups);
+            $planning = new DayGroupPlanning($date, $document);
         } else {
-            $planning->replacePayload($groups);
+            $planning->replacePayload($document);
         }
 
         $this->planningRepository->save($planning);
 
         return [
             'date' => $date->format('Y-m-d'),
-            'groups' => $planning->getPayload(),
+            'groups' => $document['groups'],
+            'withheldEmployeeIds' => $document['withheldEmployeeIds'],
+            'withheldSiteIds' => $document['withheldSiteIds'],
             'updatedAt' => $planning->getUpdatedAt()->format(\DateTimeInterface::ATOM),
         ];
     }
