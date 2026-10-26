@@ -32,6 +32,8 @@ import GroupPlanningBoard from '@/domains/task/components/group-planning/GroupPl
 import { listTasks, createTask, updateTask, deleteTask } from '@/domains/task/services/taskService'
 import { listSites } from '@/domains/site/services/siteService'
 import { listEmployees } from '@/domains/employee/services/employeeService'
+import { listPrestataires } from '@/domains/employee/services/prestataireService'
+import { personDisplayName } from '@/domains/shared/utils/personDisplay'
 import { taskStatusLabel, taskStatusSeverity, formatDateFr, TASK_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
 import { toApiDate, parseApiDate, toApiDateTime, parseApiDateTime, periodToApiParams, matchesDisplayedPeriod } from '@/domains/shared/utils/dateUtils'
 import AppPeriodFilter from '@/domains/shared/components/AppPeriodFilter.vue'
@@ -53,6 +55,7 @@ const { isAppMobile } = useAppMobileLayout()
 const items = ref([])
 const siteRecords = ref([])
 const employeeRecords = ref([])
+const prestataireRecords = ref([])
 const siteOptions = ref([])
 const employeeOptions = ref([])
 const siteMap = ref({})
@@ -135,9 +138,17 @@ const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFiel
 })
 
 async function loadRefs() {
-  const [sites, employees] = await Promise.all([listSites(), listEmployees()])
+  const prestataireRequest = hasPermission('employee.prestataires.view')
+    ? listPrestataires().catch(() => [])
+    : Promise.resolve([])
+  const [sites, employees, prestataires] = await Promise.all([
+    listSites(),
+    listEmployees(),
+    prestataireRequest,
+  ])
   siteRecords.value = sites
   employeeRecords.value = employees
+  prestataireRecords.value = Array.isArray(prestataires) ? prestataires : []
   siteOptions.value = sites.map((s) => ({ label: `${s.code} — ${s.title}`, value: s.id }))
   employeeOptions.value = employees.map((e) => ({ label: e.name, value: e.id, photoUrl: e.photoUrl || null }))
   siteMap.value = Object.fromEntries(sites.map((s) => [s.id, s.title]))
@@ -145,16 +156,27 @@ async function loadRefs() {
   employeePhotoMap.value = Object.fromEntries(employees.map((e) => [e.id, e.photoUrl || null]))
 }
 
-const planningEmployees = computed(() =>
-  employeeRecords.value
+const planningEmployees = computed(() => {
+  const employees = employeeRecords.value
     .filter((employee) => employee.isEnabled !== false)
     .map((employee) => ({
       id: employee.id,
       name: employee.name,
       mention: employee.mention || '',
       photoUrl: employee.photoUrl || null,
-    })),
-)
+      kind: 'employee',
+    }))
+  const prestataires = prestataireRecords.value
+    .filter((person) => person.isEnabled !== false)
+    .map((person) => ({
+      id: person.id,
+      name: personDisplayName(person, 'Prestataire'),
+      mention: '',
+      photoUrl: person.photoUrl || null,
+      kind: 'prestataire',
+    }))
+  return [...employees, ...prestataires].sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+})
 
 const planningSites = computed(() =>
   siteRecords.value

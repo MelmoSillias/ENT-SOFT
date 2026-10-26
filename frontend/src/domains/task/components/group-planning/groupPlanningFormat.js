@@ -1,10 +1,20 @@
 const WEEKDAY = new Intl.DateTimeFormat('fr-FR', { weekday: 'long' })
 const DAY = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
-export function planningHeading(date) {
+function asDate(date) {
   const value = date instanceof Date ? date : new Date(`${date}T12:00:00`)
-  if (Number.isNaN(value.getTime())) return 'Planning'
-  return `Planning du ${WEEKDAY.format(value)} ${DAY.format(value)}`
+  return Number.isNaN(value.getTime()) ? null : value
+}
+
+export function planningDayLabel(date) {
+  const value = asDate(date)
+  if (!value) return ''
+  return `${WEEKDAY.format(value)} ${DAY.format(value)}`
+}
+
+export function planningHeading(date) {
+  const label = planningDayLabel(date)
+  return label ? `Planning du ${label}` : 'Planning'
 }
 
 function orderedMembers(group) {
@@ -17,8 +27,8 @@ function orderedMembers(group) {
 }
 
 function memberLine(member, isLeader) {
-  const mention = String(member.mention || '').trim()
-  const name = String(member.name || 'Employé').trim()
+  const mention = member.kind === 'prestataire' ? 'Prestataire' : String(member.mention || '').trim()
+  const name = String(member.name || 'Personne').trim()
   const base = mention ? `${name} (${mention})` : name
   return isLeader ? `${base} — Chef` : base
 }

@@ -36,4 +36,17 @@ class DoctrineDayGroupPlanningRepository extends ServiceEntityRepository impleme
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    public function findLatestBefore(\DateTimeImmutable $date): ?DayGroupPlanning
+    {
+        $start = $date->setTime(0, 0);
+
+        return $this->createQueryBuilder('p')
+            ->andWhere('p.planDate < :start')
+            ->setParameter('start', $start, Types::DATE_IMMUTABLE)
+            ->orderBy('p.planDate', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

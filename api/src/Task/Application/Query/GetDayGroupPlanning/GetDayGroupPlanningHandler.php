@@ -13,20 +13,43 @@ final class GetDayGroupPlanningHandler
     ) {
     }
 
-    /** @return array{date: string, groups: list<array<string, mixed>>, updatedAt: ?string} */
+    /** @return array{date: string, groups: list<array<string, mixed>>, updatedAt: ?string, carriedOver: bool, carriedFrom: ?string} */
     public function handle(GetDayGroupPlanningQuery $query): array
     {
         $date = $this->normalizer->parseDate($query->date);
         $planning = $this->planningRepository->findByDate($date);
-        $groups = $planning?->getPayload() ?? [];
-        if (!is_array($groups) || !array_is_list($groups)) {
-            $groups = [];
+        if ($planning !== null) {
+            $groups = $planning->getPayload();
+            if (!is_array($groups) || !array_is_list($groups)) {
+                $groups = [];
+            }
+
+            return [
+                'date' => $date->format('Y-m-d'),
+                'groups' => $groups,
+                'updatedAt' => $planning->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+                'carriedOver' => false,
+                'carriedFrom' => null,
+            ];
+        }
+
+        $previous = $this->planningRepository->findLatestBefore($date);
+        $groups = [];
+        $carriedFrom = null;
+        if ($previous !== null) {
+            $payload = $previous->getPayload();
+            $groups = $this->normalizer->carryGroups(is_array($payload) ? $payload : []);
+            if ($groups !== []) {
+                $carriedFrom = $previous->getPlanDate()->format('Y-m-d');
+            }
         }
 
         return [
             'date' => $date->format('Y-m-d'),
             'groups' => $groups,
-            'updatedAt' => $planning?->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            'updatedAt' => null,
+            'carriedOver' => $carriedFrom !== null,
+            'carriedFrom' => $carriedFrom,
         ];
     }
 }

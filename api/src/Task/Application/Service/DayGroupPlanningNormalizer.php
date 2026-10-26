@@ -92,4 +92,32 @@ final class DayGroupPlanningNormalizer
 
         return $normalized;
     }
+
+    /**
+     * Reprend les groupes d’un jour précédent : mêmes personnes, aucun site.
+     *
+     * @param array<int, mixed> $groups
+     * @return list<array{id: string, label: ?string, leaderEmployeeId: ?string, memberIds: list<string>, sites: list<array{siteId: string, description: ?string}>}>
+     */
+    public function carryGroups(array $groups): array
+    {
+        $raw = [];
+        foreach (array_values($groups) as $group) {
+            if (!is_array($group)) {
+                continue;
+            }
+            $raw[] = [
+                'id' => $group['id'] ?? null,
+                'label' => $group['label'] ?? null,
+                'leaderEmployeeId' => $group['leaderEmployeeId'] ?? null,
+                'memberIds' => $group['memberIds'] ?? [],
+                'sites' => [],
+            ];
+        }
+
+        return array_values(array_filter(
+            $this->normalizeGroups($raw),
+            static fn (array $group): bool => $group['memberIds'] !== [],
+        ));
+    }
 }

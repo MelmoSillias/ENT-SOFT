@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -19,11 +19,13 @@ const props = defineProps({
   section: { type: String, default: 'all' },
 })
 
-const emit = defineEmits(['pick-employee', 'pick-site', 'add-site'])
+const emit = defineEmits(['pick-employee', 'pick-site', 'place-person', 'place-site'])
 
+const dragKind = inject('planningDragKind', null)
 const peopleQuery = ref('')
 const siteQuery = ref('')
 const siteDragItems = ref([])
+const dragging = ref(false)
 
 const dragOptions = computed(() => ({
   animation: 160,
@@ -32,19 +34,33 @@ const dragOptions = computed(() => ({
   touchStartThreshold: 4,
   forceFallback: true,
   fallbackOnBody: true,
-  fallbackTolerance: 6,
-  ghostClass: 'is-ghost',
+  fallbackTolerance: 8,
+  fallbackClass: 'planning-drag-fallback',
+  ghostClass: 'planning-drag-ghost',
+  emptyInsertThreshold: 48,
   filter: '.no-drag',
   preventOnFilter: false,
   disabled: !props.canEdit,
 }))
+
+const peopleGroup = {
+  name: 'planning-people',
+  pull: true,
+  put: (_to, _from, dragEl) => dragEl?.dataset?.planningKind === 'person',
+}
+
+const siteGroup = {
+  name: 'planning-sites',
+  pull: 'clone',
+  put: false,
+}
 
 const visiblePeople = computed(() => {
   const query = peopleQuery.value.trim().toLowerCase()
   if (!query) return null
   return new Set(
     pool.value
-      .filter((person) => `${person.name} ${person.mention || ''}`.toLowerCase().includes(query))
+      .filter((person) => `${person.name} ${person.mention || ''} ${person.kind === 'prestataire' ? 'prestataire' : 'employé'}`.toLowerCase().includes(query))
       .map((person) => person.id),
   )
 })
@@ -59,33 +75,61 @@ const availableSites = computed(() => {
 })
 
 watch(availableSites, (list) => {
+  if (dragging.value) return
   siteDragItems.value = list.map((site) => ({ ...site }))
 }, { immediate: true })
 
-const dragging = ref(false)
+const peopleZoneClass = computed(() => zoneClass('person'))
+const siteZoneClass = computed(() => {
+  const current = dragKind?.value
+  if (!current || current === 'group') return {}
+  return { 'is-blocked': current === 'person' }
+})
 
-function beginDrag() {
+function zoneClass(kind) {
+  const current = dragKind?.value
+  if (!current || current === 'group') return {}
+  return {
+    'is-target': current === kind,
+    'is-blocked': current !== kind,
+  }
+}
+
+function beginDrag(kind) {
   dragging.value = true
+  if (dragKind) dragKind.value = kind
 }
 
 function endDrag() {
+  const kind = dragKind?.value
   setTimeout(() => {
     dragging.value = false
+    if (dragKind && dragKind.value === kind) dragKind.value = null
+    siteDragItems.value = availableSites.value.map((site) => ({ ...site }))
   }, 80)
 }
 
+function allowPerson(event) {
+  return event.dragged?.dataset?.planningKind === 'person'
+}
+
 function pickEmployee(employee) {
-  if (dragging.value) return
+  if (dragging.value || !props.canEdit) return
   emit('pick-employee', employee)
 }
 
 function pickSite(site) {
-  if (dragging.value) return
+  if (dragging.value || !props.canEdit) return
   emit('pick-site', site)
 }
 
 function matchesPerson(person) {
   return !visiblePeople.value || visiblePeople.value.has(person.id)
+}
+
+function personRole(person) {
+  if (person.kind === 'prestataire') return 'Prestataire'
+  return person.mention || ''
 }
 
 function cloneSite(site) {
@@ -100,40 +144,50 @@ function cloneSite(site) {
 
 <template>
   <div class="planning-pool">
-    <section v-if="section !== 'sites'" class="planning-pool__block">
+    <section v-if="section !== 'sites'" class="planning-pool__block group-zone group-zone--people" :class="peopleZoneClass">
       <header class="planning-pool__heading">
-        <h3>Équipe</h3>
+        <h3><i class="pi pi-users" /> Personnes</h3>
         <span>{{ pool.length }}</span>
       </header>
-      <IconField>
+      <IconField class="no-drag">
         <InputIcon class="pi pi-search" />
-        <InputText v-model="peopleQuery" placeholder="Rechercher une personne" fluid />
+        <InputText v-model="peopleQuery" placeholder="Employé ou prestataire" fluid />
       </IconField>
       <draggable
         v-model="pool"
         item-key="id"
-        class="planning-pool__people"
-        :group="{ name: 'planning-people', pull: true, put: true }"
+        class="planning-pool__list"
+        draggable=".person-chip:not(.is-hidden)"
+        :group="peopleGroup"
+        :move="allowPerson"
         v-bind="dragOptions"
-        @start="beginDrag"
+        @start="beginDrag('person')"
         @end="endDrag"
       >
         <template #item="{ element }">
           <div
-            v-show="matchesPerson(element)"
             class="person-chip"
-            :class="{ 'is-picked': pickedEmployeeId === element.id }"
+            :class="{ 'is-picked': pickedEmployeeId === element.id, 'is-hidden': !matchesPerson(element) }"
+            data-planning-kind="person"
           >
             <AppPersonAvatar
               :name="element.name"
               :photo-url="element.photoUrl"
+              :kind="element.kind || 'employee'"
               size="small"
               :previewable="false"
             />
             <button type="button" class="person-chip__body" @click="pickEmployee(element)">
               <span>{{ element.name }}</span>
-              <small v-if="element.mention">{{ element.mention }}</small>
+              <small v-if="personRole(element)">{{ personRole(element) }}</small>
             </button>
+            <Button
+              v-if="pickedEmployeeId === element.id"
+              class="no-drag"
+              label="Placer"
+              size="small"
+              @click.stop="emit('place-person', element)"
+            />
           </div>
         </template>
       </draggable>
@@ -141,40 +195,38 @@ function cloneSite(site) {
       <p v-else-if="visiblePeople && !pool.some(matchesPerson)" class="planning-pool__empty">Aucun résultat.</p>
     </section>
 
-    <section v-if="section !== 'people'" class="planning-pool__block">
+    <section v-if="section !== 'people'" class="planning-pool__block group-zone group-zone--sites" :class="siteZoneClass">
       <header class="planning-pool__heading">
-        <h3>Sites</h3>
+        <h3><i class="pi pi-map-marker" /> Sites</h3>
       </header>
-      <IconField>
+      <IconField class="no-drag">
         <InputIcon class="pi pi-search" />
         <InputText v-model="siteQuery" placeholder="Code ou nom du site" fluid />
       </IconField>
       <draggable
         v-model="siteDragItems"
         item-key="id"
-        class="planning-pool__sites"
-        :group="{ name: 'planning-sites', pull: 'clone', put: false }"
+        class="planning-pool__list"
+        draggable=".site-chip"
+        :group="siteGroup"
         :sort="false"
         :clone="cloneSite"
         v-bind="dragOptions"
-        @start="beginDrag"
+        @start="beginDrag('site')"
         @end="endDrag"
       >
         <template #item="{ element }">
-          <div class="site-chip" :class="{ 'is-picked': pickedSiteId === element.id }">
+          <div class="site-chip" :class="{ 'is-picked': pickedSiteId === element.id }" data-planning-kind="site">
             <button type="button" class="site-chip__body" @click="pickSite(element)">
               <strong>{{ element.code }}</strong>
               <span>{{ element.title }}</span>
             </button>
             <Button
+              v-if="pickedSiteId === element.id"
               class="no-drag"
-              icon="pi pi-plus"
-              text
-              rounded
-              severity="secondary"
-              aria-label="Ajouter au groupe sélectionné"
-              :disabled="!canEdit"
-              @click="emit('add-site', element)"
+              label="Placer"
+              size="small"
+              @click.stop="emit('place-site', element)"
             />
           </div>
         </template>
@@ -188,8 +240,10 @@ function cloneSite(site) {
 .planning-pool {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
   min-width: 0;
+  width: 100%;
+  min-height: 0;
 }
 
 .planning-pool__block {
@@ -197,6 +251,28 @@ function cloneSite(site) {
   flex-direction: column;
   gap: 0.55rem;
   min-width: 0;
+  min-height: 0;
+  padding: 0.7rem;
+  border: 1px solid var(--layout-panel-border);
+  border-radius: var(--layout-radius-lg, 0.9rem);
+  box-shadow: var(--layout-shadow-panel);
+}
+
+.group-zone--sites {
+  background: color-mix(in srgb, var(--layout-accent-soft) 48%, var(--layout-panel-bg));
+}
+
+.group-zone--people {
+  background: color-mix(in srgb, var(--layout-panel-bg) 88%, var(--layout-page-bg, var(--layout-accent-soft)));
+}
+
+.planning-pool__block.is-target {
+  border-color: var(--layout-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--layout-accent) 40%, transparent), var(--layout-shadow-panel);
+}
+
+.planning-pool__block.is-blocked {
+  opacity: 0.5;
 }
 
 .planning-pool__heading {
@@ -207,8 +283,11 @@ function cloneSite(site) {
 }
 
 .planning-pool__heading h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
 }
 
 .planning-pool__heading span,
@@ -221,14 +300,14 @@ function cloneSite(site) {
   margin: 0;
 }
 
-.planning-pool__people,
-.planning-pool__sites {
+.planning-pool__list {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  min-height: 2.5rem;
+  min-height: 4.5rem;
   max-height: 22rem;
   overflow: auto;
+  padding-right: 0.1rem;
 }
 
 .person-chip,
@@ -244,10 +323,14 @@ function cloneSite(site) {
   min-height: 2.75rem;
 }
 
+.person-chip.is-hidden {
+  display: none;
+}
+
 .person-chip.is-picked,
 .site-chip.is-picked {
-  border-color: var(--p-primary-color);
-  box-shadow: inset 0 0 0 1px var(--p-primary-color);
+  border-color: color-mix(in srgb, var(--layout-accent) 65%, var(--layout-panel-border));
+  background: color-mix(in srgb, var(--layout-accent-soft) 55%, var(--layout-panel-bg));
 }
 
 .person-chip__body,

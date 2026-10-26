@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, provide, ref, watch } from 'vue'
 import draggable from 'vuedraggable'
 import Button from 'primevue/button'
 import DatePicker from 'primevue/datepicker'
@@ -16,7 +16,9 @@ import {
   copyImage,
   copyText,
   formatGroupPlanningText,
+  memberLine,
   orderedMembers,
+  planningDayLabel,
   planningHeading,
 } from './groupPlanningFormat.js'
 
@@ -39,7 +41,10 @@ const loading = ref(false)
 const error = ref('')
 const saveState = ref('idle')
 const picked = ref(null)
+const carriedFrom = ref('')
+const dragKind = ref(null)
 const selectedGroupId = ref(null)
+provide('planningDragKind', dragKind)
 const peopleOpen = ref(false)
 const sitesOpen = ref(false)
 const exportRoot = ref(null)
@@ -60,10 +65,12 @@ const isToday = computed(() => apiDate.value === toApiDate(new Date()))
 const assignedSiteIds = computed(() => groups.value.flatMap((group) => group.sites.map((site) => site.siteId)))
 const pickedEmployeeId = computed(() => (picked.value?.kind === 'employee' ? picked.value.employee.id : null))
 const pickedSiteId = computed(() => (picked.value?.kind === 'site' ? picked.value.site.id : null))
-const pickedLabel = computed(() => {
-  if (!picked.value) return ''
-  if (picked.value.kind === 'employee') return picked.value.employee.name
-  return `${picked.value.site.code} ${picked.value.site.title}`.trim()
+const carriedNote = computed(() => {
+  if (!carriedFrom.value) return ''
+  const label = planningDayLabel(carriedFrom.value)
+  return label
+    ? `Équipes reconduites depuis le ${label}, sans les sites.`
+    : 'Équipes reconduites, sans les sites.'
 })
 const saveLabel = computed(() => {
   if (!props.canEdit) return 'Lecture seule'
@@ -79,12 +86,16 @@ const dockStyle = computed(() => ({
 const groupDragOptions = computed(() => ({
   animation: 180,
   handle: '.group-card__handle',
+  filter: '.group-zone, .no-drag',
+  preventOnFilter: false,
+  group: { name: 'planning-groups', pull: false, put: false },
   delay: compact.value ? 140 : 0,
   delayOnTouchOnly: true,
   forceFallback: true,
   fallbackOnBody: true,
-  fallbackTolerance: 6,
-  ghostClass: 'is-ghost',
+  fallbackTolerance: 8,
+  fallbackClass: 'planning-drag-fallback',
+  ghostClass: 'planning-drag-ghost',
   disabled: !props.canEdit,
 }))
 
@@ -96,7 +107,7 @@ function newId() {
 function knownEmployee(id) {
   return props.employees.find((employee) => employee.id === id)
     || pool.value.find((employee) => employee.id === id)
-    || { id, name: 'Employé retiré', mention: '', photoUrl: null }
+    || { id, name: 'Personne retirée', mention: '', photoUrl: null, kind: 'employee' }
 }
 
 function knownSite(id) {
@@ -164,10 +175,12 @@ async function loadDay() {
   loading.value = true
   error.value = ''
   picked.value = null
+  carriedFrom.value = ''
   try {
     const data = await getGroupPlanning(date)
     if (token !== loadToken) return
     applyDocument(data.groups || [])
+    carriedFrom.value = data.carriedOver ? (data.carriedFrom || '') : ''
     saveState.value = 'idle'
   } catch (err) {
     if (token !== loadToken) return
@@ -177,8 +190,10 @@ async function loadDay() {
   } finally {
     if (token === loadToken) {
       loading.value = false
+      const shouldStoreCarry = Boolean(carriedFrom.value) && props.canEdit
       await nextTick()
       hydrating = false
+      if (shouldStoreCarry) scheduleSave()
     }
   }
 }
@@ -327,7 +342,6 @@ function togglePickEmployee(employee) {
     return
   }
   picked.value = { kind: 'employee', employee }
-  if (compact.value) peopleOpen.value = false
 }
 
 function togglePickSite(site) {
@@ -337,7 +351,10 @@ function togglePickSite(site) {
     return
   }
   picked.value = { kind: 'site', site }
-  if (compact.value) sitesOpen.value = false
+}
+
+function targetGroup() {
+  return groups.value.find((group) => group.id === selectedGroupId.value) || null
 }
 
 function takeEmployee(id) {
@@ -364,29 +381,34 @@ function addSiteTo(group, site) {
   return true
 }
 
-function placeOn(group) {
-  if (!picked.value || !props.canEdit) return
-  if (picked.value.kind === 'employee') {
-    const employee = picked.value.employee
-    takeEmployee(employee.id)
-    group.members.push(employee)
-  } else if (!addSiteTo(group, picked.value.site)) {
-    return
-  }
-  picked.value = null
-  selectedGroupId.value = group.id
+function requireTarget() {
+  const target = targetGroup()
+  if (target) return target
+  toast.add({
+    severity: 'info',
+    summary: 'Groupe',
+    detail: groups.value.length ? 'Choisissez d’abord le groupe cible.' : 'Créez d’abord un groupe.',
+  })
+  return null
 }
 
-function addSiteToSelected(site) {
-  const target = groups.value.find((group) => group.id === selectedGroupId.value) || groups.value[0]
-  if (!target) {
-    toast.add({ severity: 'info', summary: 'Groupe', detail: 'Créez d’abord un groupe.' })
-    return
-  }
-  if (addSiteTo(target, site)) {
-    selectedGroupId.value = target.id
-    if (compact.value) sitesOpen.value = false
-  }
+function placePerson(employee) {
+  if (!props.canEdit) return
+  const target = requireTarget()
+  if (!target) return
+  takeEmployee(employee.id)
+  target.members.push(employee)
+  picked.value = null
+  peopleOpen.value = false
+}
+
+function placeSite(site) {
+  if (!props.canEdit) return
+  const target = requireTarget()
+  if (!target) return
+  if (!addSiteTo(target, site)) return
+  picked.value = null
+  sitesOpen.value = false
 }
 
 function onReturnMember(member) {
@@ -486,10 +508,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <p v-if="picked" class="group-planning__picked">
-      {{ pickedLabel }} sélectionné. Choisissez un groupe avec « Placer ici ».
-      <Button label="Annuler" text size="small" @click="picked = null" />
-    </p>
+    <p v-if="carriedNote" class="group-planning__note">{{ carriedNote }}</p>
 
     <p v-if="error" class="group-planning__error">
       {{ error }}
@@ -508,7 +527,8 @@ onBeforeUnmount(() => {
           :picked-site-id="pickedSiteId"
           @pick-employee="togglePickEmployee"
           @pick-site="togglePickSite"
-          @add-site="addSiteToSelected"
+          @place-person="placePerson"
+          @place-site="placeSite"
         />
       </aside>
 
@@ -518,6 +538,8 @@ onBeforeUnmount(() => {
           item-key="id"
           class="group-planning__groups"
           v-bind="groupDragOptions"
+          @start="dragKind = 'group'"
+          @end="dragKind = null"
         >
           <template #item="{ element, index }">
             <GroupPlanningCard
@@ -526,12 +548,10 @@ onBeforeUnmount(() => {
               :can-edit="canEdit"
               :compact="compact"
               :selected="selectedGroupId === element.id"
-              :show-place="Boolean(picked)"
               :can-move-up="index > 0"
               :can-move-down="index < groups.length - 1"
               @select="selectedGroupId = element.id"
               @remove="removeGroup(element)"
-              @place="placeOn(element)"
               @return-member="onReturnMember"
               @site-added="onSiteAdded(element, $event)"
               @move="moveGroup(index, $event)"
@@ -546,14 +566,14 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-if="compact" class="group-planning__dock" :style="dockStyle">
-      <Button label="Équipe" icon="pi pi-users" size="small" severity="secondary" @click="peopleOpen = true" />
+      <Button label="Personnes" icon="pi pi-users" size="small" severity="secondary" @click="peopleOpen = true" />
       <Button label="Sites" icon="pi pi-map-marker" size="small" severity="secondary" @click="sitesOpen = true" />
     </div>
 
     <Drawer
       v-model:visible="peopleOpen"
       position="bottom"
-      header="Équipe disponible"
+      header="Personnes disponibles"
       class="group-planning-drawer"
       :modal="false"
       dismissable
@@ -571,7 +591,8 @@ onBeforeUnmount(() => {
         :picked-site-id="pickedSiteId"
         @pick-employee="togglePickEmployee"
         @pick-site="togglePickSite"
-        @add-site="addSiteToSelected"
+        @place-person="placePerson"
+        @place-site="placeSite"
       />
     </Drawer>
     <Drawer
@@ -595,7 +616,8 @@ onBeforeUnmount(() => {
         :picked-site-id="pickedSiteId"
         @pick-employee="togglePickEmployee"
         @pick-site="togglePickSite"
-        @add-site="addSiteToSelected"
+        @place-person="placePerson"
+        @place-site="placeSite"
       />
     </Drawer>
 
@@ -613,8 +635,7 @@ onBeforeUnmount(() => {
             :key="member.id"
             class="export-sheet__member"
           >
-            {{ member.mention ? `${member.name} (${member.mention})` : member.name }}
-            <strong v-if="member.id === group.leaderEmployeeId"> — Chef</strong>
+            {{ memberLine(member, member.id === group.leaderEmployeeId) }}
           </p>
         </section>
       </article>
@@ -642,6 +663,11 @@ onBeforeUnmount(() => {
 
 .group-planning__toolbar {
   justify-content: space-between;
+  padding: 0.45rem;
+  border: 1px solid var(--layout-panel-border);
+  border-radius: var(--layout-radius-lg, 0.9rem);
+  background: color-mix(in srgb, var(--layout-panel-bg) 92%, var(--layout-accent-soft));
+  box-shadow: var(--layout-shadow-panel);
 }
 
 .group-planning__picker {
@@ -649,7 +675,7 @@ onBeforeUnmount(() => {
 }
 
 .group-planning__status,
-.group-planning__picked,
+.group-planning__note,
 .group-planning__error,
 .group-planning__empty p {
   margin: 0;
@@ -657,7 +683,14 @@ onBeforeUnmount(() => {
   font-size: 0.85rem;
 }
 
-.group-planning__picked,
+.group-planning__note {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--layout-accent) 28%, var(--layout-panel-border));
+  border-radius: var(--layout-radius-lg, 0.85rem);
+  background: color-mix(in srgb, var(--layout-accent-soft) 62%, var(--layout-panel-bg));
+  color: var(--layout-text-color);
+}
+
 .group-planning__error {
   display: flex;
   align-items: center;
@@ -683,9 +716,9 @@ onBeforeUnmount(() => {
 .group-planning__side {
   position: sticky;
   top: 0.5rem;
+  display: flex;
   max-height: calc(100vh - 8rem);
-  overflow: auto;
-  padding-right: 0.15rem;
+  min-height: 0;
 }
 
 .group-planning__groups {
@@ -779,5 +812,17 @@ onBeforeUnmount(() => {
 
 .export-sheet__member {
   margin-top: 2px;
+}
+</style>
+
+<style>
+.planning-drag-fallback {
+  z-index: 10000;
+  opacity: 0.96;
+  pointer-events: none;
+}
+
+.planning-drag-ghost {
+  opacity: 0.45;
 }
 </style>
