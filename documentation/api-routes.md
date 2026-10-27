@@ -17,8 +17,9 @@ Préfixe : `/api`
 | Clients | `GET/POST /clients`, `GET/PUT/DELETE /clients/{id}`, `GET /clients/{id}/detail` |
 | Sites | `GET/POST /sites`, `GET/PUT/DELETE /sites/{id}` |
 | Projects | `GET/POST /projects`, `GET/PUT/DELETE /projects/{id}`, `GET /projects/{id}/detail` |
-| Project sites | `POST/PUT/DELETE /projects/{id}/sites/{siteId}` |
+| Project sites | `POST /projects/{id}/sites`, `PUT/DELETE /projects/sites/{siteId}` |
 | Project events | `POST /projects/{id}/events` |
+| Activity reports | `GET/POST /project-reports`, `GET/PUT/DELETE /project-reports/{id}`, `GET /project-reports/{id}/export?format=pdf|excel|word&bundle=0|1` |
 | Employees | `GET/POST /employees`, `GET/PUT/DELETE /employees/{id}` |
 | Tasks | `GET/POST /tasks`, `GET/PUT/DELETE /tasks/{id}` (+ filtres query) |
 | Invoices | `GET/POST /invoices`, `GET/PUT/DELETE /invoices/{id}` |

@@ -179,7 +179,7 @@ function cloneSite(site) {
             />
             <button type="button" class="person-chip__body" @click="pickEmployee(element)">
               <span>{{ element.name }}</span>
-              <small v-if="personRole(element)">{{ personRole(element) }}</small>
+              <!-- <small v-if="personRole(element)">{{ personRole(element) }}</small> -->
               <small v-if="element.phone" class="person-chip__phone"><i class="pi pi-phone" /> {{ element.phone }}</small>
             </button>
             <Button

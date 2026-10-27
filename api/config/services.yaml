@@ -103,6 +103,9 @@ services:
     App\Project\Domain\Repository\ProjectEventRepositoryInterface:
         alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectEventRepository
 
+    App\Project\Domain\Repository\ActivityReportRepositoryInterface:
+        alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineActivityReportRepository
+
     App\Employee\Domain\Repository\EmployeeRepositoryInterface:
         alias: App\Employee\Infrastructure\Persistence\Doctrine\DoctrineEmployeeRepository
 

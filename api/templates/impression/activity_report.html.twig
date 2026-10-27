@@ -1,0 +1,73 @@
+{% extends 'impression/_layout.html.twig' %}
+
+{% block extra_styles %}
+<style>
+    body { font-family: DejaVu Sans, sans-serif; color: #172033; font-size: 10pt; }
+    .report-hero { background: #1e3a5f; color: #fff; padding: 18px 20px; margin-bottom: 14px; }
+    .report-hero h1 { margin: 0 0 5px; font-size: 22pt; }
+    .report-hero p { margin: 2px 0; }
+    .report-summary { border: 1px solid #d8e0ec; background: #f5f8fc; padding: 10px 12px; margin-bottom: 14px; }
+    .site { page-break-inside: avoid; border: 1px solid #d8e0ec; margin: 0 0 14px; }
+    .site__head { background: #e8f0fb; border-bottom: 1px solid #d8e0ec; padding: 9px 11px; }
+    .site__head h2 { margin: 0; color: #1e3a5f; font-size: 14pt; }
+    .site__project { color: #5c6b82; font-size: 9pt; margin-top: 2px; }
+    .site__body { padding: 10px 11px; }
+    .meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    .meta th, .meta td { border: 1px solid #d8e0ec; padding: 5px 7px; text-align: left; vertical-align: top; }
+    .meta th { width: 25%; background: #f5f8fc; color: #334155; }
+    .status { display: inline-block; padding: 2px 7px; border-radius: 10px; background: #64748b; color: #fff; font-weight: bold; }
+    .status--completed { background: #15803d; }
+    .status--in_progress { background: #b45309; }
+    .status--blocked { background: #b91c1c; }
+    .gallery { margin-top: 8px; }
+    .photo { display: inline-block; width: 47%; vertical-align: top; margin: 0 2% 10px 0; }
+    .photo img { width: 100%; max-height: 210px; object-fit: contain; border: 1px solid #d8e0ec; }
+    .caption { color: #5c6b82; font-size: 8.5pt; margin-top: 3px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-hero">
+    <h1>Rapport d’activité</h1>
+    <p><strong>{{ report.code }}</strong> — {{ report.period }}</p>
+    <p>{{ profile.shop_name }}</p>
+</div>
+
+<div class="report-summary">
+    <strong>Synthèse</strong>
+    <p>{{ report.description }}</p>
+    <p>{{ report.sites|length }} site{{ report.sites|length > 1 ? 's' : '' }} documenté{{ report.sites|length > 1 ? 's' : '' }}</p>
+</div>
+
+{% for site in report.sites %}
+<section class="site">
+    <div class="site__head">
+        <h2>{{ site.code ? site.code ~ ' — ' : '' }}{{ site.title }}</h2>
+        <div class="site__project">{{ site.project ?: 'Site hors projet' }}{% if site.groupLabel %} — {{ site.groupLabel }}{% endif %}</div>
+    </div>
+    <div class="site__body">
+        <table class="meta">
+            <tr><th>Statut</th><td><span class="status status--{{ site.statusKey }}">{{ site.status }}</span></td></tr>
+            {% if site.plannedTask %}<tr><th>Tâche prévue</th><td>{{ site.plannedTask }}</td></tr>{% endif %}
+            <tr><th>Observation</th><td>{{ site.observation ?: '—' }}</td></tr>
+            <tr><th>Personnes présentes</th><td>{{ site.attendees|length ? site.attendees|join(', ') : '—' }}</td></tr>
+        </table>
+
+        {% if site.attachments|length %}
+        <div class="gallery">
+            {% for file in site.attachments %}
+                {% if file.image %}
+                <div class="photo">
+                    <img src="{{ file.image }}" alt="">
+                    <div class="caption">{{ file.description ?: file.title }}</div>
+                </div>
+                {% else %}
+                <p>Pièce jointe : {{ file.title }}{% if file.description %} — {{ file.description }}{% endif %}</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endfor %}
+{% endblock %}

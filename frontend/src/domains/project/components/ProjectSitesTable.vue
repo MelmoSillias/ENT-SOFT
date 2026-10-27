@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch, nextTick, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
@@ -39,6 +40,7 @@ import {
   exportClipboardImage,
 } from '@/domains/project/composables/useProjectSiteExport'
 import { useAppBusyStore } from '@/domains/layout/stores/appBusy'
+import { usePermissions } from '@/domains/auth/composables/usePermissions'
 
 const props = defineProps({
   sites: { type: Array, default: () => [] },
@@ -53,6 +55,9 @@ const emit = defineEmits(['refresh'])
 const confirm = useConfirm()
 const toast = useToast()
 const busyStore = useAppBusyStore()
+const router = useRouter()
+const { hasPermission } = usePermissions()
+const canCreateReport = computed(() => hasPermission('project.reports.create'))
 
 const EXCLUDED_KEYS = new Set([
   'comment',
@@ -246,6 +251,39 @@ const groupedSites = computed(() => {
 })
 
 const allFilteredSites = computed(() => groupedSites.value.flatMap((g) => g.sites))
+const selectedSiteIds = ref(new Set())
+const selectedCount = computed(() => selectedSiteIds.value.size)
+const allVisibleSelected = computed(() =>
+  allFilteredSites.value.length > 0
+  && allFilteredSites.value.every((site) => selectedSiteIds.value.has(site.id)),
+)
+
+function setSiteSelected(siteId, selected) {
+  const next = new Set(selectedSiteIds.value)
+  if (selected) next.add(siteId)
+  else next.delete(siteId)
+  selectedSiteIds.value = next
+}
+
+function toggleAllVisible(selected) {
+  const next = new Set(selectedSiteIds.value)
+  for (const site of allFilteredSites.value) {
+    if (selected) next.add(site.id)
+    else next.delete(site.id)
+  }
+  selectedSiteIds.value = next
+}
+
+function createReportFromSelection() {
+  if (!selectedCount.value) return
+  router.push({
+    name: 'project-report-create',
+    query: {
+      projectId: props.projectId,
+      projectSiteIds: [...selectedSiteIds.value].join(','),
+    },
+  })
+}
 const hasSites = computed(() => (props.sites?.length ?? 0) > 0)
 
 function cellValue(site, key) {
@@ -780,6 +818,14 @@ onMounted(() => {
       </IconField>
 
       <div class="pst-toolbar__right">
+        <Button
+          v-if="selectedCount && canCreateReport"
+          :label="`Générer un rapport (${selectedCount})`"
+          icon="pi pi-file-edit"
+          size="small"
+          severity="help"
+          @click="createReportFromSelection"
+        />
         <Button icon="pi pi-plus" label="Ajouter" size="small" @click="openCreate" />
 
         <Button
@@ -898,6 +944,24 @@ onMounted(() => {
             class="pst-table p-datatable-sm"
             size="small"
           >
+            <Column v-if="canCreateReport" :frozen="true" style="min-width: 2.75rem; width: 2.75rem; text-align:center">
+              <template #header>
+                <Checkbox
+                  :model-value="allVisibleSelected"
+                  binary
+                  aria-label="Sélectionner tous les sites visibles"
+                  @update:model-value="toggleAllVisible"
+                />
+              </template>
+              <template #body="{ data }">
+                <Checkbox
+                  :model-value="selectedSiteIds.has(data.id)"
+                  binary
+                  :aria-label="`Sélectionner ${data.siteTitle || data.siteCode}`"
+                  @update:model-value="setSiteSelected(data.id, $event)"
+                />
+              </template>
+            </Column>
             <Column
               header="#"
               :frozen="isColumnFrozen('__num')"
@@ -1026,6 +1090,24 @@ onMounted(() => {
               class="pst-table p-datatable-sm"
               size="small"
             >
+              <Column v-if="canCreateReport" :frozen="true" style="min-width: 2.75rem; width: 2.75rem; text-align:center">
+                <template #header>
+                  <Checkbox
+                    :model-value="allVisibleSelected"
+                    binary
+                    aria-label="Sélectionner tous les sites visibles"
+                    @update:model-value="toggleAllVisible"
+                  />
+                </template>
+                <template #body="{ data }">
+                  <Checkbox
+                    :model-value="selectedSiteIds.has(data.id)"
+                    binary
+                    :aria-label="`Sélectionner ${data.siteTitle || data.siteCode}`"
+                    @update:model-value="setSiteSelected(data.id, $event)"
+                  />
+                </template>
+              </Column>
               <Column header="#" :frozen="isColumnFrozen('__num')" style="min-width:2.2rem; width:2.2rem; text-align:center">
                 <template #body="{ index }"><span class="pst-num">{{ index + 1 }}</span></template>
               </Column>

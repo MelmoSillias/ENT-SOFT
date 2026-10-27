@@ -45,7 +45,7 @@ export const appConfig = {
         label: 'Projets',
         icon: 'pi pi-briefcase',
         routeName: 'projects',
-        activeRouteNames: ['projects', 'project-detail'],
+        activeRouteNames: ['projects', 'project-detail', 'project-report-create', 'project-report-edit'],
         requiredModule: 'project',
       },
       {

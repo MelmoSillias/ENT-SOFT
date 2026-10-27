@@ -27,11 +27,33 @@ const routes = [
       {
         path: 'projects',
         name: 'projects',
-        component: () => import('@/views/project/ProjectListView.vue'),
+        component: () => import('@/views/project/ProjectsView.vue'),
         meta: {
           title: 'Projets',
           section: 'Projets',
           requiredModule: 'project',
+        },
+      },
+      {
+        path: 'projects/reports/new',
+        name: 'project-report-create',
+        component: () => import('@/views/project/ProjectReportFormView.vue'),
+        meta: {
+          title: 'Nouveau rapport',
+          section: 'Projets',
+          hiddenFromMenu: true,
+          requiredPermission: 'project.reports.create',
+        },
+      },
+      {
+        path: 'projects/reports/:id',
+        name: 'project-report-edit',
+        component: () => import('@/views/project/ProjectReportFormView.vue'),
+        meta: {
+          title: 'Rapport d’activité',
+          section: 'Projets',
+          hiddenFromMenu: true,
+          requiredPermission: 'project.reports.view',
         },
       },
       {

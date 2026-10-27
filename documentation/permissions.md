@@ -17,6 +17,7 @@ Format : `{module}.{resource}.{action}`
 - `site.sites.{view,create,update,delete}`
 - `project.projects.{view,create,update,delete}`
 - `project.sites.manage`, `project.events.create`
+- `project.reports.{view,create,update,delete,export}`
 - `employee.employees.{view,create,update,delete}`
 - `task.tasks.{view,create,update,delete}`
 - `finance.invoices.{view,create,update,delete}`

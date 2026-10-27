@@ -1,13 +1,17 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, provide, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import Button from 'primevue/button'
 import DatePicker from 'primevue/datepicker'
 import Drawer from 'primevue/drawer'
+import Menu from 'primevue/menu'
 import { useConfirm } from 'primevue/useconfirm'
 import { useBreakpoint } from '@/domains/layout/composables/useBreakpoint'
 import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLayout'
 import { useAppToast } from '@/domains/shared/composables/useAppToast'
+import { usePermissions } from '@/domains/auth/composables/usePermissions'
+import { useTableExport } from '@/domains/impression/composables/usePrintDocument'
 import { toApiDate } from '@/domains/shared/utils/dateUtils'
 import { getGroupPlanning, saveGroupPlanning } from '@/domains/task/services/groupPlanningService'
 import GroupPlanningCard from './GroupPlanningCard.vue'
@@ -31,6 +35,9 @@ const props = defineProps({
 
 const toast = useAppToast()
 const confirm = useConfirm()
+const router = useRouter()
+const { exportTable } = useTableExport()
+const { hasPermission } = usePermissions()
 const { isMobile } = useBreakpoint()
 const { isAppMobile, bottomNavOffset } = useAppMobileLayout()
 
@@ -51,6 +58,7 @@ const peopleOpen = ref(false)
 const sitesOpen = ref(false)
 const exportRoot = ref(null)
 const copying = ref(false)
+const exportMenu = ref(null)
 
 let hydrating = false
 let silent = false
@@ -82,6 +90,14 @@ const saveLabel = computed(() => {
   if (saveState.value === 'error') return 'Non enregistré'
   return ''
 })
+const exportMenuItems = computed(() => [
+  { label: 'Copier le texte', icon: 'pi pi-copy', command: exportText },
+  { label: 'Copier l’image', icon: 'pi pi-image', disabled: copying.value, command: exportImage },
+  { separator: true },
+  { label: 'PDF', icon: 'pi pi-file-pdf', command: () => exportPlanningDocument('pdf') },
+  { label: 'Excel', icon: 'pi pi-file-excel', command: () => exportPlanningDocument('excel') },
+  { label: 'Word', icon: 'pi pi-file-word', command: () => exportPlanningDocument('word') },
+])
 const dockStyle = computed(() => ({
   '--dock-bottom': isAppMobile.value && bottomNavOffset.value ? bottomNavOffset.value : '0.75rem',
 }))
@@ -476,6 +492,55 @@ async function exportImage() {
   }
 }
 
+function planningExportPayload() {
+  const rows = groups.value.flatMap((group, groupIndex) => {
+    const members = orderedMembers(group).map((member) => member.name || 'Personne').join(', ')
+    return group.sites.map((site) => ({
+      group: group.label ? `Groupe ${groupIndex + 1} — ${group.label}` : `Groupe ${groupIndex + 1}`,
+      site: [site.code, site.title].filter(Boolean).join(' '),
+      task: site.description || '',
+      members,
+    }))
+  })
+  return {
+    title: heading.value,
+    filters_summary: planningDayLabel(planDate.value),
+    columns: [
+      { key: 'group', label: 'Groupe' },
+      { key: 'site', label: 'Site' },
+      { key: 'task', label: 'Tâche prévue' },
+      { key: 'members', label: 'Intervenants' },
+    ],
+    rows,
+  }
+}
+
+function exportPlanningDocument(format) {
+  exportTable('group-planning', format, planningExportPayload())
+}
+
+function createReport() {
+  const prefill = {
+    source: 'planning',
+    startDate: apiDate.value,
+    endDate: apiDate.value,
+    sites: groups.value.flatMap((group, groupIndex) => group.sites.map((site) => ({
+      siteId: site.siteId,
+      siteCode: site.code || '',
+      siteTitle: site.title || '',
+      plannedTask: site.description || '',
+      groupLabel: group.label || `Groupe ${groupIndex + 1}`,
+      attendees: orderedMembers(group).map((member) => ({
+        id: member.id,
+        name: member.name || 'Personne',
+        kind: member.kind || 'employee',
+      })),
+    }))),
+  }
+  sessionStorage.setItem('activity-report-prefill', JSON.stringify(prefill))
+  router.push({ name: 'project-report-create', query: { source: 'planning' } })
+}
+
 onBeforeUnmount(() => {
   clearTimeout(saveTimer)
   if (saveState.value === 'pending' && props.canEdit) {
@@ -503,30 +568,33 @@ onBeforeUnmount(() => {
       <div class="group-planning__toolbar-actions">
         <span v-if="saveLabel" class="group-planning__status">{{ saveLabel }}</span>
         <Button
-          :label="compact ? undefined : 'Nouveau groupe'"
+          :label="compact ? undefined : 'Groupe'"
           icon="pi pi-plus"
           size="small"
-          aria-label="Nouveau groupe"
+          aria-label="Groupe"
           :disabled="!canEdit"
           @click="addGroup"
         />
         <Button
-          :label="compact ? undefined : 'Texte'"
-          icon="pi pi-copy"
+          v-if="hasPermission('project.reports.create')"
+          icon="pi pi-file-edit"
           size="small"
           severity="secondary"
-          aria-label="Copier le texte"
-          @click="exportText"
+          aria-label="Créer un rapport"
+          title="Créer un rapport"
+          :disabled="!groups.some((group) => group.sites.length)"
+          @click="createReport"
         />
         <Button
-          :label="compact ? undefined : 'Image'"
-          icon="pi pi-image"
+          icon="pi pi-download"
           size="small"
           severity="secondary"
-          aria-label="Copier l’image"
+          aria-label="Copier ou exporter"
+          title="Copier ou exporter"
           :loading="copying"
-          @click="exportImage"
+          @click="exportMenu.toggle($event)"
         />
+        <Menu ref="exportMenu" :model="exportMenuItems" popup />
       </div>
     </div>
 

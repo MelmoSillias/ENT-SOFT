@@ -9,6 +9,7 @@ use App\Document\Application\Query\ListDocumentsByOwner\ListDocumentsByOwnerQuer
 use App\Document\Application\Service\DocumentUploadService;
 use App\Document\Application\Dto\DocumentResponseDto;
 use App\Document\Domain\Enum\DocumentOwnerType;
+use App\Document\Domain\Repository\DocumentRepositoryInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -76,5 +77,29 @@ final class DocumentController extends AbstractController
     public function delete(string $id, DeleteDocumentHandler $handler): JsonResponse
     {
         return $this->json($handler->handle(new DeleteDocumentCommand($id))->toArray());
+    }
+
+    #[Route('/{id}', name: 'api_documents_update', methods: ['PATCH'])]
+    #[IsGranted('document.documents.upload')]
+    public function update(string $id, Request $request, DocumentRepositoryInterface $repository): JsonResponse
+    {
+        $document = $repository->findById(Uuid::fromString($id));
+        if ($document === null || !$document->isEnabled()) {
+            return $this->json(['error' => 'Document introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+        $data = $request->toArray();
+        if (array_key_exists('title', $data)) {
+            $title = trim((string) $data['title']);
+            if ($title === '') {
+                return $this->json(['error' => 'Le titre du document est requis.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+            $document->setTitle($title);
+        }
+        if (array_key_exists('description', $data)) {
+            $document->setDescription(trim((string) $data['description']) ?: null);
+        }
+        $repository->save($document);
+
+        return $this->json(DocumentResponseDto::fromEntity($document)->toArray());
     }
 }
