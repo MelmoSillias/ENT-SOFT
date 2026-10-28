@@ -82,6 +82,10 @@ function createId() {
   return `grp-${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
+function uniqueIds(ids) {
+  return [...new Set((ids || []).filter((id) => typeof id === 'string' && id))]
+}
+
 function newGroup(data = {}) {
   return {
     id: data.id || createId(),
@@ -605,11 +609,7 @@ onMounted(load)
             <Button label="Ajouter un projet" icon="pi pi-plus" size="small" @click="addGroup()" />
           </div>
         </template>
-        <template #content>
-          <p class="report-form-view__hint">
-            Chaque carte représente un projet enregistré ou un groupe manuel. Les sites cochés apparaissent immédiatement en dessous.
-          </p>
-
+        <template #content> 
           <div v-if="form.groups.length" class="report-form-view__groups">
             <Card
               v-for="(group, index) in form.groups"
@@ -824,7 +824,7 @@ onMounted(load)
       </div>
       <Teleport to="body">
         <div class="report-form-view__save-fab">
-          <Button label="Enregistrer" icon="pi pi-save" :loading="saving" :disabled="loading" @click="save" />
+          <Button label="" icon="pi pi-save" :loading="saving" :disabled="loading" @click="save" />
         </div>
       </Teleport>
     </template>
@@ -1033,8 +1033,8 @@ label {
   }
 
   .report-form-view__save-fab {
-    left: 1rem;
-    right: 1rem;
+    left: 3rem;
+    right: 1.4rem;
   }
 
   .report-form-view__save-fab :deep(.p-button) {
