@@ -156,60 +156,58 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="report-list">
-    <AppTablePanelHeader
-      title="Rapports d’activité"
-      :count-label="`${filteredItems.length} rapport${filteredItems.length > 1 ? 's' : ''}`"
-      create-label="Nouveau rapport"
-      :show-create="canCreate"
-      show-search
-      v-model:search-term="searchTerm"
-      search-placeholder="Code, description, projet ou site…"
-      @create="router.push({ name: 'project-report-create' })"
-      @reload="load"
-    />
-    <AppTableState
-      :loading="loading"
-      :error="error"
-      :is-empty="!loading && !error && !filteredItems.length"
-      @retry="load"
-    >
-      <DataTable :value="filteredItems" paginator :rows="15" striped-rows @row-dblclick="open($event.data)">
-        <Column field="code" header="Code" sortable />
-        <Column header="Période">
-          <template #body="{ data }">{{ periodLabel(data) }}</template>
-        </Column>
-        <Column field="description" header="Description" />
-        <Column header="Sites" style="width: 6rem">
-          <template #body="{ data }">{{ data.siteCount ?? data.lineCount ?? data.sites?.length ?? 0 }}</template>
-        </Column>
-        <Column field="status" header="État" style="width: 8rem">
-          <template #body="{ data }">
-            <Tag :value="statusLabel(data.status)" :severity="statusSeverity(data.status)" />
-          </template>
-        </Column>
-        <Column header="Actions" style="width: 5rem">
-          <template #body="{ data }">
-            <Button
-              icon="pi pi-ellipsis-v"
-              text
-              rounded
-              :loading="exporting && activeItem?.id === data.id"
-              aria-label="Actions"
-              @click="toggleMenu($event, data)"
-            />
-          </template>
-        </Column>
-      </DataTable>
-    </AppTableState>
-    <Menu ref="menu" :model="menuItems" popup />
-  </div>
+   <section class="dashboard-page">
+    <Card class="dashboard-panel">
+      <template #title>
+        <AppTablePanelHeader
+          title="Rapports d’activité"
+          :count-label="`${filteredItems.length} rapport${filteredItems.length > 1 ? 's' : ''}`"
+          create-label="Nouveau rapport"
+          :show-create="canCreate"
+          show-search
+          v-model:search-term="searchTerm"
+          search-placeholder="Code, description, projet ou site…"
+          @create="router.push({ name: 'project-report-create' })"
+          @reload="load"
+        />
+      </template>
+      <template #content>
+        <AppTableState
+          :loading="loading"
+          :error="error"
+          :is-empty="!loading && !error && !filteredItems.length"
+          @retry="load"
+        >
+          <DataTable :value="filteredItems" paginator :rows="15" striped-rows @row-dblclick="open($event.data)">
+            <Column field="code" header="Code" sortable />
+            <Column header="Période">
+              <template #body="{ data }">{{ periodLabel(data) }}</template>
+            </Column>
+            <Column field="description" header="Description" />
+            <Column header="Sites" style="width: 6rem">
+              <template #body="{ data }">{{ data.siteCount ?? data.lineCount ?? data.sites?.length ?? 0 }}</template>
+            </Column>
+            <Column field="status" header="État" style="width: 8rem">
+              <template #body="{ data }">
+                <Tag :value="statusLabel(data.status)" :severity="statusSeverity(data.status)" />
+              </template>
+            </Column>
+            <Column header="Actions" style="width: 5rem">
+              <template #body="{ data }">
+                <Button
+                  icon="pi pi-ellipsis-v"
+                  text
+                  rounded
+                  :loading="exporting && activeItem?.id === data.id"
+                  aria-label="Actions"
+                  @click="toggleMenu($event, data)"
+                />
+              </template>
+            </Column>
+          </DataTable>
+        </AppTableState>
+      </template>
+    </Card>
+  </section>
+  <Menu ref="menu" :model="menuItems" popup />
 </template>
-
-<style scoped>
-.report-list {
-  display: grid;
-  gap: 1rem;
-  min-width: 0;
-}
-</style>
