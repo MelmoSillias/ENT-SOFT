@@ -7,21 +7,23 @@
     .report-hero h1 { margin: 0 0 5px; font-size: 22pt; }
     .report-hero p { margin: 2px 0; }
     .report-summary { border: 1px solid #d8e0ec; background: #f5f8fc; padding: 10px 12px; margin-bottom: 14px; }
-    .site { page-break-inside: avoid; border: 1px solid #d8e0ec; margin: 0 0 14px; }
-    .site__head { background: #e8f0fb; border-bottom: 1px solid #d8e0ec; padding: 9px 11px; }
-    .site__head h2 { margin: 0; color: #1e3a5f; font-size: 14pt; }
-    .site__project { color: #5c6b82; font-size: 9pt; margin-top: 2px; }
-    .site__body { padding: 10px 11px; }
-    .meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    .meta th, .meta td { border: 1px solid #d8e0ec; padding: 5px 7px; text-align: left; vertical-align: top; }
-    .meta th { width: 25%; background: #f5f8fc; color: #334155; }
+    .project { page-break-inside: avoid; border: 1px solid #d8e0ec; margin: 0 0 14px; }
+    .project__head { background: #e8f0fb; border-bottom: 1px solid #d8e0ec; padding: 9px 11px; }
+    .project__head h2 { margin: 0; color: #1e3a5f; font-size: 14pt; }
+    .project__head p { margin: 2px 0 0; color: #5c6b82; font-size: 9pt; }
+    .report-table { width: 100%; border-collapse: collapse; }
+    .report-table th, .report-table td { border: 1px solid #d8e0ec; padding: 5px 7px; text-align: left; vertical-align: top; }
+    .report-table th { background: #f5f8fc; color: #334155; font-size: 9pt; }
+    .report-table td { font-size: 9pt; }
+    .site-title { font-weight: bold; color: #172033; }
+    .site-subtitle { color: #5c6b82; font-size: 8.5pt; margin-top: 2px; }
     .status { display: inline-block; padding: 2px 7px; border-radius: 10px; background: #64748b; color: #fff; font-weight: bold; }
     .status--completed { background: #15803d; }
     .status--in_progress { background: #b45309; }
     .status--blocked { background: #b91c1c; }
-    .gallery { margin-top: 8px; }
-    .photo { display: inline-block; width: 47%; vertical-align: top; margin: 0 2% 10px 0; }
-    .photo img { width: 100%; max-height: 210px; object-fit: contain; border: 1px solid #d8e0ec; }
+    .attachments { display: grid; gap: 6px; }
+    .attachment { page-break-inside: avoid; }
+    .attachment img { width: 100%; max-height: 160px; object-fit: contain; border: 1px solid #d8e0ec; }
     .caption { color: #5c6b82; font-size: 8.5pt; margin-top: 3px; }
 </style>
 {% endblock %}
@@ -39,35 +41,54 @@
     <p>{{ report.sites|length }} site{{ report.sites|length > 1 ? 's' : '' }} documenté{{ report.sites|length > 1 ? 's' : '' }}</p>
 </div>
 
-{% for site in report.sites %}
-<section class="site">
-    <div class="site__head">
-        <h2>{{ site.code ? site.code ~ ' — ' : '' }}{{ site.title }}</h2>
-        <div class="site__project">{{ site.project ?: 'Site hors projet' }}{% if site.groupLabel %} — {{ site.groupLabel }}{% endif %}</div>
+{% for group in report.groups %}
+<section class="project">
+    <div class="project__head">
+        <h2>{{ group.label }}</h2>
+        <p>{{ group.lines|length }} site{{ group.lines|length > 1 ? 's' : '' }}</p>
     </div>
-    <div class="site__body">
-        <table class="meta">
-            <tr><th>Statut</th><td><span class="status status--{{ site.statusKey }}">{{ site.status }}</span></td></tr>
-            {% if site.plannedTask %}<tr><th>Tâche prévue</th><td>{{ site.plannedTask }}</td></tr>{% endif %}
-            <tr><th>Observation</th><td>{{ site.observation ?: '—' }}</td></tr>
-            <tr><th>Personnes présentes</th><td>{{ site.attendees|length ? site.attendees|join(', ') : '—' }}</td></tr>
-        </table>
-
-        {% if site.attachments|length %}
-        <div class="gallery">
-            {% for file in site.attachments %}
-                {% if file.image %}
-                <div class="photo">
-                    <img src="{{ file.image }}" alt="">
-                    <div class="caption">{{ file.description ?: file.title }}</div>
-                </div>
-                {% else %}
-                <p>Pièce jointe : {{ file.title }}{% if file.description %} — {{ file.description }}{% endif %}</p>
-                {% endif %}
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Site</th>
+                <th>Statut</th>
+                <th>Tâche prévue</th>
+                <th>Observation</th>
+                <th>Chef d'équipe</th>
+                <th>Fichiers</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for site in group.lines %}
+            <tr>
+                <td>
+                    <div class="site-title">{{ site.code ? site.code ~ ' — ' : '' }}{{ site.title }}</div>
+                    {% if site.groupLabel %}<div class="site-subtitle">{{ site.groupLabel }}</div>{% endif %}
+                </td>
+                <td><span class="status status--{{ site.statusKey }}">{{ site.status }}</span></td>
+                <td>{{ site.plannedTask ?: '—' }}</td>
+                <td>{{ site.observation ?: '—' }}</td>
+                <td>{{ site.teamLeader ?: '—' }}</td>
+                <td>
+                    {% if site.attachments|length %}
+                        <div class="attachments">
+                            {% for file in site.attachments %}
+                                <div class="attachment">
+                                    {% if file.image %}
+                                        <img src="{{ file.image }}" alt="">
+                                    {% endif %}
+                                    <div class="caption">{{ file.description ?: file.title }}</div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+            </tr>
             {% endfor %}
-        </div>
-        {% endif %}
-    </div>
+        </tbody>
+    </table>
 </section>
 {% endfor %}
 {% endblock %}

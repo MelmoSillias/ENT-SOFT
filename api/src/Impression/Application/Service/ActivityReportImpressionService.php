@@ -36,7 +36,7 @@ final class ActivityReportImpressionService
             throw new NotFoundHttpException('Rapport introuvable.');
         }
 
-        $format = in_array($format, ['pdf', 'excel', 'word'], true) ? $format : 'pdf';
+        $format = in_array($format, ['pdf', 'excel', 'word', 'html'], true) ? $format : 'pdf';
         $filename = $this->safeName($report->getCode() ?: 'rapport-activite');
         $content = $this->content($report, $format);
 
@@ -57,56 +57,75 @@ final class ActivityReportImpressionService
         return match ($format) {
             'excel' => $this->excel($report),
             'word' => $this->word($report),
+            'html' => $this->html($report),
             default => $this->pdf($report),
         };
     }
 
+    private function html(ActivityReport $report): string
+    {
+        return $this->renderTemplate($report, true);
+    }
+
     private function pdf(ActivityReport $report): string
     {
-        $html = $this->twig->render('impression/activity_report.html.twig', [
-            'report' => $this->viewData($report, true),
-            'profile' => $this->support->profile(),
-            'page' => $this->support->pageContext('a4', 'portrait'),
-            'auto_print' => false,
-        ]);
+        $html = $this->renderTemplate($report, true);
 
         $response = $this->support->pdfResponse($html, 'rapport', 'a4', 'portrait', 'attachment');
 
         return (string) $response->getContent();
     }
 
+    private function renderTemplate(ActivityReport $report, bool $embedImages): string
+    {
+        return $this->twig->render('impression/activity_report.html.twig', [
+            'report' => $this->viewData($report, $embedImages),
+            'profile' => $this->support->profile(),
+            'page' => $this->support->pageContext('a4', 'portrait'),
+            'render_mode' => 'pdf',
+            'auto_print' => false,
+        ]);
+    }
+
     private function excel(ActivityReport $report): string
     {
+        $groups = $this->groups($report, false);
+
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Rapport');
         $sheet->setCellValue('A1', $report->getCode());
         $sheet->setCellValue('A2', $report->getDescription());
-        $sheet->mergeCells('A1:H1')->mergeCells('A2:H2');
-        $sheet->getStyle('A1:H1')->getFont()->setBold(true)->setSize(16)->getColor()->setARGB('FFFFFFFF');
-        $sheet->getStyle('A1:H1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF1E3A5F');
-        $headers = ['Projet', 'Code site', 'Site', 'Statut', 'Tâche prévue', 'Observation', 'Intervenants', 'Fichiers'];
+        $sheet->mergeCells('A1:F1')->mergeCells('A2:F2');
+        $sheet->getStyle('A1:F1')->getFont()->setBold(true)->setSize(16)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle('A1:F1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF1E3A5F');
+        $headers = ['Site', 'Statut', 'Tâche prévue', 'Observation', "Chef d'équipe", 'Fichiers'];
         $sheet->fromArray($headers, null, 'A4');
-        $sheet->getStyle('A4:H4')->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
-        $sheet->getStyle('A4:H4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF2563EB');
+        $sheet->getStyle('A4:F4')->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle('A4:F4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF2563EB');
 
         $row = 5;
-        foreach ($report->getLines() as $line) {
-            $docs = $this->documentsFor($line);
-            $sheet->fromArray([
-                trim(($line->getProjectCodeSnapshot() ?? '').' '.($line->getProjectTitleSnapshot() ?? '')),
-                $line->getSiteCodeSnapshot(),
-                $line->getSiteTitleSnapshot(),
-                $this->statusLabel($line->getStatus()->value),
-                $line->getPlannedTask(),
-                $line->getObservation(),
-                implode(', ', array_map(static fn (array $person): string => (string) ($person['name'] ?? 'Personne'), $line->getAttendees())),
-                implode("\n", array_map(static fn ($doc): string => $doc->getFilePath(), $docs)),
-            ], null, 'A'.$row);
-            $sheet->getStyle('E'.$row.':H'.$row)->getAlignment()->setWrapText(true);
+        foreach ($groups as $group) {
+            $sheet->setCellValue('A'.$row, $group['label']);
+            $sheet->mergeCells('A'.$row.':F'.$row);
+            $sheet->getStyle('A'.$row.':F'.$row)->getFont()->setBold(true)->getColor()->setARGB('FF1E3A5F');
+            $sheet->getStyle('A'.$row.':F'.$row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE8F0FB');
+            ++$row;
+            foreach ($group['lines'] as $line) {
+                $sheet->fromArray([
+                    $line['siteLabel'],
+                    $line['status'],
+                    $line['plannedTask'],
+                    $line['observation'],
+                    $line['teamLeader'],
+                    implode("\n", array_map(static fn (array $doc): string => $doc['title'] ?? '', $line['attachments'])),
+                ], null, 'A'.$row);
+                $sheet->getStyle('B'.$row.':F'.$row)->getAlignment()->setWrapText(true);
+                ++$row;
+            }
             ++$row;
         }
-        foreach (range('A', 'H') as $column) {
+        foreach (range('A', 'F') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
         $sheet->freezePane('A5');
@@ -116,6 +135,7 @@ final class ActivityReportImpressionService
 
     private function word(ActivityReport $report): string
     {
+        $groups = $this->groups($report, true);
         $word = new PhpWord();
         $section = $word->addSection(['marginTop' => 900, 'marginBottom' => 900, 'marginLeft' => 900, 'marginRight' => 900]);
         $section->addTitle('Rapport d’activité', 1);
@@ -123,29 +143,37 @@ final class ActivityReportImpressionService
         $section->addText($this->period($report));
         $section->addText($report->getDescription());
 
-        foreach ($report->getLines() as $index => $line) {
-            $section->addTitle(sprintf('%d. %s', $index + 1, $line->getSiteTitleSnapshot() ?? 'Site'), 2);
-            $section->addText('Projet : '.(trim(($line->getProjectCodeSnapshot() ?? '').' '.($line->getProjectTitleSnapshot() ?? '')) ?: 'Hors projet'));
-            $section->addText('Statut : '.$this->statusLabel($line->getStatus()->value), ['bold' => true]);
-            if ($line->getPlannedTask()) {
-                $section->addText('Tâche prévue : '.$line->getPlannedTask());
+        foreach ($groups as $group) {
+            $section->addTitle($group['label'], 2);
+            $table = $section->addTable([
+                'borderSize' => 6,
+                'borderColor' => 'D8E0EC',
+                'cellMargin' => 70,
+                'width' => 100 * 50,
+            ]);
+            foreach (['Site', 'Statut', 'Tâche prévue', 'Observation', "Chef d'équipe", 'Fichiers'] as $header) {
+                $table->addCell(1700)->addText($header, ['bold' => true, 'color' => '1E3A5F', 'size' => 9]);
             }
-            if ($line->getObservation()) {
-                $section->addText('Observation : '.$line->getObservation());
-            }
-            $people = array_map(static fn (array $person): string => (string) ($person['name'] ?? 'Personne'), $line->getAttendees());
-            if ($people !== []) {
-                $section->addText('Présents : '.implode(', ', $people));
-            }
-            foreach ($this->documentsFor($line) as $document) {
-                $path = $this->absolutePath($document->getFilePath());
-                if ($path && $this->isImage($path)) {
-                    $section->addImage($path, ['width' => 420, 'height' => 260, 'ratio' => true]);
-                    $section->addText($document->getDescription() ?: $document->getTitle(), ['italic' => true, 'size' => 9]);
+            foreach ($group['lines'] as $line) {
+                $table->addRow();
+                $table->addCell(1700)->addText($line['siteLabel'] ?: 'Site');
+                $table->addCell(1100)->addText($line['status']);
+                $table->addCell(1700)->addText($line['plannedTask'] ?: '—');
+                $table->addCell(2200)->addText($line['observation'] ?: '—');
+                $table->addCell(1300)->addText($line['teamLeader'] ?: '—');
+                $filesCell = $table->addCell(2400);
+                if ($line['attachments'] === []) {
+                    $filesCell->addText('—');
                 } else {
-                    $section->addText('Pièce jointe : '.$document->getTitle());
+                    foreach ($line['attachments'] as $attachment) {
+                        $filesCell->addText($attachment['title'] ?: 'Pièce jointe', ['size' => 8]);
+                        if (!empty($attachment['description'])) {
+                            $filesCell->addText($attachment['description'], ['italic' => true, 'size' => 8]);
+                        }
+                    }
                 }
             }
+            $section->addTextBreak(1);
         }
 
         return $this->writerContent(IOFactory::createWriter($word, 'Word2007'));
@@ -188,29 +216,12 @@ final class ActivityReportImpressionService
     /** @return array<string, mixed> */
     private function viewData(ActivityReport $report, bool $embedImages): array
     {
+        $groups = $this->groups($report, $embedImages);
         $sites = [];
-        foreach ($report->getLines() as $line) {
-            $attachments = [];
-            foreach ($this->documentsFor($line) as $document) {
-                $path = $this->absolutePath($document->getFilePath());
-                $attachments[] = [
-                    'title' => $document->getTitle(),
-                    'description' => $document->getDescription(),
-                    'image' => $embedImages && $path && $this->isImage($path) ? $this->dataUri($path) : null,
-                ];
+        foreach ($groups as $group) {
+            foreach ($group['lines'] as $line) {
+                $sites[] = $line;
             }
-            $sites[] = [
-                'project' => trim(($line->getProjectCodeSnapshot() ?? '').' '.($line->getProjectTitleSnapshot() ?? '')),
-                'code' => $line->getSiteCodeSnapshot(),
-                'title' => $line->getSiteTitleSnapshot() ?? 'Site',
-                'status' => $this->statusLabel($line->getStatus()->value),
-                'statusKey' => $line->getStatus()->value,
-                'plannedTask' => $line->getPlannedTask(),
-                'observation' => $line->getObservation(),
-                'groupLabel' => $line->getGroupLabel(),
-                'attendees' => array_map(static fn (array $person): string => (string) ($person['name'] ?? 'Personne'), $line->getAttendees()),
-                'attachments' => $attachments,
-            ];
         }
 
         return [
@@ -218,7 +229,62 @@ final class ActivityReportImpressionService
             'period' => $this->period($report),
             'description' => $report->getDescription(),
             'status' => $report->getStatus()->value,
+            'groups' => $groups,
             'sites' => $sites,
+        ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function groups(ActivityReport $report, bool $embedImages): array
+    {
+        $groups = [];
+        foreach ($report->getLines() as $line) {
+            $projectLabel = trim(($line->getProjectCodeSnapshot() ?? '').' '.($line->getProjectTitleSnapshot() ?? ''));
+            $groupLabel = trim((string) ($line->getGroupLabel() ?? ''));
+            $label = $projectLabel !== '' ? $projectLabel : ($groupLabel !== '' ? $groupLabel : 'Site hors projet');
+            $groupKey = $line->getProjectId()?->toRfc4122() ?: ('manual-'.$label);
+            if (!isset($groups[$groupKey])) {
+                $groups[$groupKey] = [
+                    'key' => $groupKey,
+                    'label' => $label,
+                    'project' => $projectLabel !== '' ? $projectLabel : null,
+                    'lines' => [],
+                ];
+            }
+            $groups[$groupKey]['lines'][] = $this->lineViewData($line, $embedImages);
+        }
+
+        return array_values($groups);
+    }
+
+    /** @return array<string, mixed> */
+    private function lineViewData(ActivityReportSite $line, bool $embedImages): array
+    {
+        $attachments = [];
+        foreach ($this->documentsFor($line) as $document) {
+            $path = $this->absolutePath($document->getFilePath());
+            $attachments[] = [
+                'title' => $document->getTitle(),
+                'description' => $document->getDescription(),
+                'image' => $embedImages && $path && $this->isImage($path) ? $this->dataUri($path) : null,
+            ];
+        }
+
+        $leader = $line->getAttendees()[0] ?? null;
+        $leaderName = is_array($leader) ? (string) ($leader['name'] ?? 'Personne') : 'Personne';
+
+        return [
+            'project' => trim(($line->getProjectCodeSnapshot() ?? '').' '.($line->getProjectTitleSnapshot() ?? '')),
+            'code' => $line->getSiteCodeSnapshot(),
+            'title' => $line->getSiteTitleSnapshot() ?? 'Site',
+            'siteLabel' => trim(trim((string) ($line->getSiteCodeSnapshot() ?? '')).' '.trim((string) ($line->getSiteTitleSnapshot() ?? ''))),
+            'status' => $this->statusLabel($line->getStatus()->value),
+            'statusKey' => $line->getStatus()->value,
+            'plannedTask' => $line->getPlannedTask(),
+            'observation' => $line->getObservation(),
+            'groupLabel' => $line->getGroupLabel(),
+            'teamLeader' => $leaderName,
+            'attachments' => $attachments,
         ];
     }
 
@@ -272,6 +338,7 @@ final class ActivityReportImpressionService
     private function formatMeta(string $format): array
     {
         return match ($format) {
+            'html' => ['html', 'text/html; charset=utf-8'],
             'excel' => ['xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
             'word' => ['docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
             default => ['pdf', 'application/pdf'],

@@ -86,6 +86,12 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }
 
+function openBlob(blob) {
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank', 'noopener,noreferrer')
+  setTimeout(() => URL.revokeObjectURL(url), 30_000)
+}
+
 async function runExport(item, format, bundle = false) {
   exporting.value = true
   try {
@@ -93,6 +99,18 @@ async function runExport(item, format, bundle = false) {
     downloadBlob(blob, `${item.code || 'rapport'}.${bundle ? 'zip' : format === 'excel' ? 'xlsx' : format === 'word' ? 'docx' : format}`)
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Export', detail: e.response?.data?.error || 'Export impossible.' })
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function runPrint(item) {
+  exporting.value = true
+  try {
+    const blob = await exportProjectReport(item.id, 'html')
+    openBlob(blob)
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Impression', detail: e.response?.data?.error || 'Impression impossible.' })
   } finally {
     exporting.value = false
   }
@@ -123,6 +141,7 @@ function toggleMenu(event, item) {
     { label: 'Ouvrir', icon: 'pi pi-eye', command: () => open(item) },
     { label: 'Modifier', icon: 'pi pi-pencil', visible: canUpdate.value, command: () => open(item) },
     { separator: true, visible: canExport.value },
+    { label: 'Imprimer', icon: 'pi pi-print', visible: canExport.value, command: () => runPrint(item) },
     { label: 'PDF', icon: 'pi pi-file-pdf', visible: canExport.value, command: () => runExport(item, 'pdf') },
     { label: 'Excel', icon: 'pi pi-file-excel', visible: canExport.value, command: () => runExport(item, 'excel') },
     { label: 'Word', icon: 'pi pi-file-word', visible: canExport.value, command: () => runExport(item, 'word') },

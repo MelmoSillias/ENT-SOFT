@@ -110,6 +110,7 @@ final class InvoiceImpressionService
             ],
             'profile' => $this->support->profile(),
             'page' => $this->support->pageContext($page, $orientation),
+            'render_mode' => $format,
             'auto_print' => $format === 'html' && $disposition === 'inline',
         ]);
 

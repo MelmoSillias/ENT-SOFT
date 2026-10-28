@@ -15,8 +15,8 @@ import {
   getProjectReport,
   updateProjectReport,
 } from '@/domains/project/services/projectReportService'
-import { getProjectDetail, listProjects } from '@/domains/project/services/projectService'
-import { listSites } from '@/domains/site/services/siteService'
+import { addSiteToProject, getProjectDetail, listProjects } from '@/domains/project/services/projectService'
+import { createSite, listSites } from '@/domains/site/services/siteService'
 import { listEmployees } from '@/domains/employee/services/employeeService'
 import { listDocuments, updateDocument, uploadDocumentFile } from '@/domains/document/services/documentService'
 import { parseApiDate, toApiDate } from '@/domains/shared/utils/dateUtils'
@@ -36,6 +36,10 @@ const projectSites = ref([])
 const pickerProjectId = ref(null)
 const pickerProjectSiteIds = ref([])
 const pickerSiteIds = ref([])
+const pickerGroupLabel = ref('')
+const newSiteCode = ref('')
+const newSiteTitle = ref('')
+const creatingSite = ref(false)
 const removedDocumentIds = ref([])
 
 const STATUS_OPTIONS = [
@@ -88,6 +92,7 @@ function employeeDisplayName(employee) {
 
 function newLine(data = {}) {
   const attendees = data.attendees || []
+  const leader = attendees[0] || null
   return {
     id: data.id || null,
     projectId: data.projectId || null,
@@ -101,8 +106,8 @@ function newLine(data = {}) {
     observation: data.observation || data.comment || '',
     plannedTask: data.plannedTask || data.description || '',
     groupLabel: data.groupLabel || '',
-    attendeeIds: attendees.map((entry) => typeof entry === 'string' ? entry : entry.id).filter(Boolean),
-    attendeeSnapshots: attendees,
+    teamLeaderId: typeof leader === 'string' ? leader : leader?.id || null,
+    teamLeaderSnapshot: leader,
     attachments: data.attachments || [],
   }
 }
@@ -138,6 +143,7 @@ function loadPlanningPrefill() {
     form.value.startDate = parseApiDate(prefill.startDate) || new Date()
     form.value.endDate = parseApiDate(prefill.endDate || prefill.startDate) || form.value.startDate
     form.value.sites = (prefill.sites || []).map(newLine)
+    pickerGroupLabel.value = prefill.groupLabel || ''
   } catch {
     // Ignore stale or malformed navigation state.
   }
@@ -160,8 +166,9 @@ function addProjectSites() {
       projectSiteId: site.id,
       projectCode: project?.code || '',
       projectTitle: project?.title || '',
+      groupLabel: pickerGroupLabel.value,
       observation: site.comment || '',
-      attendees: (site.employeeIds || []).map((id) => ({
+      attendees: (site.employeeIds || []).slice(0, 1).map((id) => ({
         id,
         name: employeeDisplayName(employees.value.find((employee) => employee.id === id) || { id }),
         kind: 'employee',
@@ -175,9 +182,67 @@ function addStandaloneSites() {
   const existing = new Set(form.value.sites.map((line) => line.siteId).filter(Boolean))
   const added = sites.value
     .filter((site) => pickerSiteIds.value.includes(site.id) && !existing.has(site.id))
-    .map((site) => newLine({ siteId: site.id, siteCode: site.code, siteTitle: site.title }))
+    .map((site) => newLine({ siteId: site.id, siteCode: site.code, siteTitle: site.title, groupLabel: pickerGroupLabel.value }))
   form.value.sites.push(...added)
   pickerSiteIds.value = []
+}
+
+function resetSiteCreator() {
+  newSiteCode.value = ''
+  newSiteTitle.value = ''
+}
+
+async function createAndAddSite() {
+  const code = newSiteCode.value.trim()
+  const title = newSiteTitle.value.trim()
+  if (!code || !title) {
+    toast.add({ severity: 'warn', summary: 'Site', detail: 'Le code et le titre sont requis.' })
+    return
+  }
+
+  creatingSite.value = true
+  try {
+    const createdSite = await createSite({ code, title })
+    const linkedProjectId = pickerProjectId.value
+    let linkedProjectSite = null
+    if (linkedProjectId) {
+      linkedProjectSite = await addSiteToProject(linkedProjectId, {
+        siteId: createdSite.id,
+        status: 'pending',
+        informationsValues: {},
+        employeeIds: [],
+        technicianId: null,
+      })
+    }
+
+    const project = projects.value.find((item) => item.id === linkedProjectId)
+    form.value.sites.push(newLine({
+      siteId: createdSite.id,
+      siteCode: createdSite.code,
+      siteTitle: createdSite.title,
+      groupLabel: pickerGroupLabel.value,
+      projectId: linkedProjectId || null,
+      projectCode: project?.code || '',
+      projectTitle: project?.title || '',
+    }))
+
+    if (linkedProjectId) {
+      projectSites.value.unshift({
+        id: linkedProjectSite?.id || createdSite.id,
+        siteCode: createdSite.code,
+        siteTitle: createdSite.title,
+        employeeIds: [],
+        comment: '',
+      })
+    }
+
+    resetSiteCreator()
+    toast.add({ severity: 'success', summary: 'Site', detail: 'Site créé et ajouté au rapport.' })
+  } catch (e) {
+    toast.add({ severity: 'error', summary: 'Site', detail: e.response?.data?.error || 'Création impossible.' })
+  } finally {
+    creatingSite.value = false
+  }
 }
 
 function removeLine(index) {
@@ -204,15 +269,15 @@ function payload() {
       observation: line.observation || null,
       plannedTask: line.plannedTask || null,
       groupLabel: line.groupLabel || null,
-      attendees: line.attendeeIds.map((id) => {
+      attendees: line.teamLeaderId ? [line.teamLeaderId].map((id) => {
         const employee = employees.value.find((entry) => entry.id === id)
-        const snapshot = line.attendeeSnapshots.find((entry) => entry.id === id)
+        const snapshot = line.teamLeaderSnapshot && line.teamLeaderSnapshot.id === id ? line.teamLeaderSnapshot : null
         return {
           id,
           name: employee ? employeeDisplayName(employee) : snapshot?.name || 'Personne',
           kind: snapshot?.kind || 'employee',
         }
-      }),
+      }) : [],
     })),
   }
 }
@@ -334,7 +399,8 @@ onMounted(load)
       <Card class="dashboard-panel">
         <template #title>Ajouter des sites</template>
         <template #content>
-          <div class="report-form-view__pickers">
+          <div class="report-form-view__pickers report-form-view__pickers--group">
+            <InputText v-model="pickerGroupLabel" placeholder="Groupe ou description manuelle" />
             <Select
               v-model="pickerProjectId"
               :options="projectOptions"
@@ -355,7 +421,7 @@ onMounted(load)
             />
             <Button label="Ajouter la sélection" icon="pi pi-plus" :disabled="!pickerProjectSiteIds.length" @click="addProjectSites" />
           </div>
-          <div class="report-form-view__pickers">
+          <div class="report-form-view__pickers report-form-view__pickers--group">
             <MultiSelect
               v-model="pickerSiteIds"
               :options="siteOptions"
@@ -366,6 +432,11 @@ onMounted(load)
               placeholder="Ou choisir des sites hors projet"
             />
             <Button label="Ajouter les sites" icon="pi pi-plus" severity="secondary" :disabled="!pickerSiteIds.length" @click="addStandaloneSites" />
+          </div>
+          <div class="report-form-view__pickers report-form-view__pickers--create">
+            <InputText v-model="newSiteCode" placeholder="Code du nouveau site" />
+            <InputText v-model="newSiteTitle" placeholder="Titre du nouveau site" />
+            <Button label="Créer et ajouter" icon="pi pi-plus" severity="secondary" :loading="creatingSite" @click="createAndAddSite" />
           </div>
         </template>
       </Card>
@@ -385,17 +456,18 @@ onMounted(load)
             <div class="report-site__fields">
               <label>Statut<Select v-model="line.status" :options="STATUS_OPTIONS" option-label="label" option-value="value" /></label>
               <label>Tâche prévue<InputText v-model="line.plannedTask" /></label>
+              <label>Groupe / description<InputText v-model="line.groupLabel" placeholder="Groupe à la volée ou description manuelle" /></label>
               <label class="report-site__wide">Observation<Textarea v-model="line.observation" rows="3" auto-resize /></label>
               <label class="report-site__wide">
-                Personnes présentes
-                <MultiSelect
-                  v-model="line.attendeeIds"
+                Chef d'équipe
+                <Select
+                  v-model="line.teamLeaderId"
                   :options="employeeOptions"
                   option-label="label"
                   option-value="value"
                   filter
-                  display="chip"
-                  placeholder="Choisir les intervenants"
+                  show-clear
+                  placeholder="Choisir une personne"
                 />
               </label>
               <ReportSiteAttachments
@@ -448,6 +520,23 @@ onMounted(load)
   gap: 1rem;
 }
 
+.dashboard-panel :deep(.p-card-body) {
+  padding: 1rem 1.1rem;
+}
+
+.report-site :deep(.p-card-body) {
+  padding-top: 0.85rem;
+}
+
+.report-site :deep(.p-card-title),
+.report-site :deep(.p-card-subtitle) {
+  padding-inline: 0;
+}
+
+.report-site :deep(.p-card-subtitle) {
+  margin-top: -0.25rem;
+}
+
 label {
   display: grid;
   gap: 0.4rem;
@@ -464,6 +553,14 @@ label {
   grid-template-columns: minmax(12rem, 0.7fr) minmax(16rem, 1.3fr) auto;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.report-form-view__pickers--group {
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(12rem, 0.9fr) minmax(16rem, 1.2fr) auto;
+}
+
+.report-form-view__pickers--create {
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(14rem, 1.2fr) auto;
 }
 
 .report-form-view__sites {

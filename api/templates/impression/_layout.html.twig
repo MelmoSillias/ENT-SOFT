@@ -76,6 +76,36 @@
             object-fit: contain;
             object-position: left center;
         }
+        body.render-pdf .doc-header {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+        body.render-pdf .doc-header__left,
+        body.render-pdf .doc-header__center,
+        body.render-pdf .doc-header__right {
+            display: table-cell;
+            vertical-align: middle;
+        }
+        body.render-pdf .doc-header__left { width: 34%; }
+        body.render-pdf .doc-header__center {
+            width: 32%;
+            padding: 0 8px;
+        }
+        body.render-pdf .doc-header__right {
+            width: 34%;
+            text-align: right;
+        }
+        body.render-pdf .doc-header__logo {
+            width: auto;
+            max-width: 55mm;
+            height: auto;
+            max-height: 24mm;
+        }
+        body.render-pdf .doc-header__name,
+        body.render-pdf .doc-header__meta {
+            color: #14212b;
+        }
         .doc-header__name {
             display: block;
             font-family: 'Cooper', 'Arial MT Rounded', 'DejaVu Sans', Arial Black, 'Arial Black', Arial, Helvetica, sans-serif;
@@ -215,7 +245,7 @@
     </style>
     {% block extra_styles %}{% endblock %}
 </head>
-<body class="format-{{ page.format|default('a4') }} {{ page.format|default('a4') == 'receipt_80mm' ? 'receipt-80mm' : '' }} {{ page.orientation|default('portrait') == 'landscape' ? 'is-landscape' : 'is-portrait' }}">
+<body class="format-{{ page.format|default('a4') }} {{ page.format|default('a4') == 'receipt_80mm' ? 'receipt-80mm' : '' }} {{ page.orientation|default('portrait') == 'landscape' ? 'is-landscape' : 'is-portrait' }} {{ render_mode|default('html') == 'pdf' ? 'render-pdf' : 'render-html' }}">
     {% block header %}
         {% include 'impression/_header.html.twig' %}
     {% endblock %}
