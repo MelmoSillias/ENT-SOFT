@@ -970,8 +970,9 @@ label {
 
 .report-form-view__save-fab {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
+  border-radius: 50%;
+  right: 5;
+  bottom: 1,5rem;
   z-index: 40;
 }
 
@@ -1033,8 +1034,8 @@ label {
   }
 
   .report-form-view__save-fab {
-    left: 3rem;
-    right: 1.4rem;
+    left: 1rem;
+    right: 1rem;
   }
 
   .report-form-view__save-fab :deep(.p-button) {
