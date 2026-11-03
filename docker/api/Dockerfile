@@ -80,6 +80,7 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/*
 
 COPY docker/api/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/api/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 COPY docker/api/nginx.conf /etc/nginx/http.d/default.conf
 COPY docker/api/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

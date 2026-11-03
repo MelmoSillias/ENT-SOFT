@@ -16,6 +16,7 @@ import ImpressionSettingsPanel from '@/views/configuration/ImpressionSettingsPan
 import NumerotationSettingsPanel from '@/views/configuration/NumerotationSettingsPanel.vue'
 import FinancePartiesSettingsPanel from '@/views/configuration/FinancePartiesSettingsPanel.vue'
 import CorbeillePanel from '@/views/configuration/CorbeillePanel.vue'
+import DataImportPanel from '@/views/configuration/DataImportPanel.vue'
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 
 const route = useRoute()
@@ -30,7 +31,10 @@ const canViewSettings = computed(() => hasPermission('configuration.settings.upd
 const canEditSettings = computed(() => hasPermission('configuration.settings.update'))
 
 const tabItems = computed(() => {
-  const items = [{ value: 'appearance', label: 'Apparence', shortLabel: 'Apparence' }]
+  const items = [
+    { value: 'appearance', label: 'Apparence', shortLabel: 'Apparence' },
+    { value: 'imports', label: 'Import de données', shortLabel: 'Imports' },
+  ]
   if (canViewSettings.value) {
     items.push(
       { value: 'agency', label: 'Agence', shortLabel: 'Agence' },
@@ -44,7 +48,9 @@ const tabItems = computed(() => {
 
 function syncFromQuery() {
   const tab = route.query.tab
-  if (tab === 'agency' && canViewSettings.value) {
+  if (tab === 'imports') {
+    activeTab.value = 'imports'
+  } else if (tab === 'agency' && canViewSettings.value) {
     activeTab.value = 'agency'
   } else if (tab === 'impressions' && canViewSettings.value) {
     activeTab.value = 'impressions'
@@ -77,6 +83,7 @@ syncFromQuery()
         <Tabs v-else v-model:value="activeTab">
           <TabList>
             <Tab value="appearance">Apparence</Tab>
+            <Tab value="imports">Import de données</Tab>
             <Tab v-if="canViewSettings" value="agency">Agence</Tab>
             <Tab v-if="canViewSettings" value="impressions">Impressions</Tab>
             <Tab v-if="canViewSettings" value="settings">Paramètres</Tab>
@@ -85,6 +92,7 @@ syncFromQuery()
 
           <TabPanels>
             <TabPanel value="appearance" />
+            <TabPanel value="imports" />
             <TabPanel v-if="canViewSettings" value="agency" />
             <TabPanel v-if="canViewSettings" value="impressions" />
             <TabPanel v-if="canViewSettings" value="settings" />
@@ -95,6 +103,7 @@ syncFromQuery()
         <div v-show="activeTab === 'appearance'">
           <AppThemeControls />
         </div>
+        <DataImportPanel v-if="activeTab === 'imports'" />
         <div v-if="canViewSettings" v-show="activeTab === 'agency'">
           <AgencySettingsPanel :can-edit="canEditSettings" />
         </div>
@@ -110,11 +119,11 @@ syncFromQuery()
         </div>
 
         <Message
-          v-if="!canViewSettings"
+          v-if="!canViewSettings && activeTab !== 'imports'"
           severity="info"
           class="configurations-page__info"
         >
-          Seule la personnalisation de l'apparence est disponible pour votre profil.
+          Les paramètres d’administration ne sont pas disponibles pour votre profil.
         </Message>
       </template>
     </Card>

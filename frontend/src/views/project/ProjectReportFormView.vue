@@ -677,7 +677,6 @@ onMounted(load)
                       @update:model-value="() => syncGroupSites(group)"
                     />
                   </label>
-                  <small class="report-group__hint report-group__wide">Les sites cochés apparaissent immédiatement ci-dessous.</small>
                 </div>
 
                 <div v-if="group.sites.length" class="report-group__sites">

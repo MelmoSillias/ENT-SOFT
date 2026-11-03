@@ -1,5 +1,9 @@
 # Projet ENT
 
+## Import de données
+
+L’écran **Paramètres → Import de données** propose des modèles CSV et l’import ZIP avec justificatifs pour les dépenses et revenus. Voir le [guide du format d’import](documentation/import-donnees.md) pour les colonnes, exemples, relations et étapes d’installation.
+
 ## Présentation de l'entreprise ENT
 
 Ent et une entreprise proposant des prestations d'installations d'équipements télécoms de panneaux solaires et traite avec des operateurs télécoms ou des particuliers pour l'installation de leur équipements.
