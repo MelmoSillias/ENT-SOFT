@@ -45,6 +45,7 @@
 .service-card__identity strong { font-size: 11pt; line-height: 1.15; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .service-card__role { font-size: 8pt; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .service-card__type { font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.3mm; color: var(--card-accent); font-weight: 700; }
+.service-card__social-id { font-size: 7pt; line-height: 1.2; overflow-wrap: anywhere; }
 .service-card__personal { font-size: 5.5pt; line-height: 1.2; overflow-wrap: anywhere; }
 .service-card__footer { display: flex; flex-direction: column; gap: .3mm; font-size: 5.5pt; line-height: 1.25; border-top: 0.2mm solid #ced8dd; padding-top: 1mm; flex-shrink: 0; }
 .service-card__footer strong { font-size: 5pt; text-transform: uppercase; letter-spacing: .25mm; }

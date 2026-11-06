@@ -95,3 +95,21 @@ test('all A4 templates print with square outer corners', () => {
     }
   }
 })
+
+
+test('employee Social ID is escaped and appears in preview and print for every layout', () => {
+  const person = { ...people[1], socialId: '00123<&>' }
+  for (const template of CARD_TEMPLATES) {
+    for (const orientation of ['landscape', 'portrait']) {
+      const settings = { ...options, template: template.value, orientation }
+      for (const html of [renderServiceCard(person, settings, brand), buildServiceCardsDocument([person], settings, brand, '')]) {
+        assert.match(html, /Social ID : 00123&lt;&amp;&gt;/)
+        assert.ok(!html.includes(person.socialId))
+      }
+    }
+  }
+  for (const socialId of [null, undefined, '']) {
+    assert.ok(!renderServiceCard({ ...person, socialId }, options, brand).includes('Social ID'))
+  }
+  assert.ok(!renderServiceCard({ ...person, kind: 'prestataire' }, options, brand).includes('Social ID'))
+})

@@ -45,6 +45,9 @@ class Employee
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $photoUrl = null;
 
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $socialId = null;
+
     public function __construct(
         string $prenom,
         string $nom,
@@ -54,6 +57,7 @@ class Employee
         ?string $address = null,
         ?string $mention = null,
         ?Uuid $userId = null,
+        ?string $socialId = null,
     ) {
         $this->initializeUuid();
         $this->initializeTimestamps();
@@ -65,6 +69,19 @@ class Employee
         $this->address = $address;
         $this->mention = self::normalizeMention($mention);
         $this->userId = $userId;
+        $this->setSocialId($socialId);
+    }
+
+    public function getSocialId(): ?string { return $this->socialId; }
+
+    public function setSocialId(?string $socialId): void
+    {
+        $value = trim($socialId ?? '');
+        if (mb_strlen($value) > 100) {
+            throw new \InvalidArgumentException('Social ID ne doit pas dépasser 100 caractères.');
+        }
+        $this->socialId = $value === '' ? null : $value;
+        $this->touch();
     }
 
     public function getPrenom(): string { return $this->prenom; }

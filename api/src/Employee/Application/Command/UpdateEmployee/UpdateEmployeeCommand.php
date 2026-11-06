@@ -15,6 +15,8 @@ final readonly class UpdateEmployeeCommand
         public bool $hasAddress = false,
         public ?string $mention = null,
         public bool $hasMention = false,
+        public ?string $socialId = null,
+        public bool $hasSocialId = false,
     ) {
     }
 }

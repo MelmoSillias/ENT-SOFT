@@ -50,6 +50,7 @@ const { isAppMobile } = useAppMobileLayout()
 
 const EMPLOYEE_COLUMNS = [
   { key: 'name', label: 'Nom', defaultVisible: true },
+  { key: 'socialId', label: 'Social ID', defaultVisible: true },
   { key: 'email', label: 'Email', defaultVisible: true },
   { key: 'phone', label: 'Téléphone', defaultVisible: true },
   { key: 'roleCode', label: 'Fonction', defaultVisible: true },
@@ -91,7 +92,7 @@ const rowContextMenu = ref()
 const canCreate = computed(() => hasPermission('employee.employees.create'))
 
 function emptyForm() {
-  return { prenom: '', nom: '', email: '', phone: '', roleCode: '', mention: '', address: '' }
+  return { prenom: '', nom: '', email: '', phone: '', roleCode: '', mention: '', socialId: '', address: '' }
 }
 
 const form = ref(emptyForm())
@@ -102,6 +103,7 @@ const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFiel
   if (!hasRequiredText(form.value.nom)) errs.nom = requiredMessage('Nom')
   if (!hasRequiredText(form.value.email)) errs.email = requiredMessage('Email')
   if (!hasValidPhone(form.value.phone)) errs.phone = 'Téléphone invalide.'
+  if ((form.value.socialId?.trim().length || 0) > 100) errs.socialId = 'Social ID ne doit pas dépasser 100 caractères.'
   if (!hasRequiredText(form.value.roleCode)) errs.roleCode = requiredMessage('Fonction')
   return errs
 })
@@ -151,7 +153,7 @@ const filteredItems = computed(() => {
   let list = items.value
   if (q) {
     list = list.filter((item) =>
-      [item.name, item.prenom, item.nom, item.email, item.phone, item.roleCode, item.mention]
+      [item.name, item.prenom, item.nom, item.email, item.phone, item.roleCode, item.mention, item.socialId]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
@@ -197,6 +199,7 @@ function openEdit(item) {
     phone: item.phone ?? '',
     roleCode: item.roleCode ?? item.function ?? '',
     mention: item.mention ?? '',
+    socialId: item.socialId ?? '',
     address: item.address ?? '',
   }
   resetErrors()
@@ -288,6 +291,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     phone: sanitizePhoneInput(form.value.phone),
     roleCode: form.value.roleCode,
     mention: form.value.mention?.trim() || null,
+    socialId: form.value.socialId?.trim() || null,
     address: form.value.address || null,
   }
   try {
@@ -358,7 +362,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
           :show-index="showIndex"
           :title-of="(item) => personDisplayName(item)"
           :subtitle-of="(item) => item.mention || item.email || null"
-          :meta-of="(item) => roleLabel(item.roleCode || item.function)"
+          :meta-of="(item) => [roleLabel(item.roleCode || item.function), item.socialId ? `Social ID : ${item.socialId}` : null].filter(Boolean).join(' · ')"
           :status-of="(item) => ({ value: item.isEnabled ? 'Actif' : 'Inactif', severity: item.isEnabled ? 'success' : 'secondary' })"
           :avatar-of="(item) => ({ name: personDisplayName(item), photoUrl: item.photoUrl, person: item, kind: 'employee' })"
           :actions-of="buildMenuItems"
@@ -389,6 +393,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
               />
             </template>
           </Column>
+          <Column v-if="isColVisible('socialId')" field="socialId" header="Social ID" sortable />
           <Column v-if="isColVisible('email')" field="email" header="Email" sortable />
           <Column v-if="isColVisible('phone')" field="phone" header="Téléphone" sortable />
           <Column v-if="isColVisible('roleCode')" header="Fonction" sortable field="roleCode">

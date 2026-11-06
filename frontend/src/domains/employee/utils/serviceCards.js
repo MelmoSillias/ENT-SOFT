@@ -43,6 +43,7 @@ export function renderServiceCard(person, options, brand) {
     <div class="service-card__body">
       ${options.withPhoto ? `<div class="service-card__photo">${photo ? `<img src="${photo}" alt="Photo de ${escapeHtml(person.displayName)}">` : '<span>Photo manquante</span>'}</div>` : ''}
       <div class="service-card__identity"><strong>${escapeHtml(person.displayName)}</strong>${person.mention ? `<span class="service-card__role">${escapeHtml(person.mention)}</span>` : ''}<span class="service-card__type">${label}</span>
+      ${person.kind === 'employee' && person.socialId ? `<span class="service-card__social-id">Social ID : ${escapeHtml(person.socialId)}</span>` : ''}
       ${options.showEmployeePhone && person.phone ? `<span class="service-card__personal">Tél. personnel : ${escapeHtml(person.phone)}</span>` : ''}
       ${options.showEmployeeEmail && person.email ? `<span class="service-card__personal">Email personnel : ${escapeHtml(person.email)}</span>` : ''}</div>
     </div>

@@ -42,6 +42,7 @@ const employeeTabItems = computed(() => [
 const infoItems = computed(() => {
   if (!employee.value) return []
   return [
+    { key: 'socialId', label: 'Social ID', icon: 'pi pi-id-card', value: employee.value.socialId || null },
     { key: 'email', label: 'Email', icon: 'pi pi-envelope', value: employee.value.email },
     { key: 'phone', label: 'Téléphone', icon: 'pi pi-phone', value: employee.value.phone },
     { key: 'role', label: 'Fonction', icon: 'pi pi-id-card', value: employee.value.roleCode || employee.value.function },

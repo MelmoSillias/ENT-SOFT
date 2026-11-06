@@ -12,6 +12,7 @@ final readonly class CreateEmployeeCommand
         public string $roleCode,
         public ?string $address = null,
         public ?string $mention = null,
+        public ?string $socialId = null,
     ) {
     }
 }

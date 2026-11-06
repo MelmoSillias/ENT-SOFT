@@ -51,7 +51,7 @@ const photoOptions = [{ label: 'Avec photo', value: true }, { label: 'Sans photo
 const filtered = computed(() => {
   const query = search.value.trim().toLocaleLowerCase('fr')
   return people.value.filter((person) => (kind.value === 'all' || person.kind === kind.value)
-    && (!query || [person.displayName, person.mention, person.roleLabel, person.email, person.phone].join(' ').toLocaleLowerCase('fr').includes(query)))
+    && (!query || [person.displayName, person.mention, person.roleLabel, person.socialId, person.email, person.phone].join(' ').toLocaleLowerCase('fr').includes(query)))
 })
 const missingPhotos = computed(() => options.value.withPhoto ? selected.value.filter((person) => !person.photoUrl) : [])
 const pageCount = computed(() => Math.ceil(selected.value.length / cardsPerPage(options.value.orientation, options.value.medium)))

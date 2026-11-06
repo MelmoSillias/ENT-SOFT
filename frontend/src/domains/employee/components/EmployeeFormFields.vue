@@ -62,6 +62,11 @@ defineProps({
       <AppFieldError :message="errors.mention" />
       <small v-if="!errors.mention" class="field-hint">Fonction libre de l’employé (affichée dans la liste).</small>
     </div>
+    <div class="field">
+      <label for="employee-social-id">Social ID</label>
+      <InputText id="employee-social-id" v-model="form.socialId" :invalid="Boolean(errors.socialId)" maxlength="100" fluid />
+      <AppFieldError :message="errors.socialId" />
+    </div>
     <div class="field ent-form-grid__full">
       <label>Adresse</label>
       <Textarea v-model="form.address" rows="2" auto-resize fluid />
