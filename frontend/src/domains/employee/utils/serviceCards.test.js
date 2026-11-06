@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildServiceCardsDocument, CARD_TEMPLATES } from './serviceCards.js'
+import { buildServiceCardsDocument, renderServiceCard, CARD_TEMPLATES } from './serviceCards.js'
 
 const brand = { name: 'Entreprise & associés', shortName: 'ENT', logoUrl: '/branding/logo.png' }
 const people = Array.from({ length: 19 }, (_, index) => ({
@@ -53,4 +53,45 @@ test('names, organization, roles and image attributes cannot inject markup into 
 test('paper crop guides can be disabled', () => {
   assert.match(buildServiceCardsDocument([people[0]], options, brand, ''), /outline: 0.15mm dashed/)
   assert.ok(!buildServiceCardsDocument([people[0]], { ...options, cutMarks: false }, brand, '').includes('outline: 0.15mm dashed'))
+})
+
+test('cards show the mention instead of the role and company coordinates by default', () => {
+  const person = { ...people[1], mention: 'Responsable terrain', email: 'personnel@example.com' }
+  const company = { ...brand, phone: '+224 111 222', email: 'agence@example.com', address: '10 rue du Siège', city: 'Conakry', website: 'https://entreprise.example.com' }
+  const html = renderServiceCard(person, options, company)
+  assert.match(html, /Responsable terrain/)
+  assert.ok(!html.includes('Technicien'))
+  assert.ok(!html.includes(person.phone))
+  assert.ok(!html.includes(person.email))
+  for (const value of [company.phone, company.email, company.address, company.city, company.website]) assert.ok(html.includes(value))
+  assert.ok(!renderServiceCard({ ...person, mention: '' }, options, company).includes('Technicien'))
+})
+
+test('personal phone and email are independently optional in previews and print', () => {
+  const person = { ...people[1], email: 'personnel@example.com' }
+  for (const showEmployeePhone of [true, false]) {
+    for (const showEmployeeEmail of [true, false]) {
+      const settings = { ...options, showEmployeePhone, showEmployeeEmail }
+      for (const html of [renderServiceCard(person, settings, brand), buildServiceCardsDocument([person], settings, brand, '')]) {
+        assert.equal(html.includes(person.phone), showEmployeePhone)
+        assert.equal(html.includes(person.email), showEmployeeEmail)
+      }
+    }
+  }
+})
+
+test('mention and all contact fields are escaped', () => {
+  const payload = '<img src=x onerror=alert(1)>'
+  const html = renderServiceCard({ ...people[1], mention: payload, email: payload, phone: payload }, { ...options, showEmployeePhone: true, showEmployeeEmail: true }, { ...brand, address: payload, city: payload, phone: payload, email: payload, website: payload })
+  assert.ok(!html.includes(payload))
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/)
+})
+
+test('all A4 templates print with square outer corners', () => {
+  for (const template of CARD_TEMPLATES) {
+    for (const orientation of ['landscape', 'portrait']) {
+      const html = buildServiceCardsDocument([people[1]], { ...options, template: template.value, orientation }, brand, '.service-card { border-radius: 3mm; }')
+      assert.match(html, /\.card-sheet \.service-card \{ border-radius: 0; \}/)
+    }
+  }
 })

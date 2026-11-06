@@ -57,6 +57,11 @@ const { pending: saving, run: save } = useAsyncAction(async () => {
       await api.put(`/settings/${key.cle}`, { valeur: form.value[key.cle] ?? '' })
     }
     agencyBrandStore.name = form.value.AGENCE_NOM ?? ''
+    agencyBrandStore.phone = form.value.AGENCE_TELEPHONE ?? ''
+    agencyBrandStore.email = form.value.AGENCE_EMAIL ?? ''
+    agencyBrandStore.address = form.value.AGENCE_ADRESSE ?? ''
+    agencyBrandStore.city = form.value.AGENCE_VILLE ?? ''
+    agencyBrandStore.website = form.value.AGENCE_SITE_WEB ?? ''
     success.value = 'Paramètres agence enregistrés.'
   } catch (e) {
     error.value = e.response?.data?.error || 'Erreur lors de la sauvegarde.'

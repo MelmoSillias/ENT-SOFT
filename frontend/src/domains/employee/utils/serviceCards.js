@@ -1,5 +1,14 @@
 export const CARD_TEMPLATES = [
-  { value: 'ocean', label: 'Horizon', description: 'Bleu profond et accent turquoise' },
+  { value: 'waves', label: 'Vagues océanes', description: 'Vagues superposées bleu marine et vert du logo' },
+  { value: 'ribbon', label: 'Rubans diagonaux', description: 'Rubans obliques aux couleurs de l’entreprise' },
+  { value: 'contours', label: 'Courbes concentriques', description: 'Arcs verts et bleu marine sur fond clair' },
+  { value: 'circuit', label: 'Réseau numérique', description: 'Trame technique et connexions vertes' },
+  { value: 'mosaic', label: 'Mosaïque', description: 'Facettes géométriques bleu marine et vert' },
+  { value: 'aurora', label: 'Aurore', description: 'Halos doux aux couleurs du logo' },
+  { value: 'corporate', label: 'Corporate', description: 'Bandeau bleu marine et accents verts' },
+  { value: 'signature', label: 'Signature', description: 'Fond clair, détails verts et portrait arrondi' },
+  { value: 'studio', label: 'Studio', description: 'Composition graphique bleu marine et vert' },
+  { value: 'ocean', label: 'Horizon', description: 'Bleu marine et accent vert' },
   { value: 'emerald', label: 'Émeraude', description: 'Vert contemporain et lignes épurées' },
   { value: 'minimal', label: 'Essentiel', description: 'Sobre, idéal pour le papier' },
 ]
@@ -29,13 +38,17 @@ export function renderServiceCard(person, options, brand) {
   const photo = imageUrl(person.photoUrl)
   const label = person.kind === 'employee' ? 'Employé' : 'Prestataire'
   return `<article class="service-card service-card--${template} service-card--${orientation}${options.withPhoto ? '' : ' service-card--no-photo'}">
-    <header class="service-card__brand">${logo ? `<img src="${logo}" alt="" class="service-card__logo">` : ''}<span>${escapeHtml(brand.name)}</span></header>
-    <div class="service-card__heading">CARTE DE SERVICE</div>
+    <header class="service-card__brand">${logo ? `<img src="${logo}" alt="Logo de ${escapeHtml(brand.name)}" class="service-card__logo">` : ''}<div class="service-card__brand-text"><span class="service-card__brand-name">${escapeHtml(brand.name)}</span>${orientation === 'landscape' ? '<div class="service-card__heading">CARTE DE SERVICE</div>' : ''}</div></header>
+    ${orientation === 'portrait' ? '<div class="service-card__heading">CARTE DE SERVICE</div>' : ''}
     <div class="service-card__body">
       ${options.withPhoto ? `<div class="service-card__photo">${photo ? `<img src="${photo}" alt="Photo de ${escapeHtml(person.displayName)}">` : '<span>Photo manquante</span>'}</div>` : ''}
-      <div class="service-card__identity"><strong>${escapeHtml(person.displayName)}</strong><span class="service-card__role">${escapeHtml(person.roleLabel || label)}</span><span class="service-card__type">${label}</span></div>
+      <div class="service-card__identity"><strong>${escapeHtml(person.displayName)}</strong>${person.mention ? `<span class="service-card__role">${escapeHtml(person.mention)}</span>` : ''}<span class="service-card__type">${label}</span>
+      ${options.showEmployeePhone && person.phone ? `<span class="service-card__personal">Tél. personnel : ${escapeHtml(person.phone)}</span>` : ''}
+      ${options.showEmployeeEmail && person.email ? `<span class="service-card__personal">Email personnel : ${escapeHtml(person.email)}</span>` : ''}</div>
     </div>
-    <footer class="service-card__footer"><span>${escapeHtml(person.phone || '')}</span><span>${escapeHtml(brand.shortName || brand.name)}</span></footer>
+    <footer class="service-card__footer"><strong>${escapeHtml(brand.name)}</strong>
+      ${[ [brand.address, brand.city].filter(Boolean).join(', '), [brand.phone, brand.email].filter(Boolean).join(' · '), brand.website ].filter(Boolean).map((line) => `<span>${escapeHtml(line)}</span>`).join('')}
+    </footer>
   </article>`
 }
 
@@ -57,7 +70,7 @@ export function buildServiceCardsDocument(people, options, brand, css) {
     .card-sheet { width: ${pvc ? width : 210}mm; height: ${pvc ? height : 297}mm; padding: ${pvc ? 0 : 10}mm; display: grid; grid-template-columns: repeat(${pvc ? 1 : options.orientation === 'portrait' ? 3 : 2}, ${width}mm); grid-auto-rows: ${height}mm; gap: ${pvc ? 0 : 4}mm; align-content: start; justify-content: center; break-after: page; page-break-after: always; }
     .card-sheet:last-child { break-after: auto; page-break-after: auto; }
     .card-slot { width: ${width}mm; height: ${height}mm; ${!pvc && options.cutMarks ? 'outline: 0.15mm dashed #777; outline-offset: 0.6mm;' : ''} }
-    .service-card { border-radius: ${pvc ? 0 : 3}mm; }
+    .card-sheet .service-card { border-radius: 0; }
     @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
     </style></head><body>${pages.join('')}</body></html>`
 }

@@ -1,7 +1,17 @@
+.service-card, .cards-template-swatch {
+  /* Navy and green sampled from the ENT logo; shared by every template. */
+  --brand-navy: #002552;
+  --brand-green: #005b2c;
+  --brand-green-mid: #42845e;
+  --brand-green-soft: #a3cbb4;
+  --brand-green-tint: #e6f2eb;
+  --brand-navy-soft: #a5b8cf;
+  --brand-navy-tint: #e8eef5;
+}
 .service-card {
-  --card-ink: #123051;
-  --card-accent: #087f8c;
-  --card-tint: #e9f5f7;
+  --card-ink: var(--brand-navy);
+  --card-accent: var(--brand-green);
+  --card-tint: var(--brand-green-tint);
   width: 85.6mm;
   height: 53.98mm;
   box-sizing: border-box;
@@ -19,23 +29,104 @@
   line-height: 1.25;
 }
 .service-card *, .service-card *::before, .service-card *::after { box-sizing: border-box; }
-.service-card--emerald { --card-ink: #163c32; --card-accent: #13845b; --card-tint: #e6f4ec; border-left: 2mm solid var(--card-accent); border-top-width: 0.2mm; }
-.service-card--minimal { --card-ink: #202b38; --card-accent: #374151; --card-tint: #f5f5f5; background: white; border-top-width: 0.5mm; }
-.service-card__brand { display: flex; align-items: center; gap: 2mm; min-height: 7mm; font-size: 9pt; font-weight: 700; }
-.service-card__brand span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
-.service-card__logo { width: 9mm; height: 7mm; object-fit: contain; flex-shrink: 0; }
-.service-card__heading { font-size: 6.5pt; letter-spacing: 0.5mm; color: var(--card-accent); font-weight: 700; margin-top: 1.5mm; }
-.service-card__body { display: flex; align-items: center; gap: 3mm; flex: 1; min-height: 0; padding: 2mm 0; }
-.service-card__photo { width: 19mm; height: 24mm; border-radius: 2mm; background: #edf0f3; overflow: hidden; flex-shrink: 0; display: grid; place-items: center; font-size: 7pt; text-align: center; }
+.service-card--emerald { --card-ink: var(--brand-navy); --card-accent: var(--brand-green); --card-tint: var(--brand-green-tint); border-left: 2mm solid var(--card-accent); border-top-width: 0.2mm; }
+.service-card--minimal { --card-ink: var(--brand-navy); --card-accent: var(--brand-navy); --card-tint: #f5f5f5; background: white; border-top-width: 0.5mm; }
+.service-card__brand { display: flex; align-items: center; gap: 2mm; min-height: 11mm; font-size: 9pt; font-weight: 700; flex-shrink: 0; }
+.service-card__brand-text { flex: 1; min-width: 0; }
+.service-card__brand-name { line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.service-card--landscape .service-card__brand-name { font-size: 10.5pt; }
+.service-card__logo { width: 15mm; height: 11mm; object-fit: contain; flex-shrink: 0; background: white; padding: .5mm; border: .2mm solid var(--brand-navy-tint); border-radius: .8mm; }
+.service-card__heading { font-size: 6.5pt; letter-spacing: 0.5mm; color: var(--card-accent); font-weight: 700; margin-top: 1mm; }
+.service-card__brand-text .service-card__heading { font-size: 6pt; letter-spacing: .35mm; margin-top: .8mm; }
+.service-card__body { display: flex; align-items: center; gap: 3mm; flex: 1; min-height: 0; padding: 1.5mm 0; }
+.service-card__photo { width: 18mm; height: 21mm; max-height: 100%; border-radius: 2mm; background: #edf0f3; overflow: hidden; flex-shrink: 0; display: grid; place-items: center; font-size: 7pt; text-align: center; }
 .service-card__photo img { width: 100%; height: 100%; object-fit: cover; }
-.service-card__identity { display: flex; flex-direction: column; gap: 1.5mm; min-width: 0; }
+.service-card__identity { display: flex; flex-direction: column; gap: .6mm; min-width: 0; }
 .service-card__identity strong { font-size: 11pt; line-height: 1.15; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .service-card__role { font-size: 8pt; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .service-card__type { font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.3mm; color: var(--card-accent); font-weight: 700; }
-.service-card__footer { display: flex; justify-content: space-between; gap: 2mm; font-size: 6pt; border-top: 0.2mm solid #ced8dd; padding-top: 1.5mm; }
-.service-card__footer span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.service-card__personal { font-size: 5.5pt; line-height: 1.2; overflow-wrap: anywhere; }
+.service-card__footer { display: flex; flex-direction: column; gap: .3mm; font-size: 5.5pt; line-height: 1.25; border-top: 0.2mm solid #ced8dd; padding-top: 1mm; flex-shrink: 0; }
+.service-card__footer strong { font-size: 5pt; text-transform: uppercase; letter-spacing: .25mm; }
+.service-card__footer span { overflow-wrap: anywhere; }
+.service-card--corporate { --card-ink: var(--brand-navy); --card-accent: var(--brand-green); border-top: 0; background: linear-gradient(145deg, #fff 72%, var(--brand-green-tint) 72%); }
+.service-card--corporate .service-card__brand { background: var(--brand-navy); color: white; margin: -4mm -4mm 0; padding: 1mm 4mm; min-height: 13mm; }
+.service-card--corporate .service-card__brand .service-card__heading { color: var(--brand-green-soft); }
+.service-card--corporate .service-card__logo { background: white; border-radius: 1mm; padding: .5mm; }
+.service-card--corporate .service-card__photo { border: .6mm solid white; outline: .25mm solid var(--brand-green-soft); }
+.service-card--signature { --card-ink: var(--brand-navy); --card-accent: var(--brand-green); --card-tint: var(--brand-green-tint); border-top: .8mm solid var(--brand-green); background: linear-gradient(125deg, #fffdf8 65%, var(--brand-green-tint) 65%); }
+.service-card--signature .service-card__photo { border-radius: 50% 50% 2mm 2mm; border: .5mm solid var(--brand-green-soft); }
+.service-card--signature .service-card__footer { border-color: var(--brand-green-soft); }
+.service-card--studio { --card-ink: var(--brand-navy); --card-accent: var(--brand-green); --card-tint: var(--brand-navy-tint); background: linear-gradient(115deg, var(--brand-navy-tint) 27%, #fff 27%, #fff 92%, var(--brand-green) 92%); border-top: 1.2mm solid var(--brand-navy); }
+.service-card--studio .service-card__photo { border-radius: 0; border-bottom: 1mm solid var(--brand-green); }
+.service-card--studio .service-card__type { align-self: flex-start; background: var(--brand-navy-tint); padding: .4mm 1.2mm; }
 .service-card--portrait { width: 53.98mm; height: 85.6mm; }
-.service-card--portrait .service-card__body { flex-direction: column; justify-content: center; text-align: center; gap: 3mm; }
+.service-card--portrait .service-card__body { flex-direction: column; justify-content: center; text-align: center; gap: 2mm; }
 .service-card--portrait .service-card__identity { align-items: center; }
-.service-card--portrait .service-card__photo { width: 23mm; height: 29mm; }
+.service-card--portrait .service-card__photo { width: 23mm; height: 28mm; }
 .service-card--no-photo .service-card__identity strong { font-size: 14pt; }
+.service-card--landscape .service-card__identity strong { font-size: 10pt; -webkit-line-clamp: 2; }
+.service-card--landscape .service-card__role { font-size: 7pt; }
+.service-card--portrait .service-card__footer { text-align: center; }
+
+/* Shared artwork variables keep the gallery, preview and print backgrounds identical. */
+.service-card--waves, .service-card-background--waves {
+  --card-ink: var(--brand-navy);
+  --card-accent: var(--brand-green);
+  --card-background:
+    radial-gradient(ellipse at 112% 115%, var(--brand-navy) 0 29%, transparent 29.4%),
+    radial-gradient(ellipse at 110% 115%, var(--brand-green) 0 37%, transparent 37.4%),
+    radial-gradient(ellipse at 106% 114%, var(--brand-green-soft) 0 44%, transparent 44.4%),
+    radial-gradient(ellipse at -18% -38%, var(--brand-green-tint) 0 42%, transparent 42.4%), #fff;
+}
+.service-card--ribbon, .service-card-background--ribbon {
+  --card-ink: var(--brand-navy);
+  --card-accent: var(--brand-green);
+  --card-background:
+    linear-gradient(128deg, transparent 0 77%, var(--brand-green) 77.2% 80%, var(--brand-navy) 80.2% 87%, var(--brand-navy-tint) 87.2% 91%, #f7fafc 91.2%),
+    linear-gradient(128deg, var(--brand-navy) 0 4%, var(--brand-green) 4.2% 6%, transparent 6.2%), #fff;
+}
+.service-card--contours, .service-card-background--contours {
+  --card-ink: var(--brand-navy);
+  --card-accent: var(--brand-green);
+  --card-background:
+    radial-gradient(ellipse at 110% -18%, transparent 0 36%, var(--brand-green) 36.2% 36.7%, transparent 36.9% 40%, var(--brand-green-soft) 40.2% 40.7%, transparent 40.9% 44%, var(--brand-green-tint) 44.2% 44.8%, transparent 45%),
+    radial-gradient(ellipse at -14% 114%, var(--brand-green-soft) 0 17%, var(--brand-green-tint) 17.3% 24%, transparent 24.4%), var(--brand-green-tint);
+}
+.service-card--circuit, .service-card-background--circuit {
+  --card-ink: var(--brand-navy);
+  --card-accent: var(--brand-green);
+  --card-background:
+    linear-gradient(90deg, #fff 18%, #ffffffed 48%, transparent 100%),
+    radial-gradient(circle at 88% 22%, var(--brand-green) 0 1%, transparent 1.3%),
+    radial-gradient(circle at 76% 70%, var(--brand-green) 0 1%, transparent 1.3%),
+    repeating-linear-gradient(0deg, transparent 0 9%, var(--brand-green-tint) 9.2% 9.6%, transparent 9.8% 18%),
+    repeating-linear-gradient(90deg, transparent 0 9%, var(--brand-green-tint) 9.2% 9.6%, transparent 9.8% 18%),
+    radial-gradient(ellipse at 100% 50%, var(--brand-green-tint), var(--brand-green-tint) 70%);
+}
+.service-card--mosaic, .service-card-background--mosaic {
+  --card-ink: var(--brand-navy);
+  --card-accent: var(--brand-green);
+  --card-background:
+    conic-gradient(from 38deg at 84% 19%, var(--brand-navy-tint) 0deg 55deg, var(--brand-green-mid) 55deg 105deg, var(--brand-navy) 105deg 142deg, transparent 142deg 360deg),
+    conic-gradient(from 218deg at 12% 88%, var(--brand-navy-tint) 0deg 56deg, var(--brand-green-mid) 56deg 100deg, var(--brand-navy) 100deg 141deg, transparent 141deg 360deg), #fff;
+}
+.service-card--aurora, .service-card-background--aurora {
+  --card-ink: var(--brand-navy);
+  --card-accent: var(--brand-green);
+  --card-background:
+    radial-gradient(ellipse at 18% 42%, #fff 0 22%, #ffffffeb 36%, transparent 68%),
+    radial-gradient(ellipse at 108% -8%, var(--brand-green-mid) 0 8%, var(--brand-navy-tint) 25%, transparent 55%),
+    radial-gradient(ellipse at 105% 108%, var(--brand-green-soft) 0 10%, var(--brand-green-tint) 29%, transparent 57%),
+    radial-gradient(ellipse at -10% 110%, var(--brand-navy-soft) 0 18%, transparent 50%), #fff;
+}
+.service-card:is(.service-card--waves, .service-card--ribbon, .service-card--contours, .service-card--circuit, .service-card--mosaic, .service-card--aurora) {
+  background: var(--card-background);
+  border: .2mm solid #d6dfe6;
+}
+.service-card:is(.service-card--waves, .service-card--ribbon, .service-card--contours, .service-card--circuit, .service-card--mosaic, .service-card--aurora) .service-card__footer {
+  background: #fffffff0;
+  border-color: #bccbd4;
+  padding: 1mm;
+  margin: 0 -1mm -1mm;
+}
