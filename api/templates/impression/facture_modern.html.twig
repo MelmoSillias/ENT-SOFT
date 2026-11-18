@@ -3,102 +3,165 @@
 {% block footer %}{% endblock %}
 {% block extra_styles %}
 <style>
-    body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 11px; line-height: 1.42; color: #1f3144; }
-    .brand-banner { width: 100%; border-collapse: collapse; background: #244465; color: #fff; border-right: 16px solid #438d66; margin-bottom: 16px; }
-    .brand-banner td { padding: 16px; vertical-align: middle; }
-    .brand-banner .logo-wrap { width: 85px; padding-right: 0; }
-    .logo-wrap img { max-width: 80px; max-height: 65px; background: #fff; padding: 4px; }
-    .company-name { font-size: 21px; font-weight: bold; letter-spacing: 1px; }
-    .invoice-title { font-size: 24px; margin: 4px 0 0; color: #fff; }
-    .details { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
-    .details td { vertical-align: top; padding: 5px; }
-    .client-name { font-size: 18px; font-weight: bold; color: #244465; }
-    .eyebrow, .project-label { color: #438d66; font-weight: bold; font-size: 10px; text-transform: uppercase; }
-    .invoice-meta { background: #f1f5f7; border-left: 3px solid #438d66; width: 44%; }
-    .project-block { background: #f0f7f2; border-left: 3px solid #438d66; padding: 9px 12px; margin-bottom: 13px; }
-    .project-name { font-size: 14px; color: #244465; font-weight: bold; }
-    .invoice-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 14px; }
-    .invoice-table th, .invoice-table td { border: 1px solid #d5dfe5; padding: 6px 4px; vertical-align: middle; }
-    .invoice-table th { background: #294e74; color: #fff; text-align: center; font-size: 9px; }
+    :root { --navy: #294e74; --navy-deep: #244465; --green: #438d66; --green-pale: #f0f7f2; --ink: #1f3144; --gray: #58697a; --line: #d5dfe5; }
+    html { background: #e8edf0; }
+    body.is-portrait, body.is-landscape { font: 13px/1.42 Arial, Helvetica, sans-serif; color: #1f3144; margin: 0; padding: 18px; background: transparent; }
+    @page { size: {{ page.css_page_size }}; margin: 6mm; }
+    .toolbar { width: {{ (page.orientation == 'landscape' ? (page.format == 'a5' ? 210 : 297) : (page.format == 'a5' ? 148 : 210)) - 12 }}mm; margin: 0 auto 15px; display: flex; justify-content: space-between; align-items: center; color: #23364e; font-size: 13px; gap: 12px; }
+    .toolbar button { cursor: pointer; border: 0; border-radius: 6px; background: #438d66; color: #fff; padding: 10px 18px; font-weight: 700; }
+    .invoice-pages { display: flex; flex-direction: column; gap: 18px; align-items: center; }
+    .invoice-sheet { background: #fff; box-shadow: 0 8px 30px #12283d25; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; position: relative; }
+    .invoice-sheet-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+    .brand-banner { flex: none; min-height: 108px; background: #244465; color: #fff; position: relative; display: flex; align-items: center; padding: 16px 22px; isolation: isolate; gap: 20px; }
+    .brand-banner:after { content: ''; position: absolute; right: 0; top: 0; width: 17%; height: 100%; background: #438d66; clip-path: polygon(42% 0,100% 0,100% 100%,0 100%); z-index: -1; }
+    .brand-banner:before { content: ''; position: absolute; right: 12%; bottom: 0; width: 20%; height: 9px; background: #357851; transform: skewX(-34deg); }
+    .logo-wrap { width: 100px; height: 78px; border-radius: 7px; background: #fff; display: flex; align-items: center; justify-content: center; padding: 4px; flex: none; }
+    .logo-wrap img { width: 100%; height: 100%; object-fit: contain; }
+    .brand-text { min-width: 0; flex: 1; }
+    .company-name { font-weight: 800; letter-spacing: 1px; font-size: 23px; color: #fff; margin-bottom: 6px; line-height: 1.08; }
+    .invoice-title { font-size: 26px; letter-spacing: .5px; line-height: 1.1; margin: 0; font-weight: 800; color: #fff; }
+    .invoice-sheet-content { padding: 15px 21px 16px; flex: 1; min-height: 0; overflow: hidden; }
+    .details { display: grid; grid-template-columns: minmax(0,1.08fr) minmax(0,.92fr); gap: 15px; margin-bottom: 14px; align-items: start; }
+    .eyebrow, .project-label { font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: #438d66; font-weight: 800; margin: 0 0 5px; }
+    .client-name { font-size: 19px; color: #244465; margin: 0; }
+    .client-address { color: #58697a; font-size: 12px; }
+    .invoice-meta { display: grid; grid-template-columns: 85px minmax(0,1fr); gap: 7px 9px; font-size: 15px; padding: 12px 14px; background: #f1f5f7; border-left: 3px solid #438d66; line-height: 1.3; }
+    .invoice-meta b { color: #244465; font-size: 13px; }
+    .invoice-meta span { font-weight: 700; white-space: nowrap; }
+    .project-block { display: flex; align-items: baseline; gap: 12px; margin: 0 0 13px; background: #f4f8f5; border-left: 3px solid #438d66; padding: 9px 12px; break-inside: avoid; }
+    .project-label { margin: 0; flex: none; }
+    .project-name { font-size: 16px; font-weight: 750; color: #244465; line-height: 1.2; }
+    .continuation { font-size: 12px; color: #244465; font-weight: 700; border-bottom: 2px solid #438d66; padding: 10px 0 7px; margin: 0 0 9px; display: flex; justify-content: space-between; }
+    .invoice-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11.5px; line-height: 1.29; }
+    .invoice-table thead { display: table-header-group; }
+    .invoice-table thead th { background: #294e74; color: #fff; padding: 9px 5px; text-align: center; font-size: 11px; line-height: 1.2; }
+    .invoice-table thead th:nth-child(2) { text-align: left; }
+    .invoice-table th, .invoice-table td { border: 1px solid #d5dfe5; }
+    .invoice-table tbody td { padding: 6px 5px; vertical-align: middle; }
     .invoice-table tbody tr:nth-child(even) { background: #f5f8fa; }
-    .idx { width: 5%; text-align: center; }
-    .designation { width: 37%; }
-    .unit { width: 10%; text-align: center; }
-    .qty { width: 8%; text-align: center; }
-    .money { width: 20%; text-align: right; }
-    .bottom-area { width: 100%; border-collapse: collapse; margin: 15px 0; page-break-inside: avoid; break-inside: avoid; }
-    .bottom-area > tbody > tr > td { vertical-align: top; }
-    .bottom-area .pay-info { width: 43%; background: #f0f7f2; border-left: 4px solid #438d66; padding: 12px; }
-    .bottom-area .totals-box { padding-left: 14px; }
-    .invoice-totals { width: 100%; border-collapse: collapse; margin: 0; }
-    .invoice-totals td { padding: 8px; border-bottom: 1px solid #d5dfe5; }
-
-    .invoice-totals .grand-total td { background: #294e74; color: #fff; font-weight: bold; font-size: 12px; }
-    .invoice-closing { margin: 12px 0 17px; }
-    .invoice-signature { margin: 26px 0 22px; text-align: right; color: #244465; }
-    .invoice-signature span { display: inline-block; border-top: 1px solid #a8b9bf; padding: 9px; }
-    .invoice-footer { border-top: 3px solid #438d66; background: #f5f8fa; color: #244465; padding: 10px; font-size: 9px; }
-    .invoice-footer table { width: 100%; border-collapse: collapse; }
-    .invoice-footer td { vertical-align: top; width: 50%; }
-    .footer-reg { text-align: right; }
-    .footer-page { text-align: center; font-weight: bold; margin-top: 5px; min-height: 14px; }
-    .render-pdf .invoice-footer { position: fixed; bottom: -28mm; left: 0; right: 0; }
-    .render-pdf { font-size: 10px; }
-    .continuation { color: #244465; border-bottom: 2px solid #438d66; padding-bottom: 8px; margin-bottom: 10px; }
-    .invoice-sheet { display: flex; flex-direction: column; margin-bottom: 18px; background: white; }
-    .invoice-sheet-content { flex: 1; }
-        .invoice-sheet > .invoice-footer { flex: none; }
+    .invoice-table tbody tr { break-inside: avoid; page-break-inside: avoid; }
+    .invoice-table .idx { width: 5%; text-align: center; color: #58697a; }
+    .invoice-table thead .idx { color: #fff; }
+    .invoice-table thead .money { text-align: center; white-space: normal; }
+    .invoice-table .designation { width: 39%; overflow-wrap: break-word; word-wrap: break-word; }
+    .invoice-table .unit { width: 10%; text-align: center; }
+    .invoice-table .qty { width: 8%; text-align: center; }
+    .invoice-table .money { width: 19%; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .invoice-description { white-space: pre-line; }
+    .bottom-area { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,260px); gap: 16px; margin: 15px 0 10px; break-inside: avoid; page-break-inside: avoid; }
+    .pay-label { font-weight: 800; color: #244465; margin-bottom: 7px; }
+    .pay-info { background: #f0f7f2; border-left: 4px solid #438d66; padding: 12px; font-size: 12px; }
+    .pay-info p { margin: 0 0 7px; }
+    .invoice-totals { border: 1px solid #d5dfe5; align-self: start; font-size: 12px; }
+    .invoice-totals .trow { display: flex; justify-content: space-between; gap: 6px; padding: 10px; border-bottom: 1px solid #d5dfe5; font-variant-numeric: tabular-nums; }
+    .invoice-totals .tax-total { color: #438d66; font-weight: 700; }
+    .invoice-totals .grand-total { border: 0; background: #294e74; color: #fff; font-weight: 800; font-size: 14px; }
+    .invoice-totals .payment-date { font-size: 11px; }
+    .invoice-closing { font-size: 12px; margin: 12px 0 17px; break-inside: avoid; page-break-inside: avoid; }
+    .invoice-signature { display: flex; justify-content: flex-end; margin: 23px 0 20px; break-inside: avoid; page-break-inside: avoid; }
+    .invoice-signature .sig { text-align: center; min-width: 190px; border-top: 1px solid #a8b9bf; padding: 9px; color: #244465; font-size: 12px; }
+    .invoice-footer { height: 105px; min-height: 105px; flex: none; position: relative; background: #f5f8fa; border-top: 3px solid #438d66; color: #244465; padding: 14px 20px 13px; display: grid; grid-template-columns: minmax(0,1fr) 72px minmax(0,1fr); align-items: start; gap: 10px; font-size: 10.5px; line-height: 1.45; }
+    .invoice-footer:before { content: ''; position: absolute; left: 0; top: -3px; width: 40%; border-top: 3px solid #294e74; }
+    .footer-company strong { font-size: 14px; letter-spacing: .5px; display: block; margin-bottom: 3px; }
+    .footer-reg { text-align: right; padding-top: 3px; }
+    .footer-page { align-self: center; text-align: center; color: #244465; font-weight: 800; font-size: 12px; border-left: 1px solid #d4dfe5; border-right: 1px solid #d4dfe5; padding: 8px 0; }
+    /* Dompdf has no flex/grid support: preserve the same geometry with table cells. */
+    {% if render_mode == 'pdf' %}
+    @page { margin: 6mm 6mm 38mm; }
+    html { background: #fff; }
+    body.render-pdf { padding: 0; font-family: Helvetica, 'DejaVu Sans', sans-serif; }
+    #invoice-content { padding: 15px 21px 16px; }
+    .brand-banner { display: table; width: 100%; min-height: 0; height: 108px; padding: 16px 22px; }
+    .brand-banner:before, .brand-banner:after { display: none; }
+    .banner-art { position: absolute; top: 0; right: 0; width: 100%; height: 100%; z-index: -1; }
+    .logo-wrap, .brand-text { display: table-cell; vertical-align: middle; }
+    .logo-wrap { width: 100px; height: 78px; }
+    .logo-wrap img { width: 92px; height: 70px; }
+    .brand-text { padding-left: 20px; }
+    .details { display: table; width: 100%; }
+    .details > .to, .details > .meta-wrap { display: table-cell; vertical-align: top; }
+    .details > .to { width: 54%; padding-right: 15px; }
+    .details > .meta-wrap { width: 46%; }
+    .invoice-meta { display: block; }
+    .invoice-meta b { display: inline-block; width: 85px; margin-bottom: 7px; }
+    .invoice-meta .meta-date:before { content: ''; display: block; }
+    .project-block { display: block; }
+    .project-label { margin-right: 12px; }
+    .bottom-area { display: table; width: 100%; }
+    .pay-info, .totals-box { display: table-cell; vertical-align: top; }
+    .totals-box { width: 260px; padding-left: 16px; }
+    .invoice-totals .trow { display: block; }
+    .invoice-totals .trow > :last-child { float: right; }
+    .invoice-totals { page-break-inside: avoid; }
+    .invoice-signature { display: block; text-align: right; }
+    .invoice-signature .sig { display: inline-block; }
+    .invoice-footer { position: fixed; bottom: -32mm; left: 0; right: 0; display: table; width: 100%; }
+    .footer-company, .footer-page, .footer-reg { display: table-cell; vertical-align: top; }
+    .footer-company, .footer-reg { width: 44%; }
+    .footer-page { width: 72px; vertical-align: middle; }
+    {% endif %}
     @media print {
-        .invoice-sheet { margin: 0; break-after: page; page-break-after: always; }
+        html, body.is-portrait, body.is-landscape { background: #fff; margin: 0; padding: 0; }
+        .invoice-pages { gap: 0; display: block; }
+        .invoice-sheet { margin: 0; box-shadow: none; break-after: page; page-break-after: always; }
         .invoice-sheet:last-child { break-after: auto; page-break-after: auto; }
-        .invoice-sheet, .brand-banner, .invoice-footer, .invoice-table th { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        .brand-banner, .invoice-footer, .invoice-table thead th, .grand-total, .invoice-table tbody tr:nth-child(even), .pay-info, .project-block { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+    @media screen and (max-width:760px) {
+        body.is-portrait, body.is-landscape { padding: 0; }
+        .toolbar { width: 100%; padding: 10px; flex-wrap: wrap; }
+        .invoice-pages { align-items: flex-start; overflow-x: auto; }
+        .invoice-sheet { margin: 0 auto; }
     }
 </style>
-{% include 'impression/_invoice_pagination_styles.html.twig' %}
-{% if render_mode == 'pdf' %}<style>@page { margin-bottom: {{ page.margin_mm + 32 }}mm; }</style>{% endif %}
 {% endblock %}
 {% block content %}
+{% if render_mode != 'pdf' %}<div class="toolbar no-print"><span>{{ profile.shop_name }} · {{ data.documentLabel }}</span><button onclick="window.print()">Imprimer / Enregistrer en PDF</button></div>{% endif %}
 <div id="invoice-content">
-    <table class="brand-banner"><tr>
-        {% if profile.show_logo and profile.logo_url %}<td class="logo-wrap"><img src="{{ profile.logo_url }}" alt="Logo {{ profile.shop_name }}"></td>{% endif %}
-        <td><div class="company-name">{{ profile.shop_name }}</div><h1 class="invoice-title">{{ data.documentLabel|upper }}</h1></td>
-    </tr></table>
-    <table class="details"><tr><td>
-        <div class="eyebrow">Client / Facturé à</div><div class="client-name">{{ data.clientName }}</div>
-        {% for line in data.serviceLines %}<div>{{ line }}</div>{% endfor %}
-    </td><td class="invoice-meta"><b>N° facture</b> : {{ data.invoice.number }}<br><b>Date</b> : {{ data.invoice.date }}</td></tr></table>
-    {% if data.projectName %}<div class="project-block"><span class="project-label">Projet</span> <span class="project-name">{{ data.projectName }}</span></div>{% endif %}
+    <header class="brand-banner">
+        {% if render_mode == 'pdf' %}<img class="banner-art" alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI3NDkiIGhlaWdodD0iMTEwIiB2aWV3Qm94PSIwIDAgNzQ5IDExMCI+PHBhdGggZmlsbD0iIzM1Nzg1MSIgZD0iTTUxOSAxMDFINjY1TDY1OSAxMTBINTEzWiIvPjxwYXRoIGZpbGw9IiM0MzhkNjYiIGQ9Ik02NzUgMEg3NDlWMTEwSDYyMloiLz48L3N2Zz4=">{% endif %}
+        {% if profile.show_logo and profile.logo_url %}<div class="logo-wrap"><img src="{{ profile.logo_url }}" alt="Logo {{ profile.shop_name }}"></div>{% endif %}
+        <div class="brand-text"><div class="company-name">{{ profile.shop_name }}</div><h1 class="invoice-title">{{ data.documentLabel|upper }}</h1></div>
+    </header>
+    <div class="details"><div class="to">
+        <div class="eyebrow">Client / Facturé à</div><h2 class="client-name">{{ data.clientName }}</h2>
+        {% for line in data.serviceLines %}<div class="client-address">{{ line }}</div>{% endfor %}
+    </div><div class="meta-wrap"><div class="invoice-meta"><b>N° facture</b><span>{{ data.invoice.number }}</span><b class="meta-date">Date</b><span>{{ data.invoice.date }}</span></div></div></div>
+    {% if data.projectName %}<div class="project-block"><span class="project-label">Projet</span><span class="project-name">{{ data.projectName }}</span></div>{% endif %}
     <table class="invoice-table">
+        <colgroup><col style="width:5%"><col style="width:39%"><col style="width:10%"><col style="width:8%"><col style="width:19%"><col style="width:19%"></colgroup>
         <thead><tr><th class="idx">N°</th><th class="designation">Désignation</th><th class="unit">Unité</th><th class="qty">Qté</th><th class="money">Prix unitaire HT</th><th class="money">Montant HT</th></tr></thead>
         <tbody>{% for line in data.invoice.lines %}<tr>
             <td class="idx">{{ line.number }}</td><td class="designation invoice-description">{{ line.description }}</td><td class="unit">{{ line.unit }}</td><td class="qty">{{ line.quantity }}</td><td class="money">{{ line.unitPrice }}</td><td class="money"><strong>{{ line.amount }}</strong></td>
         </tr>{% else %}<tr><td colspan="6">Aucune ligne</td></tr>{% endfor %}</tbody>
     </table>
-    <table class="bottom-area"><tbody><tr>
-        <td class="pay-info"><strong>Informations de règlement</strong>{% if profile.payee %}<br>Veuillez effectuer le paiement à l’ordre de <strong>{{ profile.payee }}</strong>.{% endif %}</td>
-        <td class="totals-box"><table class="invoice-totals">
-        <tr><td>Total HT</td><td class="money">{{ data.invoice.subtotal }} FCFA</td></tr>
-        {% if data.invoice.vatEnabled %}<tr><td>TVA ({{ data.invoice.vatRate }} %)</td><td class="money">{{ data.invoice.vatAmount }} FCFA</td></tr>{% endif %}
-        <tr class="grand-total"><td>TOTAL TTC</td><td class="money">{{ data.invoice.amount }} FCFA</td></tr>
-        {% if data.paymentSummary.hasPayments %}
-            <tr><td>TOTAL PAYÉ</td><td class="money">{{ data.paymentSummary.paidAmount }} FCFA</td></tr>
-            <tr><td>RESTE</td><td class="money">{{ data.paymentSummary.remainingAmount }} FCFA</td></tr>
-            {% if data.paymentSummary.lastPaymentDate %}<tr><td colspan="2">Actualisé le {{ data.paymentSummary.lastPaymentDate }}</td></tr>{% endif %}
-        {% endif %}
-        </table></td>
-    </tr></tbody></table>
-    <div class="invoice-closing">{{ data.amountInWords }}</div>
-    <div class="invoice-signature"><span>Signature et cachet</span></div>
+    <div class="bottom-area">
+        <div class="pay-info"><div class="pay-label">Informations de règlement</div>{% if profile.payee %}<p>Veuillez effectuer le paiement à l’ordre de <strong>{{ profile.payee }}</strong>.</p>{% endif %}</div>
+        <div class="totals-box"><div class="invoice-totals">
+            <div class="trow"><span>Total HT</span><strong>{{ data.invoice.subtotal }} FCFA</strong></div>
+            {% if data.invoice.vatEnabled %}<div class="trow tax-total"><span>TVA ({{ data.invoice.vatRate }} %)</span><strong>{{ data.invoice.vatAmount }} FCFA</strong></div>{% endif %}
+            <div class="trow grand-total"><span>TOTAL TTC</span><span>{{ data.invoice.amount }} FCFA</span></div>
+            {% if data.paymentSummary.hasPayments %}
+                <div class="trow"><span>TOTAL PAYÉ</span><strong>{{ data.paymentSummary.paidAmount }} FCFA</strong></div>
+                <div class="trow"><span>RESTE</span><strong>{{ data.paymentSummary.remainingAmount }} FCFA</strong></div>
+                {% if data.paymentSummary.lastPaymentDate %}<div class="trow payment-date">Actualisé le {{ data.paymentSummary.lastPaymentDate }}</div>{% endif %}
+            {% endif %}
+        </div></div>
+    </div>
+    {% set closing = data.amountInWords|split(':', 2) %}
+    <div class="invoice-closing">{% if closing|length == 2 %}{{ closing[0] }}: <strong>{{ closing[1]|trim }}</strong>{% else %}{{ data.amountInWords }}{% endif %}</div>
+    <div class="invoice-signature"><div class="sig">Signature et cachet</div></div>
 </div>
-<footer id="invoice-footer" class="invoice-footer"><table><tr><td>
+<footer id="invoice-footer" class="invoice-footer"><div class="footer-company">
     <strong>{{ profile.shop_name }}</strong>
     {% for line in profile.address_lines %}<div>{{ line }}</div>{% endfor %}
     {% if profile.phone %}<div>Tél. : {{ profile.phone }}</div>{% endif %}
     {% if profile.email %}<div>{{ profile.email }}</div>{% endif %}
     {% if profile.website %}<div>{{ profile.website }}</div>{% endif %}
-</td><td class="footer-reg">
+</div><div class="footer-page"></div><div class="footer-reg">
     {% if profile.nina %}<div>NINA : {{ profile.nina }}</div>{% endif %}
     {% if profile.nif_fiscal %}<div>N° fiscal : {{ profile.nif_fiscal }}</div>{% endif %}
-</td></tr></table>{% if profile.footer_text %}<div>{{ profile.footer_text }}</div>{% endif %}<div class="footer-page"></div></footer>
+    {% if profile.footer_text %}<div>{{ profile.footer_text }}</div>{% endif %}
+</div></footer>
 {% if render_mode != 'pdf' %}{% include 'impression/_invoice_modern_pagination.html.twig' %}{% endif %}
 {% endblock %}

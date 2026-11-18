@@ -120,6 +120,133 @@ final class InvoiceImpressionTest extends TestCase
         }
     }
 
+    private function modernDesignDom(string $page = 'a4', string $orientation = 'portrait'): \DOMXPath
+    {
+        $service = $this->service('modern');
+        $html = $service->renderInvoice($this->id, 'html', $page, $orientation, 'attachment')->getContent();
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        try {
+            self::assertTrue($document->loadHTML('<?xml encoding="UTF-8">'.$html));
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+
+        return new \DOMXPath($document);
+    }
+
+    private function designCss(\DOMXPath $dom): string
+    {
+        $css = '';
+        foreach ($dom->query('//style') as $style) {
+            $css .= $style->textContent."\n";
+        }
+
+        return $css;
+    }
+
+    private function assertDesignDeclaration(string $css, string $selector, string $property, string $expected): void
+    {
+        $css = preg_replace('~/\*.*?\*/~s', '', $css);
+        // Inspect the desktop defaults without applying print or narrow-screen overrides.
+        $css = preg_replace('/@media[^{}]*(\{(?:[^{}]+|(?1))*\})/s', '', $css);
+        preg_match_all('/([^{}]+)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER);
+        $actual = null;
+        foreach ($rules as $rule) {
+            if (!in_array($selector, array_map('trim', explode(',', $rule[1])), true)) {
+                continue;
+            }
+            if (preg_match_all('/(?:^|;)\s*'.preg_quote($property, '/').'\s*:\s*([^;]+)/i', $rule[2], $declarations)) {
+                $actual = trim(end($declarations[1]));
+            }
+        }
+        self::assertNotNull($actual, "Déclaration CSS manquante : $selector { $property }");
+        $normalize = static fn (string $value): string => preg_replace('/\s+/', ' ', str_replace(['"', "'"], '', trim($value)));
+        self::assertSame($normalize($expected), $normalize($actual), "$selector { $property }");
+    }
+
+    public function testModernDesignTypographyAndBannerDimensions(): void
+    {
+        $dom = $this->modernDesignDom();
+        $css = $this->designCss($dom);
+        foreach (['body.is-portrait', 'body.is-landscape'] as $selector) {
+            $this->assertDesignDeclaration($css, $selector, 'font', '13px/1.42 Arial, Helvetica, sans-serif');
+        }
+        $this->assertDesignDeclaration($css, '.brand-banner', 'min-height', '108px');
+        $this->assertDesignDeclaration($css, '.logo-wrap', 'width', '100px');
+        $this->assertDesignDeclaration($css, '.logo-wrap', 'height', '78px');
+        $this->assertDesignDeclaration($css, '.logo-wrap img', 'width', '100%');
+        $this->assertDesignDeclaration($css, '.logo-wrap img', 'height', '100%');
+        $this->assertDesignDeclaration($css, '.logo-wrap img', 'object-fit', 'contain');
+        $this->assertDesignDeclaration($css, '.company-name', 'font-size', '23px');
+        $this->assertDesignDeclaration($css, '.invoice-title', 'font-size', '26px');
+        self::assertSame(1, $dom->query('//*[@id="invoice-content"]//*[contains(concat(" ", normalize-space(@class), " "), " brand-banner ")]//img')->length);
+        self::assertSame(1, $dom->query('//*[@id="invoice-content"]//h1[contains(concat(" ", normalize-space(@class), " "), " invoice-title ")]')->length);
+    }
+
+    public function testModernDesignTableKeepsSixProportionalColumns(): void
+    {
+        $dom = $this->modernDesignDom();
+        $css = $this->designCss($dom);
+        $this->assertDesignDeclaration($css, '.invoice-table', 'font-size', '11.5px');
+        $columns = ['idx', 'designation', 'unit', 'qty', 'money', 'money'];
+        $widths = ['5%', '39%', '10%', '8%', '19%', '19%'];
+        $table = '//*[@id="invoice-content"]//table[contains(concat(" ", normalize-space(@class), " "), " invoice-table ")]';
+        $headers = $dom->query($table.'/thead/tr/th');
+        self::assertCount(6, $headers);
+        $colgroup = $dom->query($table.'/colgroup/col');
+        self::assertCount(6, $colgroup);
+        foreach ($columns as $index => $class) {
+            self::assertContains($class, preg_split('/\s+/', trim($headers->item($index)->getAttribute('class'))));
+            $this->assertDesignDeclaration($css, '.invoice-table .'.$class, 'width', $widths[$index]);
+            $this->assertDesignDeclaration('col { '.$colgroup->item($index)->getAttribute('style').' }', 'col', 'width', $widths[$index]);
+        }
+        foreach ($dom->query($table.'/tbody/tr') as $row) {
+            self::assertSame(6, $dom->query('./td', $row)->length);
+        }
+    }
+
+    public function testModernDesignFooterPlacesPageBetweenIdentityAndRegistration(): void
+    {
+        $dom = $this->modernDesignDom();
+        $css = $this->designCss($dom);
+        $pages = $dom->query('//*[@id="invoice-footer"]//*[contains(concat(" ", normalize-space(@class), " "), " footer-page ")]');
+        self::assertCount(1, $pages);
+        $grid = $pages->item(0)->parentNode;
+        $children = $dom->query('./*', $grid);
+        self::assertCount(3, $children, 'Le pied de page comporte identité, pagination centrale et mentions légales.');
+        self::assertTrue($children->item(1)->isSameNode($pages->item(0)));
+        self::assertInstanceOf(\DOMElement::class, $grid);
+        $classes = preg_split('/\s+/', trim($grid->getAttribute('class')));
+        self::assertNotEmpty($classes[0], 'La grille du pied de page doit être ciblable par une classe CSS.');
+        $selector = '.'.$classes[0];
+        $this->assertDesignDeclaration($css, $selector, 'display', 'grid');
+        $this->assertDesignDeclaration($css, $selector, 'grid-template-columns', 'minmax(0,1fr) 72px minmax(0,1fr)');
+        $this->assertDesignDeclaration($css, '.invoice-footer', 'height', '105px');
+        $this->assertDesignDeclaration($css, '.footer-page', 'text-align', 'center');
+        $this->assertDesignDeclaration($css, '.footer-page', 'align-self', 'center');
+    }
+
+    public function testModernDesignUsesSixMillimetreMarginsInEveryHtmlPageFormat(): void
+    {
+        foreach (['a4' => [210, 297], 'a5' => [148, 210]] as $page => [$width, $height]) {
+            foreach (['portrait', 'landscape'] as $orientation) {
+                $dom = $this->modernDesignDom($page, $orientation);
+                $css = $this->designCss($dom);
+                $this->assertDesignDeclaration($css, '@page', 'margin', '6mm');
+                $this->assertDesignDeclaration($css, 'body.is-'.$orientation, 'margin', '0');
+                $this->assertDesignDeclaration($css, 'body.is-'.$orientation, 'padding', '18px');
+                $scripts = '';
+                foreach ($dom->query('//script') as $script) {
+                    $scripts .= $script->textContent;
+                }
+                self::assertMatchesRegularExpression('/const\s+widthMm\s*=\s*'.(($orientation === 'landscape' ? $height : $width) - 12).'\s*;/', $scripts, "$page $orientation : la largeur doit déduire deux marges de 6 mm.");
+                self::assertMatchesRegularExpression('/const\s+heightMm\s*=\s*'.(($orientation === 'landscape' ? $width : $height) - 12).'\s*;/', $scripts, "$page $orientation : la pagination doit déduire deux marges de 6 mm.");
+            }
+        }
+    }
+
     public function testMissingOrInvalidSettingKeepsClassicAndSeedIsClassic(): void
     {
         foreach ([null, 'invalid', 'modern'] as $value) {
@@ -270,7 +397,7 @@ HTML;
         $dompdf->setPaper(strtoupper($page), $orientation);
         $dompdf->render();
         self::assertNotEmpty($rowBottoms);
-        $contentBottom = $dompdf->getCanvas()->get_height() - (10 + ($template === 'modern' ? 32 : 0)) * 72 / 25.4;
+        $contentBottom = $dompdf->getCanvas()->get_height() - ($template === 'modern' ? 6 + 32 : 10) * 72 / 25.4;
         foreach ($rowBottoms as $bottom) {
             self::assertLessThanOrEqual($contentBottom + 1, $bottom, 'Aucune ligne ne doit déborder dans la marge ou le pied de page.');
         }

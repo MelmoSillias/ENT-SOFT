@@ -87,12 +87,15 @@ final class ImpressionDocumentSupport
         $dompdf->setPaper($page === 'a5' ? 'A5' : 'A4', $orientation === 'landscape' ? 'landscape' : 'portrait');
         $dompdf->render();
         if ($invoicePageNumbers) {
-            $margin = max(0, (int) $this->setting('IMPRESSION_MARGIN_MM', '18')) * 72 / 25.4;
-            $dompdf->getCanvas()->page_script(static function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($margin): void {
+            $modernInvoice = $this->settings()['invoice_template'] === 'modern';
+            $margin = ($modernInvoice ? 6 : max(0, (int) $this->setting('IMPRESSION_MARGIN_MM', '18'))) * 72 / 25.4;
+            $dompdf->getCanvas()->page_script(static function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($margin, $modernInvoice): void {
                 $text = 'Page '.$pageNumber.' / '.$pageCount;
-                $font = $fontMetrics->getFont('DejaVu Sans');
-                $width = $fontMetrics->getTextWidth($text, $font, 8);
-                $canvas->text(($canvas->get_width() - $width) / 2, $canvas->get_height() - max(12, $margin / 2), $text, $font, 8, [0.14, 0.27, 0.40]);
+                $font = $fontMetrics->getFont($modernInvoice ? 'Helvetica' : 'DejaVu Sans', $modernInvoice ? 'bold' : 'normal');
+                $size = $modernInvoice ? 9 : 8;
+                $width = $fontMetrics->getTextWidth($text, $font, $size);
+                $y = $modernInvoice ? $canvas->get_height() - $margin - 105 * 0.75 / 2 - $size / 2 : $canvas->get_height() - max(12, $margin / 2);
+                $canvas->text(($canvas->get_width() - $width) / 2, $y, $text, $font, $size, [0.14, 0.27, 0.40]);
             });
         }
 
