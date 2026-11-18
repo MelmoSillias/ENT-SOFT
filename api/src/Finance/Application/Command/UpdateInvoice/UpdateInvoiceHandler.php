@@ -5,6 +5,7 @@ namespace App\Finance\Application\Command\UpdateInvoice;
 use App\Finance\Application\Dto\InvoiceResponseDto;
 use App\Finance\Application\Service\InvoiceAssembler;
 use App\Finance\Application\Service\InvoiceLineWriter;
+use App\Finance\Application\Service\InvoiceVatValidator;
 use App\Finance\Domain\Enum\InvoiceStatus;
 use App\Finance\Domain\Exception\InvoiceCannotBeModifiedException;
 use App\Finance\Domain\Exception\InvoiceNotFoundException;
@@ -33,6 +34,11 @@ final class UpdateInvoiceHandler
         if (\count($payments) > 0) {
             throw InvoiceCannotBeModifiedException::hasPayments();
         }
+
+        $vatEnabled = $command->vatEnabled ?? $invoice->isVatEnabled();
+        $vatRate = $command->vatRate ?? $invoice->getVatRate();
+        InvoiceVatValidator::validate($vatEnabled, $vatRate);
+        $invoice->setVat($vatEnabled, (float) $vatRate);
 
         if ($command->date !== null) {
             $invoice->setDate(new \DateTimeImmutable($command->date));

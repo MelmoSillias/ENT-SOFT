@@ -48,15 +48,21 @@ final class InvoiceImpressionService
         $project = $invoice->getProjectId() ? $this->projectRepository->findById($invoice->getProjectId()) : null;
         $projectName = $invoice->getProjectLabel() ?: $project?->getTitle();
 
+        $pageContext = $this->support->pageContext($page, $orientation);
+        $widthMm = $orientation === 'landscape' ? ($page === 'a5' ? 210 : 297) : ($page === 'a5' ? 148 : 210);
+        $descriptionWidth = max(12, (int) (($widthMm - 2 * $pageContext['margin_mm']) * 0.37 * 3.78 / 7));
         $lines = [];
-        foreach ($dto['lines'] ?? [] as $line) {
-            $lines[] = [
-                'description' => $line['description'] ?? '',
-                'unit' => $line['unit'] ?? 'Lot',
-                'quantity' => $this->formatQuantity($line['quantity'] ?? 0),
-                'unitPrice' => $this->formatAmount($line['unitPrice'] ?? 0),
-                'amount' => $this->formatAmount($line['amount'] ?? 0),
-            ];
+        foreach ($dto['lines'] ?? [] as $index => $line) {
+            foreach ($this->descriptionFragments((string) ($line['description'] ?? ''), $descriptionWidth) as $part => $description) {
+                $lines[] = [
+                    'number' => $part === 0 ? $index + 1 : '↳',
+                    'description' => $description,
+                    'unit' => $part === 0 ? ($line['unit'] ?? 'Lot') : '',
+                    'quantity' => $part === 0 ? $this->formatQuantity($line['quantity'] ?? 0) : '',
+                    'unitPrice' => $part === 0 ? $this->formatAmount($line['unitPrice'] ?? 0) : '',
+                    'amount' => $part === 0 ? $this->formatAmount($line['amount'] ?? 0) : '',
+                ];
+            }
         }
 
         $amountRaw = (float) ($dto['amount'] ?? 0);
@@ -85,7 +91,10 @@ final class InvoiceImpressionService
             $this->formatPostalCity($client?->getPostalBox(), $client?->getCity()),
         ]));
 
-        $html = $this->twig->render('impression/facture.html.twig', [
+        $template = $this->support->settings()['invoice_template'] === 'modern'
+                    ? 'impression/facture_modern.html.twig'
+                    : 'impression/facture.html.twig';
+                $html = $this->twig->render($template, [
             'data' => [
                 'title' => $documentLabel.' '.$numberDisplay,
                 'documentLabel' => $documentLabel,
@@ -95,6 +104,10 @@ final class InvoiceImpressionService
                     'date' => $dateDisplay,
                     'amount' => $this->formatAmount($amountRaw),
                     'amountRaw' => $amountRaw,
+                                        'vatEnabled' => (bool) ($dto['vatEnabled'] ?? false),
+                                        'vatRate' => $this->formatQuantity($dto['vatRate'] ?? 18),
+                                        'subtotal' => $this->formatAmount($dto['subtotal'] ?? $amountRaw),
+                                        'vatAmount' => $this->formatAmount($dto['vatAmount'] ?? 0),
                     'lines' => $lines,
                 ],
                 'clientName' => $client?->getTitle() ?? '—',
@@ -118,12 +131,50 @@ final class InvoiceImpressionService
         $filename = $filenamePrefix.'-'.preg_replace('/[^\w.\-]+/', '-', $numberDisplay);
 
         return match ($format) {
-            'pdf' => $this->support->pdfResponse($html, $filename, $page, $orientation, $disposition),
+            'pdf' => $this->support->pdfResponse($html, $filename, $page, $orientation, $disposition, true),
             'csv' => $this->csvResponse($dto, $filename),
             'excel' => $this->excelResponse($dto, $filename),
             'word' => $this->wordResponse($dto, $filename, $documentLabel),
             default => $this->support->htmlResponse($html, $filename, $disposition),
         };
+    }
+
+    /**
+     * Dompdf cannot split a table cell taller than a page. Bound description
+     * fragments to six wrapped lines, keeping monetary values on the first only.
+     * @return list<string>
+     */
+    private function descriptionFragments(string $description, int $width): array
+    {
+        $wrapped = [];
+        foreach (preg_split('/\R/u', $description) ?: [''] as $paragraph) {
+            $current = '';
+            foreach (preg_split('/[\t ]+/u', $paragraph) ?: [] as $word) {
+                foreach (mb_str_split($word, $width) as $piece) {
+                    if ($current !== '' && mb_strlen($current.' '.$piece) > $width) {
+                        $wrapped[] = $current;
+                        $current = '';
+                    }
+                    $current .= ($current === '' ? '' : ' ').$piece;
+                }
+            }
+            $wrapped[] = $current;
+        }
+
+        return array_map(static fn (array $lines): string => implode("\n", $lines), array_chunk($wrapped, 6));
+    }
+
+    /** @return list<array{string, float}> */
+    private function totalRows(array $dto): array
+    {
+        $total = (float) ($dto['total'] ?? $dto['amount'] ?? 0);
+        $rows = [['Total HT', (float) ($dto['subtotal'] ?? $total)]];
+        if ($dto['vatEnabled'] ?? false) {
+            $rows[] = ['TVA ('.$this->formatQuantity($dto['vatRate'] ?? 18).' %)', (float) ($dto['vatAmount'] ?? 0)];
+        }
+        $rows[] = ['TOTAL TTC', $total];
+
+        return $rows;
     }
 
     private function documentLabel(InvoiceStatus $status): string
@@ -171,7 +222,10 @@ final class InvoiceImpressionService
                     $line['amount'] ?? '',
                 ], ';');
             }
-            fclose($out);
+            foreach ($this->totalRows($dto) as $total) {
+                            fputcsv($out, [$total[0], '', '', '', $total[1]], ';');
+                        }
+                        fclose($out);
         }, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="'.$filename.'.csv"',
@@ -195,7 +249,10 @@ final class InvoiceImpressionService
             ], null, 'A'.$row);
             ++$row;
         }
-        $writer = new Xlsx($spreadsheet);
+        foreach ($this->totalRows($dto) as $total) {
+                    $sheet->fromArray([$total[0], '', '', '', $total[1]], null, 'A'.$row++);
+                }
+                $writer = new Xlsx($spreadsheet);
 
         return new StreamedResponse(function () use ($writer) {
             $writer->save('php://output');
@@ -224,7 +281,10 @@ final class InvoiceImpressionService
             $table->addCell(1800)->addText((string) ($line['unitPrice'] ?? ''));
             $table->addCell(1800)->addText((string) ($line['amount'] ?? ''));
         }
-        $writer = IOFactory::createWriter($phpWord, 'Word2007');
+        foreach ($this->totalRows($dto) as [$label, $amount]) {
+                    $section->addText($label.' : '.$this->formatAmount($amount).' FCFA');
+                }
+                $writer = IOFactory::createWriter($phpWord, 'Word2007');
 
         return new StreamedResponse(function () use ($writer) {
             $writer->save('php://output');

@@ -48,6 +48,7 @@ final class SettingsCatalog
             ['cle' => 'IMPRESSION_DEFAULT_EXPORT_FORMAT', 'valeur' => 'pdf', 'type' => TypeValeur::STRING, 'description' => 'Format d\'export par défaut'],
             ['cle' => 'IMPRESSION_PAGE_TABLE', 'valeur' => 'a4', 'type' => TypeValeur::STRING, 'description' => 'Format page tableaux'],
             ['cle' => 'IMPRESSION_ORIENTATION_TABLE', 'valeur' => 'portrait', 'type' => TypeValeur::STRING, 'description' => 'Orientation tableaux'],
+            ['cle' => 'IMPRESSION_INVOICE_TEMPLATE', 'valeur' => 'classic', 'type' => TypeValeur::STRING, 'description' => 'Modèle de facture (classic|modern)'],
             ['cle' => 'IMPRESSION_PAGE_INVOICE', 'valeur' => 'a4', 'type' => TypeValeur::STRING, 'description' => 'Format page facture'],
             ['cle' => 'IMPRESSION_ORIENTATION_INVOICE', 'valeur' => 'portrait', 'type' => TypeValeur::STRING, 'description' => 'Orientation facture'],
             ['cle' => 'FINANCE_EMETTEURS', 'valeur' => '[]', 'type' => TypeValeur::STRING, 'description' => 'Liste paramétrable des émetteurs (transactions)'],

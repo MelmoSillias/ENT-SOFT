@@ -6,6 +6,7 @@ use App\Finance\Application\Dto\InvoiceResponseDto;
 use App\Finance\Application\Service\InvoiceAssembler;
 use App\Finance\Application\Service\InvoiceLineWriter;
 use App\Finance\Application\Service\InvoiceNumberGenerator;
+use App\Finance\Application\Service\InvoiceVatValidator;
 use App\Finance\Domain\Entity\Invoice;
 use App\Finance\Domain\Enum\InvoiceStatus;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
@@ -23,6 +24,7 @@ final class CreateInvoiceHandler
 
     public function handle(CreateInvoiceCommand $command): InvoiceResponseDto
     {
+        InvoiceVatValidator::validate($command->vatEnabled, $command->vatRate);
         $date = new \DateTimeImmutable($command->date);
         $numbers = $this->numberGenerator->generate($date);
         $projectLabel = $command->projectLabel !== null ? trim($command->projectLabel) : null;
@@ -39,6 +41,7 @@ final class CreateInvoiceHandler
             projectId: $command->projectId ? Uuid::fromString($command->projectId) : null,
             projectLabel: $command->projectId ? null : $projectLabel,
         );
+        $invoice->setVat($command->vatEnabled, (float) $command->vatRate);
         $this->invoiceRepository->save($invoice);
         $this->lineWriter->replaceLines($invoice, $command->lines);
 

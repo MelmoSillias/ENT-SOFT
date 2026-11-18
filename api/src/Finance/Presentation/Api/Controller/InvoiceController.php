@@ -15,6 +15,7 @@ use App\Finance\Application\Command\UpdateInvoice\UpdateInvoiceHandler;
 use App\Finance\Application\Query\GetInvoice\GetInvoiceHandler;
 use App\Finance\Application\Query\GetInvoice\GetInvoiceQuery;
 use App\Finance\Application\Query\ListInvoices\ListInvoicesHandler;
+use App\Finance\Application\Service\InvoiceVatValidator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -40,6 +41,7 @@ final class InvoiceController extends AbstractController
     public function create(Request $request, CreateInvoiceHandler $handler): JsonResponse
     {
         $data = $request->toArray();
+        InvoiceVatValidator::validatePayload($data);
         $result = $handler->handle(new CreateInvoiceCommand(
             date: $data['date'] ?? '',
             clientId: $data['clientId'] ?? '',
@@ -47,6 +49,8 @@ final class InvoiceController extends AbstractController
             projectId: $data['projectId'] ?? null,
             projectLabel: $data['projectLabel'] ?? null,
             lines: $data['lines'] ?? [],
+            vatEnabled: $data['vatEnabled'] ?? false,
+            vatRate: $data['vatRate'] ?? 18,
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -86,6 +90,7 @@ final class InvoiceController extends AbstractController
     public function update(string $id, Request $request, UpdateInvoiceHandler $handler): JsonResponse
     {
         $data = $request->toArray();
+        InvoiceVatValidator::validatePayload($data);
         $result = $handler->handle(new UpdateInvoiceCommand(
             id: $id,
             date: $data['date'] ?? null,
@@ -95,6 +100,8 @@ final class InvoiceController extends AbstractController
             projectLabel: array_key_exists('projectLabel', $data) ? ($data['projectLabel'] ?? '') : null,
             lines: $data['lines'] ?? null,
             updateProject: array_key_exists('projectId', $data) || array_key_exists('projectLabel', $data),
+            vatEnabled: $data['vatEnabled'] ?? null,
+            vatRate: $data['vatRate'] ?? null,
         ));
 
         return $this->json($result->toArray());

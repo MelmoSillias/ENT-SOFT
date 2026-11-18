@@ -28,6 +28,10 @@ final readonly class InvoiceResponseDto
         public array $payments = [],
         public float $paidAmount = 0.0,
         public bool $hasPayments = false,
+        public bool $vatEnabled = false,
+        public float $vatRate = 18.0,
+        public float $subtotal = 0.0,
+        public float $vatAmount = 0.0,
     ) {
     }
 
@@ -60,6 +64,10 @@ final readonly class InvoiceResponseDto
             payments: $payments,
             paidAmount: $paidAmount,
             hasPayments: $paidAmount > 0 || \count($payments) > 0,
+            vatEnabled: $invoice->isVatEnabled(),
+            vatRate: $invoice->getVatRate(),
+            subtotal: $invoice->getSubtotal(),
+            vatAmount: $invoice->getVatAmount(),
         );
     }
 
@@ -73,6 +81,11 @@ final readonly class InvoiceResponseDto
             'numberMonthly' => $this->numberMonthly,
             'date' => $this->date,
             'amount' => $this->amount,
+            'total' => $this->amount,
+            'vatEnabled' => $this->vatEnabled,
+            'vatRate' => $this->vatRate,
+            'subtotal' => $this->subtotal,
+            'vatAmount' => $this->vatAmount,
             'status' => $this->status,
             'clientId' => $this->clientId,
             'projectId' => $this->projectId,

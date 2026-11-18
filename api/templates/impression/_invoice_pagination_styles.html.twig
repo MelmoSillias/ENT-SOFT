@@ -1,0 +1,12 @@
+<style>
+    /* Reserve real page margins, including on continuation pages in Dompdf. */
+    @page { margin: {{ page.margin_mm }}mm; }
+    body { padding: 0; }
+    .inv-table thead, .invoice-table thead { display: table-header-group; }
+    .inv-table tr, .invoice-table tr { page-break-inside: avoid; break-inside: avoid; }
+    .inv-table, .invoice-table { table-layout: fixed; }
+    .inv-table td, .invoice-table td { overflow-wrap: break-word; word-wrap: break-word; }
+    .invoice-description { white-space: pre-line; }
+    .invoice-totals, .invoice-closing, .invoice-signature { page-break-inside: avoid; break-inside: avoid; }
+    @media screen { body { margin: {{ page.margin_mm }}mm auto; max-width: {{ page.orientation == 'landscape' ? (page.format == 'a5' ? 210 : 297) - 2 * page.margin_mm : (page.format == 'a5' ? 148 : 210) - 2 * page.margin_mm }}mm; } }
+</style>

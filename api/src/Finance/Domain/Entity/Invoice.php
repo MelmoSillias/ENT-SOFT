@@ -32,6 +32,15 @@ class Invoice
     #[ORM\Column(type: 'float')]
     private float $amount;
 
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $subtotal = null;
+
+    #[ORM\Column(name: 'vat_enabled', options: ['default' => false])]
+    private bool $vatEnabled = false;
+
+    #[ORM\Column(name: 'vat_rate', type: 'float', options: ['default' => 18])]
+    private float $vatRate = 18.0;
+
     #[ORM\Column(enumType: InvoiceStatus::class)]
     private InvoiceStatus $status;
 
@@ -70,6 +79,31 @@ class Invoice
     public function getNumberMonthly(): string { return $this->numberMonthly; }
     public function getDate(): \DateTimeImmutable { return $this->date; }
     public function getAmount(): float { return $this->amount; }
+    public function getSubtotal(): float { return $this->subtotal ?? $this->amount; }
+    public function isVatEnabled(): bool { return $this->vatEnabled; }
+    public function getVatRate(): float { return $this->vatRate; }
+    public function getVatAmount(): float
+    {
+        return $this->vatEnabled ? round($this->getSubtotal() * $this->vatRate / 100, 2) : 0.0;
+    }
+
+    public function setSubtotal(float $subtotal): void
+    {
+        $this->subtotal = $subtotal;
+        $this->amount = $subtotal + $this->getVatAmount();
+        $this->touch();
+    }
+
+    public function setVat(bool $enabled, float $rate): void
+    {
+        if (!is_finite($rate) || $rate < 0 || $rate > 100) {
+            throw new \InvalidArgumentException('vatRate doit être un nombre compris entre 0 et 100.');
+        }
+        $subtotal = $this->getSubtotal();
+        $this->vatEnabled = $enabled;
+        $this->vatRate = $rate;
+        $this->setSubtotal($subtotal);
+    }
     public function getStatus(): InvoiceStatus { return $this->status; }
     public function getClientId(): Uuid { return $this->clientId; }
     public function getProjectId(): ?Uuid { return $this->projectId; }

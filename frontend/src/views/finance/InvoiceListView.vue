@@ -21,6 +21,7 @@ import { sortByField, tableSortField } from '@/domains/shared/utils/sortByField'
 import AppMobileFab from '@/domains/shared/components/AppMobileFab.vue'
 import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
 import InvoiceFormFields from '@/domains/finance/components/InvoiceFormFields.vue'
+import InvoiceFormTotals from '@/domains/finance/components/InvoiceFormTotals.vue'
 import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
 import ExportFormatMenu from '@/domains/impression/components/ExportFormatMenu.vue'
 import { listInvoices, createInvoice, updateInvoice, deleteInvoice, payInvoice, resetInvoice } from '@/domains/finance/services/invoiceService'
@@ -122,7 +123,7 @@ function mapFormLines(lines) {
 }
 
 function emptyForm() {
-  return { date: new Date(), clientId: null, projectId: null, projectLabel: '', status: 'draft', lines: [emptyLine()] }
+  return { date: new Date(), clientId: null, projectId: null, projectLabel: '', status: 'draft', vatEnabled: false, vatRate: 18, lines: [emptyLine()] }
 }
 
 const form = ref(emptyForm())
@@ -134,6 +135,12 @@ const { errors: fieldErrors, validate: validateForm, resetErrors } = useFormFiel
   if (!form.value.clientId) errs.clientId = 'Client requis.'
   const lines = (form.value.lines ?? []).filter((l) => String(l.description || '').trim())
   if (!lines.length) errs.lines = 'Ajoutez au moins une ligne.'
+    else if (lines.some((line) => !Number.isFinite(Number(line.quantity)) || Number(line.quantity) <= 0 || !Number.isFinite(Number(line.unitPrice)) || Number(line.unitPrice) < 0)) {
+      errs.lines = 'Chaque ligne doit avoir une quantité positive et un prix unitaire positif ou nul.'
+    }
+    if (form.value.vatEnabled && (form.value.vatRate == null || !Number.isFinite(Number(form.value.vatRate)) || Number(form.value.vatRate) < 0 || Number(form.value.vatRate) > 100)) {
+      errs.vatRate = 'Le taux de TVA doit être compris entre 0 et 100 %.'
+    }
   return errs
 })
 
@@ -257,6 +264,8 @@ function openEdit(item) {
     projectId: item.projectId,
     projectLabel: item.projectLabel ?? '',
     status: item.status ?? 'draft',
+    vatEnabled: item.vatEnabled ?? false,
+    vatRate: item.vatRate ?? 18,
     lines: mapFormLines(item.lines),
   }
   resetErrors()
@@ -271,6 +280,8 @@ function openDuplicate(item) {
     projectId: item.projectId,
     projectLabel: item.projectLabel ?? '',
     status: 'draft',
+    vatEnabled: item.vatEnabled ?? false,
+    vatRate: item.vatRate ?? 18,
     lines: mapFormLines(item.lines),
   }
   resetErrors()
@@ -381,6 +392,8 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     projectId: form.value.projectId || null,
     projectLabel: String(form.value.projectLabel || '').trim() || null,
     status: form.value.status,
+    vatEnabled: Boolean(form.value.vatEnabled),
+    vatRate: form.value.vatRate == null ? 18 : Number(form.value.vatRate),
     lines: (form.value.lines ?? [])
       .filter((l) => String(l.description || '').trim())
       .map((l) => ({
@@ -733,11 +746,16 @@ const printFormatItems = computed(() => [
       @click="openCreate"
     />
 
-    <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(840px, 96vw)">
+    <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(1100px, 96vw)">
       <InvoiceFormFields v-model="form" :errors="fieldErrors" :client-options="clientOptions" :project-options="projectOptions" />
       <template #footer>
-        <Button label="Annuler" severity="secondary" text :disabled="saving || resetting" @click="dialog = false" />
-        <Button :label="editingId ? 'Enregistrer' : 'Créer'" icon="pi pi-check" :loading="saving" @click="saveItem" />
+        <div style="width: 100%">
+          <InvoiceFormTotals :form="form" />
+          <div style="display: flex; justify-content: flex-end; gap: 0.5rem">
+            <Button label="Annuler" severity="secondary" text :disabled="saving || resetting" @click="dialog = false" />
+            <Button :label="editingId ? 'Enregistrer' : 'Créer'" icon="pi pi-check" :loading="saving" @click="saveItem" />
+          </div>
+        </div>
       </template>
     </Dialog>
 

@@ -103,6 +103,9 @@ final class SettingController extends AbstractController
 
         $ancienneValeur = $setting->getValeur();
         $nouvelleValeur = (string) $data['valeur'];
+        if ($cle === 'IMPRESSION_INVOICE_TEMPLATE' && !in_array($nouvelleValeur, ['classic', 'modern'], true)) {
+            return $this->json(['error' => 'Le modèle de facture doit être classic ou modern.'], Response::HTTP_BAD_REQUEST);
+        }
         $motif = isset($data['motif']) ? (string) $data['motif'] : null;
 
         $setting->modifier($nouvelleValeur, $currentUser->getId(), $motif);

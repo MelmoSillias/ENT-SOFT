@@ -21,6 +21,10 @@ const ACCEPTED_IMAGE_ACCEPT = ACCEPTED_IMAGE_TYPES.join(',')
 const MAX_LOGO_BYTES = 2 * 1024 * 1024
 
 const KEYS = [
+  { cle: 'IMPRESSION_INVOICE_TEMPLATE', label: 'Modèle de facture', type: 'select', default: 'classic', options: [
+    { value: 'classic', label: 'Classique' },
+    { value: 'modern', label: 'Moderne — marine et vert' },
+  ] },
   { cle: 'IMPRESSION_FOOTER_TEXT', label: 'Pied de page', type: 'text' },
   { cle: 'IMPRESSION_SHOW_LOGO', label: 'Afficher le logo', type: 'boolean' },
   { cle: 'IMPRESSION_MARGIN_MM', label: 'Marges (mm)', type: 'integer' },
@@ -93,7 +97,7 @@ async function load() {
       } else if (key.type === 'integer') {
         form.value[key.cle] = Number(map[key.cle] ?? 10)
       } else {
-        form.value[key.cle] = map[key.cle] ?? ''
+        form.value[key.cle] = map[key.cle] ?? key.default ?? ''
       }
     }
   } catch (e) {

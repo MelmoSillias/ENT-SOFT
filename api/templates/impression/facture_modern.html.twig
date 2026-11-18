@@ -1,0 +1,104 @@
+{% extends 'impression/_layout.html.twig' %}
+{% block header %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block extra_styles %}
+<style>
+    body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 11px; line-height: 1.42; color: #1f3144; }
+    .brand-banner { width: 100%; border-collapse: collapse; background: #244465; color: #fff; border-right: 16px solid #438d66; margin-bottom: 16px; }
+    .brand-banner td { padding: 16px; vertical-align: middle; }
+    .brand-banner .logo-wrap { width: 85px; padding-right: 0; }
+    .logo-wrap img { max-width: 80px; max-height: 65px; background: #fff; padding: 4px; }
+    .company-name { font-size: 21px; font-weight: bold; letter-spacing: 1px; }
+    .invoice-title { font-size: 24px; margin: 4px 0 0; color: #fff; }
+    .details { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+    .details td { vertical-align: top; padding: 5px; }
+    .client-name { font-size: 18px; font-weight: bold; color: #244465; }
+    .eyebrow, .project-label { color: #438d66; font-weight: bold; font-size: 10px; text-transform: uppercase; }
+    .invoice-meta { background: #f1f5f7; border-left: 3px solid #438d66; width: 44%; }
+    .project-block { background: #f0f7f2; border-left: 3px solid #438d66; padding: 9px 12px; margin-bottom: 13px; }
+    .project-name { font-size: 14px; color: #244465; font-weight: bold; }
+    .invoice-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 14px; }
+    .invoice-table th, .invoice-table td { border: 1px solid #d5dfe5; padding: 6px 4px; vertical-align: middle; }
+    .invoice-table th { background: #294e74; color: #fff; text-align: center; font-size: 9px; }
+    .invoice-table tbody tr:nth-child(even) { background: #f5f8fa; }
+    .idx { width: 5%; text-align: center; }
+    .designation { width: 37%; }
+    .unit { width: 10%; text-align: center; }
+    .qty { width: 8%; text-align: center; }
+    .money { width: 20%; text-align: right; }
+    .bottom-area { width: 100%; border-collapse: collapse; margin: 15px 0; page-break-inside: avoid; break-inside: avoid; }
+    .bottom-area > tbody > tr > td { vertical-align: top; }
+    .bottom-area .pay-info { width: 43%; background: #f0f7f2; border-left: 4px solid #438d66; padding: 12px; }
+    .bottom-area .totals-box { padding-left: 14px; }
+    .invoice-totals { width: 100%; border-collapse: collapse; margin: 0; }
+    .invoice-totals td { padding: 8px; border-bottom: 1px solid #d5dfe5; }
+
+    .invoice-totals .grand-total td { background: #294e74; color: #fff; font-weight: bold; font-size: 12px; }
+    .invoice-closing { margin: 12px 0 17px; }
+    .invoice-signature { margin: 26px 0 22px; text-align: right; color: #244465; }
+    .invoice-signature span { display: inline-block; border-top: 1px solid #a8b9bf; padding: 9px; }
+    .invoice-footer { border-top: 3px solid #438d66; background: #f5f8fa; color: #244465; padding: 10px; font-size: 9px; }
+    .invoice-footer table { width: 100%; border-collapse: collapse; }
+    .invoice-footer td { vertical-align: top; width: 50%; }
+    .footer-reg { text-align: right; }
+    .footer-page { text-align: center; font-weight: bold; margin-top: 5px; min-height: 14px; }
+    .render-pdf .invoice-footer { position: fixed; bottom: -28mm; left: 0; right: 0; }
+    .render-pdf { font-size: 10px; }
+    .continuation { color: #244465; border-bottom: 2px solid #438d66; padding-bottom: 8px; margin-bottom: 10px; }
+    .invoice-sheet { display: flex; flex-direction: column; margin-bottom: 18px; background: white; }
+    .invoice-sheet-content { flex: 1; }
+        .invoice-sheet > .invoice-footer { flex: none; }
+    @media print {
+        .invoice-sheet { margin: 0; break-after: page; page-break-after: always; }
+        .invoice-sheet:last-child { break-after: auto; page-break-after: auto; }
+        .invoice-sheet, .brand-banner, .invoice-footer, .invoice-table th { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+</style>
+{% include 'impression/_invoice_pagination_styles.html.twig' %}
+{% if render_mode == 'pdf' %}<style>@page { margin-bottom: {{ page.margin_mm + 32 }}mm; }</style>{% endif %}
+{% endblock %}
+{% block content %}
+<div id="invoice-content">
+    <table class="brand-banner"><tr>
+        {% if profile.show_logo and profile.logo_url %}<td class="logo-wrap"><img src="{{ profile.logo_url }}" alt="Logo {{ profile.shop_name }}"></td>{% endif %}
+        <td><div class="company-name">{{ profile.shop_name }}</div><h1 class="invoice-title">{{ data.documentLabel|upper }}</h1></td>
+    </tr></table>
+    <table class="details"><tr><td>
+        <div class="eyebrow">Client / Facturé à</div><div class="client-name">{{ data.clientName }}</div>
+        {% for line in data.serviceLines %}<div>{{ line }}</div>{% endfor %}
+    </td><td class="invoice-meta"><b>N° facture</b> : {{ data.invoice.number }}<br><b>Date</b> : {{ data.invoice.date }}</td></tr></table>
+    {% if data.projectName %}<div class="project-block"><span class="project-label">Projet</span> <span class="project-name">{{ data.projectName }}</span></div>{% endif %}
+    <table class="invoice-table">
+        <thead><tr><th class="idx">N°</th><th class="designation">Désignation</th><th class="unit">Unité</th><th class="qty">Qté</th><th class="money">Prix unitaire HT</th><th class="money">Montant HT</th></tr></thead>
+        <tbody>{% for line in data.invoice.lines %}<tr>
+            <td class="idx">{{ line.number }}</td><td class="designation invoice-description">{{ line.description }}</td><td class="unit">{{ line.unit }}</td><td class="qty">{{ line.quantity }}</td><td class="money">{{ line.unitPrice }}</td><td class="money"><strong>{{ line.amount }}</strong></td>
+        </tr>{% else %}<tr><td colspan="6">Aucune ligne</td></tr>{% endfor %}</tbody>
+    </table>
+    <table class="bottom-area"><tbody><tr>
+        <td class="pay-info"><strong>Informations de règlement</strong>{% if profile.payee %}<br>Veuillez effectuer le paiement à l’ordre de <strong>{{ profile.payee }}</strong>.{% endif %}</td>
+        <td class="totals-box"><table class="invoice-totals">
+        <tr><td>Total HT</td><td class="money">{{ data.invoice.subtotal }} FCFA</td></tr>
+        {% if data.invoice.vatEnabled %}<tr><td>TVA ({{ data.invoice.vatRate }} %)</td><td class="money">{{ data.invoice.vatAmount }} FCFA</td></tr>{% endif %}
+        <tr class="grand-total"><td>TOTAL TTC</td><td class="money">{{ data.invoice.amount }} FCFA</td></tr>
+        {% if data.paymentSummary.hasPayments %}
+            <tr><td>TOTAL PAYÉ</td><td class="money">{{ data.paymentSummary.paidAmount }} FCFA</td></tr>
+            <tr><td>RESTE</td><td class="money">{{ data.paymentSummary.remainingAmount }} FCFA</td></tr>
+            {% if data.paymentSummary.lastPaymentDate %}<tr><td colspan="2">Actualisé le {{ data.paymentSummary.lastPaymentDate }}</td></tr>{% endif %}
+        {% endif %}
+        </table></td>
+    </tr></tbody></table>
+    <div class="invoice-closing">{{ data.amountInWords }}</div>
+    <div class="invoice-signature"><span>Signature et cachet</span></div>
+</div>
+<footer id="invoice-footer" class="invoice-footer"><table><tr><td>
+    <strong>{{ profile.shop_name }}</strong>
+    {% for line in profile.address_lines %}<div>{{ line }}</div>{% endfor %}
+    {% if profile.phone %}<div>Tél. : {{ profile.phone }}</div>{% endif %}
+    {% if profile.email %}<div>{{ profile.email }}</div>{% endif %}
+    {% if profile.website %}<div>{{ profile.website }}</div>{% endif %}
+</td><td class="footer-reg">
+    {% if profile.nina %}<div>NINA : {{ profile.nina }}</div>{% endif %}
+    {% if profile.nif_fiscal %}<div>N° fiscal : {{ profile.nif_fiscal }}</div>{% endif %}
+</td></tr></table>{% if profile.footer_text %}<div>{{ profile.footer_text }}</div>{% endif %}<div class="footer-page"></div></footer>
+{% if render_mode != 'pdf' %}{% include 'impression/_invoice_modern_pagination.html.twig' %}{% endif %}
+{% endblock %}

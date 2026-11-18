@@ -42,7 +42,7 @@ final class InvoiceLineWriter
             $total += $line->getAmount();
         }
 
-        $invoice->setAmount($total);
+        $invoice->setSubtotal($total);
         $this->invoiceRepository->save($invoice);
 
         return $total;

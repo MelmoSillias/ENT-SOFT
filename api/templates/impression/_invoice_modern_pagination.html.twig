@@ -1,0 +1,68 @@
+<script>
+(() => {
+    const source = document.getElementById('invoice-content');
+    const footer = document.getElementById('invoice-footer');
+    const blocks = Array.from(source.children);
+    const pages = document.createElement('div');
+    source.before(pages);
+    source.remove();
+    footer.remove();
+    const heightMm = {{ (page.orientation == 'landscape' ? (page.format == 'a5' ? 148 : 210) : (page.format == 'a5' ? 210 : 297)) - 2 * page.margin_mm }};
+    function paginate() {
+        pages.replaceChildren();
+        let sheet, content;
+        function newPage() {
+            sheet = document.createElement('section');
+            sheet.className = 'invoice-sheet';
+            sheet.style.height = heightMm + 'mm';
+            content = document.createElement('div');
+            content.className = 'invoice-sheet-content';
+            sheet.append(content, footer.cloneNode(true));
+            sheet.lastElementChild.removeAttribute('id');
+            pages.append(sheet);
+            if (pages.children.length > 1) {
+                const label = document.createElement('div');
+                label.className = 'continuation';
+                label.textContent = {{ (data.documentLabel ~ ' · ' ~ data.invoice.number ~ ' · Suite')|json_encode(15)|raw }};
+                content.append(label);
+            }
+        }
+        function overflowing() {
+            return content.getBoundingClientRect().bottom > sheet.lastElementChild.getBoundingClientRect().top + 1 || sheet.scrollHeight > sheet.clientHeight + 1;
+        }
+        newPage();
+        for (const block of blocks) {
+            if (block.classList.contains('invoice-table')) {
+                let table = block.cloneNode(true);
+                const rows = Array.from(table.tBodies[0].rows);
+                table.tBodies[0].replaceChildren();
+                content.append(table);
+                for (const row of rows) {
+                    table.tBodies[0].append(row);
+                    if (overflowing()) {
+                        row.remove();
+                        if (!table.tBodies[0].rows.length) table.remove();
+                        newPage();
+                        table = block.cloneNode(true);
+                        table.tBodies[0].replaceChildren(row);
+                        content.append(table);
+                    }
+                }
+            } else {
+                const node = block.cloneNode(true);
+                content.append(node);
+                if (overflowing() && content.children.length > 1) {
+                    node.remove();
+                    newPage();
+                    content.append(node);
+                }
+            }
+        }
+        Array.from(pages.children).forEach((page, i) => {
+            page.querySelector('.footer-page').textContent = 'Page ' + (i + 1) + ' / ' + pages.children.length;
+        });
+    }
+    window.addEventListener('load', paginate, { once: true });
+    window.addEventListener('beforeprint', paginate);
+})();
+</script>

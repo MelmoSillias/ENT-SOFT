@@ -12,6 +12,8 @@ final readonly class CreateInvoiceCommand
         public ?string $projectId = null,
         public ?string $projectLabel = null,
         public array $lines = [],
+        public mixed $vatEnabled = false,
+        public mixed $vatRate = 18,
     ) {
     }
 }

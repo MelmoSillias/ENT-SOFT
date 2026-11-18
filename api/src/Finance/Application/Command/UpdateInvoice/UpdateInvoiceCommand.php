@@ -14,6 +14,8 @@ final readonly class UpdateInvoiceCommand
         public ?string $projectLabel = null,
         public ?array $lines = null,
         public bool $updateProject = false,
+        public mixed $vatEnabled = null,
+        public mixed $vatRate = null,
     ) {
     }
 }

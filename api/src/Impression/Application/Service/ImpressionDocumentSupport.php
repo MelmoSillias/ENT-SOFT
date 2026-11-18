@@ -21,7 +21,8 @@ final class ImpressionDocumentSupport
         return [
             'default_page_table' => $this->setting('IMPRESSION_PAGE_TABLE', 'a4'),
             'default_orientation_table' => $this->setting('IMPRESSION_ORIENTATION_TABLE', 'portrait'),
-            'default_page_invoice' => $this->setting('IMPRESSION_PAGE_INVOICE', 'a4'),
+            'invoice_template' => $this->setting('IMPRESSION_INVOICE_TEMPLATE', 'classic') === 'modern' ? 'modern' : 'classic',
+                        'default_page_invoice' => $this->setting('IMPRESSION_PAGE_INVOICE', 'a4'),
             'default_orientation_invoice' => $this->setting('IMPRESSION_ORIENTATION_INVOICE', 'portrait'),
             'default_export_format' => $this->setting('IMPRESSION_DEFAULT_EXPORT_FORMAT', 'pdf'),
             'margin_mm' => (int) $this->setting('IMPRESSION_MARGIN_MM', '18'),
@@ -76,7 +77,7 @@ final class ImpressionDocumentSupport
         ];
     }
 
-    public function pdfResponse(string $html, string $filename, string $page, string $orientation, string $disposition): Response
+    public function pdfResponse(string $html, string $filename, string $page, string $orientation, string $disposition, bool $invoicePageNumbers = false): Response
     {
         $options = new Options();
         $options->set('isRemoteEnabled', true);
@@ -85,6 +86,15 @@ final class ImpressionDocumentSupport
         $dompdf->loadHtml($html);
         $dompdf->setPaper($page === 'a5' ? 'A5' : 'A4', $orientation === 'landscape' ? 'landscape' : 'portrait');
         $dompdf->render();
+        if ($invoicePageNumbers) {
+            $margin = max(0, (int) $this->setting('IMPRESSION_MARGIN_MM', '18')) * 72 / 25.4;
+            $dompdf->getCanvas()->page_script(static function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($margin): void {
+                $text = 'Page '.$pageNumber.' / '.$pageCount;
+                $font = $fontMetrics->getFont('DejaVu Sans');
+                $width = $fontMetrics->getTextWidth($text, $font, 8);
+                $canvas->text(($canvas->get_width() - $width) / 2, $canvas->get_height() - max(12, $margin / 2), $text, $font, 8, [0.14, 0.27, 0.40]);
+            });
+        }
 
         $contentDisposition = ($disposition === 'attachment' ? 'attachment' : 'inline').'; filename="'.$filename.'.pdf"';
 
