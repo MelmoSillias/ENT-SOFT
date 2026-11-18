@@ -4,7 +4,7 @@
 -- UUID Doctrine SQLite : CAST(X'...' AS TEXT), comme les autres seeds du projet.
 -- Proforma (quote), 16/11/2026, projet libre : Installation électrique.
 -- 35 lignes : HT 5 136 000, TVA 18 % 924 480, TTC 6 060 480 FCFA.
--- Le numero sequentiel est alloue automatiquement ; le numero mensuel est ENT3/11-2026.
+-- Le numero sequentiel est alloue automatiquement ; le numero mensuel est ENT4/11-2026.
 -- Aucun paiement, aucun changement des parametres d'impression ou de numerotation.
 -- Reexecution : aucune modification de la facture importee, meme si elle a ete editee.
 -- Si le numero mensuel appartient deja a une autre facture, l'import est annule.
@@ -17,22 +17,22 @@ CREATE TEMP TRIGGER seed_spiro_guard_failure
 BEFORE INSERT ON seed_spiro_guard
 WHEN NEW.ok = 0
 BEGIN
-    SELECT RAISE(ROLLBACK, 'Import annule : ENT3/11-2026 existe deja ou le client Spiro est desactive.');
+    SELECT RAISE(ROLLBACK, 'Import annule : ENT4/11-2026 existe deja ou le client Spiro est desactive.');
 END;
 
 INSERT INTO seed_spiro_guard (ok)
 SELECT NOT EXISTS (
     SELECT 1 FROM invoices
     WHERE number_monthly = 'ENT4/11-2026'
-      AND id <> CAST(X'9f83e012a6fb4d47a855b2d9c811c843' AS TEXT)
+      AND id <> CAST(X'9f83e012a6fb4d47a855b2d9c811c844' AS TEXT)
 );
 
 CREATE TEMP TABLE seed_spiro_context AS
 SELECT
-    CAST(X'9f83e012a6fb4d47a855b2d9c811c843' AS TEXT) AS invoice_id,
+    CAST(X'9f83e012a6fb4d47a855b2d9c811c844' AS TEXT) AS invoice_id,
     NOT EXISTS (
         SELECT 1 FROM invoices
-        WHERE id = CAST(X'9f83e012a6fb4d47a855b2d9c811c843' AS TEXT)
+        WHERE id = CAST(X'9f83e012a6fb4d47a855b2d9c811c844' AS TEXT)
     ) AS is_new;
 
 -- Reutilise le client par code ou par nom, sans changer ses coordonnees.
@@ -108,13 +108,13 @@ SELECT context.invoice_id,
            COALESCE((SELECT derniere_valeur FROM reference_sequences WHERE type = 'INVOICE'), 0),
            COALESCE((SELECT MAX(CAST(number AS INTEGER)) FROM invoices), 0)
        ) + 1 AS TEXT),
-       'ENT3/11-2026', '2026-11-16',
+       'ENT4/11-2026', '2026-11-16',
        totals.ht + ROUND(totals.ht * 18 / 100.0, 2), totals.ht, 1, 18,
        'quote',
        (SELECT id FROM clients
-        WHERE (code = 'CLI-SPIRO-MALI-MOTORS' OR title = 'Spiro Mali Motors' COLLATE NOCASE)
+        WHERE (code = 'CLI-0003' OR title = 'Spiro Mali Motors' COLLATE NOCASE)
           AND is_enabled = 1
-        ORDER BY CASE WHEN code = 'CLI-SPIRO-MALI-MOTORS' THEN 0 ELSE 1 END, created_at, id
+        ORDER BY CASE WHEN code = 'CLI-0003' THEN 0 ELSE 1 END, created_at, id
         LIMIT 1),
        NULL, 'Installation électrique', datetime('now'), datetime('now'), 1
 FROM seed_spiro_context AS context
@@ -142,7 +142,7 @@ ON CONFLICT (type) DO UPDATE
 SET derniere_valeur = MAX(reference_sequences.derniere_valeur, excluded.derniere_valeur);
 
 INSERT INTO invoice_monthly_sequences (year_month, derniere_valeur)
-SELECT '2026-11', 3 FROM seed_spiro_context WHERE is_new = 1
+SELECT '2026-11', 4 FROM seed_spiro_context WHERE is_new = 1
 ON CONFLICT (year_month) DO UPDATE
 SET derniere_valeur = MAX(invoice_monthly_sequences.derniere_valeur, excluded.derniere_valeur);
 
@@ -161,5 +161,5 @@ SELECT invoice.number AS numero_sequentiel, invoice.number_monthly AS numero_men
 FROM invoices AS invoice
 JOIN clients AS client ON client.id = invoice.client_id
 LEFT JOIN invoice_lines AS line ON line.invoice_id = invoice.id
-WHERE invoice.id = CAST(X'9f83e012a6fb4d47a855b2d9c811c843' AS TEXT)
+WHERE invoice.id = CAST(X'9f83e012a6fb4d47a855b2d9c811c844' AS TEXT)
 GROUP BY invoice.id;
