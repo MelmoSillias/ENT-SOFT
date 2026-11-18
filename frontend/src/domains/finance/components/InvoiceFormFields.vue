@@ -12,14 +12,34 @@ import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
 import { EQUIPMENT_UNIT_OPTIONS, INVOICE_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
-import { computed, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
+import { useBreakpoint } from '@/domains/layout/composables/useBreakpoint'
 
 const form = defineModel({ type: Object, required: true })
-defineProps({
+const props = defineProps({
   errors: { type: Object, default: () => ({}) },
   clientOptions: { type: Array, default: () => [] },
   projectOptions: { type: Array, default: () => [] },
 })
+const { isMobile } = useBreakpoint()
+const activeTab = ref('info')
+const tabId = useId()
+const tabs = [{ value: 'info', label: 'Informations' }, { value: 'lines', label: 'Lignes' }]
+watch(() => props.errors, (errors) => {
+  if (Object.entries(errors).some(([key, message]) => key !== 'lines' && message)) activeTab.value = 'info'
+  else if (errors.lines) activeTab.value = 'lines'
+}, { deep: true })
+function onTabKeydown(event, index) {
+  let next
+  if (event.key === 'ArrowRight') next = (index + 1) % tabs.length
+  else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length
+  else if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = tabs.length - 1
+  else return
+  event.preventDefault()
+  activeTab.value = tabs[next].value
+  event.currentTarget.parentElement.querySelectorAll('[role="tab"]')[next].focus()
+}
 let lineUid = 0
 const newLineKey = () => `il-${Date.now()}-${++lineUid}`
 const lines = computed({
@@ -64,7 +84,10 @@ function onProjectLabelInput() {
 
 <template>
   <div class="invoice-form">
-    <section class="invoice-info" aria-label="Informations de la facture" tabindex="0">
+    <div v-if="isMobile" class="invoice-form__tabs" role="tablist" aria-label="Sections de la facture">
+      <button v-for="(tab, index) in tabs" :id="`${tabId}-tab-${tab.value}`" :key="tab.value" type="button" role="tab" :aria-controls="`${tabId}-panel-${tab.value}`" :aria-selected="activeTab === tab.value" :tabindex="activeTab === tab.value ? 0 : -1" @click="activeTab = tab.value" @keydown="onTabKeydown($event, index)">{{ tab.label }}</button>
+    </div>
+    <section v-show="!isMobile || activeTab === 'info'" :id="`${tabId}-panel-info`" class="invoice-info" :role="isMobile ? 'tabpanel' : undefined" :aria-labelledby="isMobile ? `${tabId}-tab-info` : undefined" aria-label="Informations de la facture" tabindex="0">
       <h3>Informations de la facture</h3>
       <div class="ent-form-grid">
         <div class="field">
@@ -115,7 +138,7 @@ function onProjectLabelInput() {
         </div>
       </section>
     </section>
-    <section class="invoice-lines" aria-label="Lignes de la facture" tabindex="0">
+    <section v-show="!isMobile || activeTab === 'lines'" :id="`${tabId}-panel-lines`" class="invoice-lines" :role="isMobile ? 'tabpanel' : undefined" :aria-labelledby="isMobile ? `${tabId}-tab-lines` : undefined" aria-label="Lignes de la facture" tabindex="0">
       <div class="invoice-lines__header">
         <h3>Lignes</h3>
         <Button type="button" label="Ajouter une ligne" icon="pi pi-plus" size="small" outlined @click="addLine" />
@@ -162,6 +185,10 @@ function onProjectLabelInput() {
 <style scoped>
 .invoice-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }
 .invoice-info, .invoice-lines { min-width: 0; }
+.invoice-form__tabs { display: flex; border-bottom: 1px solid var(--layout-panel-border); }
+.invoice-form__tabs button { flex: 1; padding: 0.75rem; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--layout-text-muted); font: inherit; font-weight: 600; cursor: pointer; }
+.invoice-form__tabs button[aria-selected="true"] { color: var(--p-primary-color); border-bottom-color: var(--p-primary-color); }
+.invoice-form__tabs button:focus-visible { outline: 2px solid var(--p-primary-color); outline-offset: -2px; }
 h3 { margin: 0 0 0.75rem; font-size: 1rem; }
 .ent-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
 .field { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
