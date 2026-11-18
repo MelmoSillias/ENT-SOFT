@@ -23,7 +23,7 @@ END;
 INSERT INTO seed_spiro_guard (ok)
 SELECT NOT EXISTS (
     SELECT 1 FROM invoices
-    WHERE number_monthly = 'ENT3/11-2026'
+    WHERE number_monthly = 'ENT4/11-2026'
       AND id <> CAST(X'9f83e012a6fb4d47a855b2d9c811c843' AS TEXT)
 );
 
@@ -38,18 +38,18 @@ SELECT
 -- Reutilise le client par code ou par nom, sans changer ses coordonnees.
 INSERT INTO clients (id, code, title, description, address, postal_box, city, created_at, updated_at, is_enabled)
 SELECT CAST(X'd85a4dbcfe7b478aa4c6fbcf729f27da' AS TEXT),
-       'CLI-SPIRO-MALI-MOTORS', 'Spiro Mali Motors', NULL, NULL, NULL, NULL,
+       'CLI-0003', 'Spiro Mali Motors', NULL, NULL, NULL, NULL,
        datetime('now'), datetime('now'), 1
 WHERE (SELECT is_new FROM seed_spiro_context) = 1
   AND NOT EXISTS (
       SELECT 1 FROM clients
-      WHERE code = 'CLI-SPIRO-MALI-MOTORS' OR title = 'Spiro Mali Motors' COLLATE NOCASE
+      WHERE code = 'CLI-0003' OR title = 'Spiro Mali Motors' COLLATE NOCASE
   );
 
 INSERT INTO seed_spiro_guard (ok)
 SELECT (SELECT is_new FROM seed_spiro_context) = 0 OR EXISTS (
     SELECT 1 FROM clients
-    WHERE (code = 'CLI-SPIRO-MALI-MOTORS' OR title = 'Spiro Mali Motors' COLLATE NOCASE)
+    WHERE (code = 'CLI-0003' OR title = 'Spiro Mali Motors' COLLATE NOCASE)
       AND is_enabled = 1
 );
 

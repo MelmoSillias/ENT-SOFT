@@ -6,6 +6,7 @@ import Textarea from 'primevue/textarea'
 import InputNumber from 'primevue/inputnumber'
 import ToggleSwitch from 'primevue/toggleswitch'
 import Button from 'primevue/button'
+import Tag from 'primevue/tag'
 import draggable from 'vuedraggable'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
@@ -100,7 +101,7 @@ function onProjectLabelInput() {
         <template #item="{ element: line, index }">
           <div class="invoice-line">
             <div class="invoice-line__top">
-              <span class="invoice-line__index">Ligne {{ index + 1 }}</span>
+              <Tag :value="`Ligne ${index + 1}`" severity="secondary" />
               <div class="invoice-line__actions">
                 <button type="button" class="invoice-line__handle" :aria-label="`Déplacer la ligne ${index + 1}`" title="Glisser pour déplacer"><i class="pi pi-bars" aria-hidden="true" /></button>
                 <Button type="button" icon="pi pi-arrow-up" text rounded size="small" :disabled="index === 0" aria-label="Monter la ligne" @click="moveLine(index, -1)" />
@@ -109,21 +110,17 @@ function onProjectLabelInput() {
               </div>
             </div>
             <div class="field">
-              <label :for="`${line._key}-description`">Désignation</label>
-              <Textarea v-model="line.description" :id="`${line._key}-description`" placeholder="Désignation" :rows="2" auto-resize fluid class="invoice-line__description" />
+              <Textarea v-model="line.description" :id="`${line._key}-description`" aria-label="Désignation" placeholder="Désignation" :rows="2" auto-resize fluid class="invoice-line__description" />
             </div>
             <div class="field">
-              <label :for="`${line._key}-unit`">Unité</label>
-              <InputText v-model="line.unit" :id="`${line._key}-unit`" placeholder="Lot" fluid />
+              <InputText v-model="line.unit" :id="`${line._key}-unit`" aria-label="Unité" placeholder="Unité" fluid />
             </div>
             <div class="invoice-line__prices">
               <div class="field">
-                <label :for="`${line._key}-quantity`">Quantité</label>
-                <InputNumber v-model="line.quantity" :input-id="`${line._key}-quantity`" :min="0" :max-fraction-digits="2" fluid @input="line.quantity = $event.value" />
+                <InputNumber v-model="line.quantity" :input-id="`${line._key}-quantity`" aria-label="Quantité" placeholder="Quantité" :min="0" :max-fraction-digits="2" fluid @input="line.quantity = $event.value" />
               </div>
               <div class="field">
-                <label :for="`${line._key}-price`">Prix U. HT</label>
-                <InputNumber v-model="line.unitPrice" :input-id="`${line._key}-price`" mode="currency" :currency="DEVISE_APP.code" locale="fr-FR" :min="0" :min-fraction-digits="0" :max-fraction-digits="0" fluid @input="line.unitPrice = $event.value" />
+                <InputNumber v-model="line.unitPrice" :input-id="`${line._key}-price`" aria-label="Prix unitaire HT" placeholder="Prix U. HT" mode="currency" :currency="DEVISE_APP.code" locale="fr-FR" :min="0" :min-fraction-digits="0" :max-fraction-digits="0" fluid @input="line.unitPrice = $event.value" />
               </div>
             </div>
             <p class="invoice-line__amount">Total HT : {{ formatMontant(Number(line.quantity || 0) * Number(line.unitPrice || 0), DEVISE_APP) }}</p>
@@ -149,7 +146,7 @@ h3 { margin: 0 0 0.75rem; font-size: 1rem; }
 .invoice-lines__header h3 { margin: 0; }
 .invoice-lines__cards { display: flex; flex-direction: column; gap: 0.75rem; }
 .invoice-line { display: flex; flex-direction: column; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--layout-panel-border); border-radius: var(--layout-radius-sm, 0.5rem); background: var(--layout-panel-bg); min-width: 0; }
-.invoice-line__index { font-size: 0.85rem; font-weight: 650; color: var(--layout-text-muted); }
+
 .invoice-line__actions { display: flex; align-items: center; gap: 0.125rem; }
 .invoice-line__handle { cursor: grab; touch-action: none; background: transparent; color: var(--layout-text-muted); border: 0; padding: 0.5rem; }
 .invoice-line__handle:active { cursor: grabbing; }
@@ -159,6 +156,7 @@ h3 { margin: 0 0 0.75rem; font-size: 1rem; }
 .invoice-line__amount { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
 @media (min-width: 768px) {
   .invoice-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+  .invoice-info { position: sticky; top: 0; align-self: start; }
 }
 @media (max-width: 359px) {
   .invoice-line__prices { grid-template-columns: minmax(4rem, 1fr) minmax(8rem, 2fr); }
