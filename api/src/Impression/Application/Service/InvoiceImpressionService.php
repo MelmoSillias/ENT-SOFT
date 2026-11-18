@@ -9,6 +9,7 @@ use App\Finance\Domain\Enum\InvoiceStatus;
 use App\Finance\Domain\Exception\InvoiceNotFoundException;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
 use App\Project\Domain\Repository\ProjectRepositoryInterface;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpWord\IOFactory;
@@ -109,6 +110,7 @@ final class InvoiceImpressionService
                                         'subtotal' => $this->formatAmount($dto['subtotal'] ?? $amountRaw),
                                         'vatAmount' => $this->formatAmount($dto['vatAmount'] ?? 0),
                     'lines' => $lines,
+                                        'paymentTerms' => $dto['paymentTerms'] ?? [],
                 ],
                 'clientName' => $client?->getTitle() ?? '—',
                 'serviceLines' => $serviceLines,
@@ -225,7 +227,13 @@ final class InvoiceImpressionService
             foreach ($this->totalRows($dto) as $total) {
                             fputcsv($out, [$total[0], '', '', '', $total[1]], ';');
                         }
-                        fclose($out);
+            if ($dto['paymentTerms'] ?? []) {
+                fputcsv($out, ['Conditions de paiement'], ';');
+                foreach ($dto['paymentTerms'] as $term) {
+                    fputcsv($out, [$term], ';');
+                }
+            }
+            fclose($out);
         }, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="'.$filename.'.csv"',
@@ -252,7 +260,13 @@ final class InvoiceImpressionService
         foreach ($this->totalRows($dto) as $total) {
                     $sheet->fromArray([$total[0], '', '', '', $total[1]], null, 'A'.$row++);
                 }
-                $writer = new Xlsx($spreadsheet);
+        if ($dto['paymentTerms'] ?? []) {
+            $sheet->setCellValueExplicit('A'.$row++, 'Conditions de paiement', DataType::TYPE_STRING);
+            foreach ($dto['paymentTerms'] as $term) {
+                $sheet->setCellValueExplicit('A'.$row++, $term, DataType::TYPE_STRING);
+            }
+        }
+        $writer = new Xlsx($spreadsheet);
 
         return new StreamedResponse(function () use ($writer) {
             $writer->save('php://output');
@@ -284,7 +298,13 @@ final class InvoiceImpressionService
         foreach ($this->totalRows($dto) as [$label, $amount]) {
                     $section->addText($label.' : '.$this->formatAmount($amount).' FCFA');
                 }
-                $writer = IOFactory::createWriter($phpWord, 'Word2007');
+        if ($dto['paymentTerms'] ?? []) {
+            $section->addText('Conditions de paiement');
+            foreach ($dto['paymentTerms'] as $term) {
+                $section->addText(htmlspecialchars($term, ENT_QUOTES | ENT_XML1, 'UTF-8'));
+            }
+        }
+        $writer = IOFactory::createWriter($phpWord, 'Word2007');
 
         return new StreamedResponse(function () use ($writer) {
             $writer->save('php://output');

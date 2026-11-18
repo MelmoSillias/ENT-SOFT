@@ -21,6 +21,8 @@ use App\Project\Domain\Repository\ProjectRepositoryInterface;
 use App\Referentiel\Domain\Catalog\SettingsCatalog;
 use App\SharedKernel\Application\Event\DomainEventDispatcherInterface;
 use Dompdf\Dompdf;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
@@ -34,7 +36,7 @@ final class InvoiceImpressionTest extends TestCase
     private string $lastHtml = '';
     private ImpressionDocumentSupport $support;
 
-    private function service(?string $template = null, bool $vat = true, int $count = 2, bool $long = false): InvoiceImpressionService
+    private function service(?string $template = null, bool $vat = true, int $count = 2, bool $long = false, array $paymentTerms = []): InvoiceImpressionService
     {
         $values = [
             'AGENCE_NOM' => 'Agence personnalisée', 'AGENCE_ADRESSE' => 'Adresse personnalisée',
@@ -57,6 +59,7 @@ final class InvoiceImpressionTest extends TestCase
         $this->support = new ImpressionDocumentSupport($settings, $logo);
         $invoice = new Invoice('TEST-42', 'TEST42/11-2026', new \DateTimeImmutable('2026-11-18'), $count * 500, Uuid::v4());
         $invoice->setVat($vat, 18);
+        $invoice->setPaymentTerms($paymentTerms);
         $this->id = (string) $invoice->getId();
         $invoices = $this->createMock(InvoiceRepositoryInterface::class);
         $invoices->method('findById')->willReturn($invoice);
@@ -286,6 +289,136 @@ final class InvoiceImpressionTest extends TestCase
         }
     }
 
+    public static function paymentTermsModels(): iterable
+    {
+        foreach (['classic', 'modern'] as $template) {
+            foreach (['html', 'pdf'] as $format) {
+                yield "$template $format" => [$template, $format];
+            }
+        }
+    }
+
+    #[DataProvider('paymentTermsModels')]
+    public function testPaymentTermsAreEscapedAndOrdered(string $template, string $format): void
+    {
+        $terms = ['Acompte <script>alert("test")</script> & solde', 'Puis paiement à 30 jours'];
+        $service = $this->service($template, paymentTerms: $terms);
+        $response = $service->renderInvoice($this->id, $format, 'a5', 'landscape', 'attachment');
+        if ($format === 'pdf') {
+            self::assertStringStartsWith('%PDF-', $response->getContent());
+        }
+        $html = $this->lastHtml;
+        self::assertSame(1, substr_count($html, 'Conditions de paiement'));
+        self::assertStringNotContainsString('<script>alert', $html);
+        $escaped = htmlspecialchars($terms[0], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        self::assertStringContainsString($escaped, $html);
+        self::assertLessThan(strpos($html, $terms[1]), strpos($html, $escaped));
+        self::assertSame(2, substr_count($html, 'class="invoice-payment-term"'));
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        try {
+            self::assertTrue($document->loadHTML('<?xml encoding="UTF-8">'.$html));
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+        $xpath = new \DOMXPath($document);
+        $paymentClass = $template === 'modern' ? 'pay-info' : 'inv-payment-info';
+        $items = $xpath->query('//div[@class="'.$paymentClass.'"]//ul[@class="invoice-payment-terms"]/li');
+        self::assertSame(2, $items->length);
+        foreach ($terms as $index => $term) {
+            self::assertSame($term, $items->item($index)->textContent);
+        }
+    }
+
+    #[DataProvider('paymentTermsModels')]
+    public function testEmptyPaymentTermsAreHidden(string $template, string $format): void
+    {
+        $service = $this->service($template);
+        $service->renderInvoice($this->id, $format, 'a4', 'portrait', 'attachment');
+        self::assertStringNotContainsString('Conditions de paiement', $this->lastHtml);
+        self::assertStringNotContainsString('class="invoice-payment-term"', $this->lastHtml);
+    }
+
+    public static function paymentTermsExports(): iterable
+    {
+        foreach (['csv', 'excel', 'word'] as $format) {
+            foreach ([false, true] as $withTerms) {
+                yield $format.($withTerms ? ' terms' : ' empty') => [$format, $withTerms];
+            }
+        }
+    }
+
+    #[DataProvider('paymentTermsExports')]
+    public function testPaymentTermsExportsPreserveTextAndOrder(string $format, bool $withTerms): void
+    {
+        $terms = $withTerms ? ['Acompte <30%> & "accord"; confirmé', '=Solde à 30 jours'] : [];
+        $service = $this->service(paymentTerms: $terms);
+        $response = $service->renderInvoice($this->id, $format, 'a4', 'portrait', 'attachment');
+        ob_start();
+        try {
+            $response->sendContent();
+            $content = ob_get_contents();
+        } finally {
+            ob_end_clean();
+        }
+        if ($format === 'csv') {
+            $stream = fopen('php://temp', 'w+');
+            try {
+                fwrite($stream, $content);
+                rewind($stream);
+                $texts = [];
+                while (($row = fgetcsv($stream, 0, ';')) !== false) {
+                    $texts[] = $row[0];
+                }
+            } finally {
+                fclose($stream);
+            }
+        } else {
+            $file = tempnam(sys_get_temp_dir(), 'invoice-terms');
+            try {
+                file_put_contents($file, $content);
+                if ($format === 'excel') {
+                    $spreadsheet = IOFactory::load($file);
+                    try {
+                        $sheet = $spreadsheet->getActiveSheet();
+                        $texts = array_column($sheet->toArray(), 0);
+                        if ($withTerms) {
+                            $cell = $sheet->getCell('A'.$sheet->getHighestRow());
+                            self::assertSame(DataType::TYPE_STRING, $cell->getDataType());
+                        }
+                    } finally {
+                        $spreadsheet->disconnectWorksheets();
+                    }
+                } else {
+                    $zip = new \ZipArchive();
+                    self::assertTrue($zip->open($file));
+                    try {
+                        $xml = $zip->getFromName('word/document.xml');
+                    } finally {
+                        $zip->close();
+                    }
+                    $document = new \DOMDocument();
+                    self::assertTrue($document->loadXML($xml));
+                    $xpath = new \DOMXPath($document);
+                    $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+                    $texts = [];
+                    foreach ($xpath->query('//w:t') as $text) {
+                        $texts[] = $text->textContent;
+                    }
+                }
+            } finally {
+                unlink($file);
+            }
+        }
+        if ($withTerms) {
+            self::assertSame(['Conditions de paiement', ...$terms], array_slice($texts, -3));
+            self::assertSame(1, count(array_keys($texts, 'Conditions de paiement', true)));
+        } else {
+            self::assertNotContains('Conditions de paiement', $texts);
+        }
+    }
+
     public function testDedicatedMigrationIsIdempotentAndPreservesSelection(): void
     {
         require_once dirname(__DIR__, 3).'/migrations/Version20261118130000.php';
@@ -319,7 +452,7 @@ final class InvoiceImpressionTest extends TestCase
         if (!is_file($chrome)) {
             self::markTestSkipped('Chrome local non disponible pour le contrôle HTML.');
         }
-        $service = $this->service('modern', true, 75, true);
+        $service = $this->service('modern', true, 75, true, ['Acompte à la commande', 'Solde à réception']);
         $html = $service->renderInvoice($this->id, 'html', 'a5', 'landscape', 'attachment')->getContent();
         $probe = <<<'HTML'
 <script>
@@ -329,7 +462,7 @@ window.addEventListener('load', () => {
     const overflow = sheets.some(s => s.scrollHeight > s.clientHeight + 1) || rows.some(r => r.getBoundingClientRect().bottom > r.closest('.invoice-sheet').querySelector('.invoice-footer').getBoundingClientRect().top + 1);
     document.body.setAttribute('data-pagination-overflow', String(overflow));
     document.body.setAttribute('data-pagination-pages', String(sheets.length));
-    document.body.setAttribute('data-pagination-complete', String(sheets.some(s => s.textContent.includes('ARTICLE075')) && sheets.some(s => s.textContent.includes('FIN_DESCRIPTION')) && sheets.some(s => s.textContent.includes('TOTAL TTC'))));
+    document.body.setAttribute('data-pagination-complete', String(sheets.some(s => s.textContent.includes('ARTICLE075')) && sheets.some(s => s.textContent.includes('FIN_DESCRIPTION')) && sheets.some(s => s.textContent.includes('TOTAL TTC')) && sheets.some(s => s.textContent.includes('Acompte à la commande')) && sheets.some(s => s.textContent.includes('Solde à réception'))));
 });
 </script>
 HTML;
@@ -370,7 +503,7 @@ HTML;
     #[DataProvider('pageFormats')]
     public function testRealPdfPaginationPreservesEveryArticleAndLongDescription(string $template, string $page, string $orientation): void
     {
-        $service = $this->service($template, true, 45, true);
+        $service = $this->service($template, true, 45, true, ['Acompte à la commande', 'Solde à réception']);
         $response = $service->renderInvoice($this->id, 'pdf', $page, $orientation, 'attachment');
         self::assertStringStartsWith('%PDF-', $response->getContent());
         self::assertGreaterThan(1, preg_match_all('~/Type\s*/Page\b~', $response->getContent()));
@@ -407,5 +540,8 @@ HTML;
         self::assertStringContainsString('FIN_DESCRIPTION', $renderedText);
         self::assertStringContainsString('TOTAL TTC', $renderedText);
         self::assertStringContainsString('26 550', $renderedText);
+        self::assertStringContainsString('Conditions de paiement', $renderedText);
+        self::assertStringContainsString('Acompte à la commande', $renderedText);
+        self::assertStringContainsString('Solde à réception', $renderedText);
     }
 }

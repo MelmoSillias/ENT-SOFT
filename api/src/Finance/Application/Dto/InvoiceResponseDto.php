@@ -9,6 +9,7 @@ final readonly class InvoiceResponseDto
     /**
      * @param list<array<string, mixed>> $lines
      * @param list<array<string, mixed>> $payments
+     * @param list<string> $paymentTerms
      */
     public function __construct(
         public string $id,
@@ -32,6 +33,7 @@ final readonly class InvoiceResponseDto
         public float $vatRate = 18.0,
         public float $subtotal = 0.0,
         public float $vatAmount = 0.0,
+        public array $paymentTerms = [],
     ) {
     }
 
@@ -68,6 +70,7 @@ final readonly class InvoiceResponseDto
             vatRate: $invoice->getVatRate(),
             subtotal: $invoice->getSubtotal(),
             vatAmount: $invoice->getVatAmount(),
+            paymentTerms: $invoice->getPaymentTerms(),
         );
     }
 
@@ -86,6 +89,7 @@ final readonly class InvoiceResponseDto
             'vatRate' => $this->vatRate,
             'subtotal' => $this->subtotal,
             'vatAmount' => $this->vatAmount,
+            'paymentTerms' => $this->paymentTerms,
             'status' => $this->status,
             'clientId' => $this->clientId,
             'projectId' => $this->projectId,

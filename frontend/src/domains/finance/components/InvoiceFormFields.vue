@@ -11,7 +11,7 @@ import draggable from 'vuedraggable'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import { DEVISE_APP } from '@/domains/shared/constants/devise'
 import { formatMontant } from '@/domains/shared/utils/formatMontant'
-import { INVOICE_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
+import { EQUIPMENT_UNIT_OPTIONS, INVOICE_STATUS_OPTIONS } from '@/domains/shared/utils/entLabels'
 import { computed, watch } from 'vue'
 
 const form = defineModel({ type: Object, required: true })
@@ -26,6 +26,11 @@ const lines = computed({
   get: () => form.value.lines ?? [],
   set: (value) => { form.value.lines = value },
 })
+const unitOptions = computed(() => [...new Set([
+  ...EQUIPMENT_UNIT_OPTIONS.map((option) => option.label),
+  'Forfait',
+  ...lines.value.map((line) => line.unit).filter(Boolean),
+])])
 watch(lines, () => {
   for (const line of lines.value) if (!line._key) line._key = newLineKey()
 }, { immediate: true })
@@ -43,6 +48,12 @@ function moveLine(index, delta) {
   next.splice(target, 0, item)
   lines.value = next
 }
+function addPaymentTerm() {
+  form.value.paymentTerms = [...(form.value.paymentTerms ?? []), '']
+}
+function removePaymentTerm(index) {
+  form.value.paymentTerms = form.value.paymentTerms.filter((_, i) => i !== index)
+}
 function onProjectSelect() {
   if (form.value.projectId) form.value.projectLabel = ''
 }
@@ -53,7 +64,7 @@ function onProjectLabelInput() {
 
 <template>
   <div class="invoice-form">
-    <section class="invoice-info" aria-label="Informations de la facture">
+    <section class="invoice-info" aria-label="Informations de la facture" tabindex="0">
       <h3>Informations de la facture</h3>
       <div class="ent-form-grid">
         <div class="field">
@@ -89,8 +100,22 @@ function onProjectLabelInput() {
           <AppFieldError :message="errors.vatRate" />
         </div>
       </div>
+      <section class="invoice-payment-terms" aria-label="Conditions de paiement">
+        <div class="invoice-lines__header">
+          <h3>Conditions de paiement</h3>
+          <Button type="button" label="Ajouter une condition" icon="pi pi-plus" size="small" outlined @click="addPaymentTerm" />
+        </div>
+        <AppFieldError :message="errors.paymentTerms" />
+        <p v-if="!form.paymentTerms?.length" class="field-hint">Aucune condition de paiement.</p>
+        <div class="invoice-payment-terms__list">
+          <div v-for="(_, index) in form.paymentTerms" :key="index" class="invoice-payment-term">
+            <InputText v-model="form.paymentTerms[index]" :aria-label="`Condition de paiement ${index + 1}`" placeholder="Ex. : 50 % à la commande" fluid />
+            <Button type="button" icon="pi pi-trash" text rounded size="small" severity="danger" :aria-label="`Supprimer la condition de paiement ${index + 1}`" @click="removePaymentTerm(index)" />
+          </div>
+        </div>
+      </section>
     </section>
-    <section class="invoice-lines" aria-label="Lignes de la facture">
+    <section class="invoice-lines" aria-label="Lignes de la facture" tabindex="0">
       <div class="invoice-lines__header">
         <h3>Lignes</h3>
         <Button type="button" label="Ajouter une ligne" icon="pi pi-plus" size="small" outlined @click="addLine" />
@@ -112,14 +137,17 @@ function onProjectLabelInput() {
             <div class="field">
               <Textarea v-model="line.description" :id="`${line._key}-description`" aria-label="Désignation" placeholder="Désignation" :rows="2" auto-resize fluid class="invoice-line__description" />
             </div>
-            <div class="field">
-              <InputText v-model="line.unit" :id="`${line._key}-unit`" aria-label="Unité" placeholder="Unité" fluid />
-            </div>
             <div class="invoice-line__prices">
               <div class="field">
+                <label :for="`${line._key}-quantity`">Qté</label>
                 <InputNumber v-model="line.quantity" :input-id="`${line._key}-quantity`" aria-label="Quantité" placeholder="Quantité" :min="0" :max-fraction-digits="2" fluid @input="line.quantity = $event.value" />
               </div>
               <div class="field">
+                <label :for="`${line._key}-unit`">Unité</label>
+                <Select v-model="line.unit" :input-id="`${line._key}-unit`" :options="unitOptions" aria-label="Unité" placeholder="Unité" fluid />
+              </div>
+              <div class="field">
+                <label :for="`${line._key}-price`">Prix U. HT</label>
                 <InputNumber v-model="line.unitPrice" :input-id="`${line._key}-price`" aria-label="Prix unitaire HT" placeholder="Prix U. HT" mode="currency" :currency="DEVISE_APP.code" locale="fr-FR" :min="0" :min-fraction-digits="0" :max-fraction-digits="0" fluid @input="line.unitPrice = $event.value" />
               </div>
             </div>
@@ -140,6 +168,10 @@ h3 { margin: 0 0 0.75rem; font-size: 1rem; }
 .field--wide { grid-column: 1 / -1; }
 .field-hint { color: var(--layout-text-muted); font-size: 0.75rem; }
 .required { color: var(--p-red-500, #ef4444); }
+.invoice-payment-terms { margin-top: 1.5rem; }
+.invoice-payment-terms__list { display: flex; flex-direction: column; gap: 0.5rem; }
+.invoice-payment-term { display: flex; align-items: center; gap: 0.5rem; }
+.invoice-payment-term :deep(input) { flex: 1; min-width: 0; }
 .vat-toggle, .invoice-lines__header, .invoice-line__top { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 .vat-toggle { justify-content: flex-start; }
 .invoice-lines__header { flex-wrap: wrap; margin-bottom: 0.75rem; }
@@ -151,14 +183,16 @@ h3 { margin: 0 0 0.75rem; font-size: 1rem; }
 .invoice-line__handle { cursor: grab; touch-action: none; background: transparent; color: var(--layout-text-muted); border: 0; padding: 0.5rem; }
 .invoice-line__handle:active { cursor: grabbing; }
 .invoice-line__description { min-height: 4rem; resize: vertical; }
-.invoice-line__prices { display: grid; grid-template-columns: minmax(5rem, 1fr) minmax(10rem, 2fr); gap: 0.75rem; }
-.invoice-line__prices :deep(.p-inputnumber), .invoice-line__prices :deep(input) { width: 100%; min-width: 0; }
+.invoice-line__prices { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.5fr); gap: 0.75rem; }
+.invoice-line__prices :deep(.p-inputnumber), .invoice-line__prices :deep(.p-select), .invoice-line__prices :deep(input) { width: 100%; min-width: 0; }
 .invoice-line__amount { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
 @media (min-width: 768px) {
-  .invoice-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
-  .invoice-info { position: sticky; top: 0; align-self: start; }
+  .invoice-form { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); grid-template-rows: minmax(0, 1fr); gap: 0; align-items: stretch; }
+  .invoice-info, .invoice-lines { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+  .invoice-info { padding: 0.25rem 1rem 0.5rem 0.25rem; }
+  .invoice-lines { border-left: 1px solid var(--layout-panel-border); padding: 0.25rem 0.25rem 0.5rem 1rem; }
 }
 @media (max-width: 359px) {
-  .invoice-line__prices { grid-template-columns: minmax(4rem, 1fr) minmax(8rem, 2fr); }
+  .invoice-line__prices { gap: 0.375rem; }
 }
 </style>

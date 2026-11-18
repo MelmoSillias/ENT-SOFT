@@ -147,6 +147,8 @@
         margin: 12px 0 18px;
         font-size: 10.5pt;
     }
+    .invoice-payment-terms { margin: 6px 0 0; padding-left: 18px; list-style-type: disc; }
+    .invoice-payment-term { margin: 0 0 6px; overflow-wrap: break-word; word-wrap: break-word; }
     .inv-pay {
         text-align: center;
         margin: 18px 0 8px;
@@ -274,9 +276,12 @@
 
     <div class="inv-words">{{ data.amountInWords }}</div>
 
-    {% if profile.payee %}
-        <div class="inv-pay">Veuillez Paye à l'ordre de {{ profile.payee }}</div>
-    {% endif %}
+    <div class="inv-payment-info">
+        {% if profile.payee %}
+            <div class="inv-pay">Veuillez Paye à l'ordre de {{ profile.payee }}</div>
+        {% endif %}
+        {% include 'impression/_invoice_payment_terms.html.twig' %}
+    </div>
 
     {% if profile.footer_text %}
         <div class="inv-footer-contact">{{ profile.footer_text }}</div>

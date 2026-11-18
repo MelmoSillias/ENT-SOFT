@@ -16,6 +16,7 @@ use App\Finance\Application\Query\GetInvoice\GetInvoiceHandler;
 use App\Finance\Application\Query\GetInvoice\GetInvoiceQuery;
 use App\Finance\Application\Query\ListInvoices\ListInvoicesHandler;
 use App\Finance\Application\Service\InvoiceVatValidator;
+use App\Finance\Domain\Validation\InvoicePaymentTerms;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -51,6 +52,7 @@ final class InvoiceController extends AbstractController
             lines: $data['lines'] ?? [],
             vatEnabled: $data['vatEnabled'] ?? false,
             vatRate: $data['vatRate'] ?? 18,
+            paymentTerms: $this->paymentTermsFromRequest($request, $data) ?? [],
         ));
 
         return $this->json($result->toArray(), Response::HTTP_CREATED);
@@ -102,9 +104,26 @@ final class InvoiceController extends AbstractController
             updateProject: array_key_exists('projectId', $data) || array_key_exists('projectLabel', $data),
             vatEnabled: $data['vatEnabled'] ?? null,
             vatRate: $data['vatRate'] ?? null,
+            paymentTerms: $this->paymentTermsFromRequest($request, $data),
         ));
 
         return $this->json($result->toArray());
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return list<string>|null
+     */
+    private function paymentTermsFromRequest(Request $request, array $data): ?array
+    {
+        if (!array_key_exists('paymentTerms', $data)) {
+            return null;
+        }
+
+        // Le décodage objet distingue les listes JSON des objets, même vides.
+        $payload = json_decode($request->getContent(), flags: JSON_THROW_ON_ERROR);
+
+        return InvoicePaymentTerms::normalize($payload->paymentTerms);
     }
 
     #[Route('/{id}', name: 'api_invoices_delete', methods: ['DELETE'])]

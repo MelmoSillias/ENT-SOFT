@@ -3,6 +3,7 @@
 namespace App\Finance\Domain\Entity;
 
 use App\Finance\Domain\Enum\InvoiceStatus;
+use App\Finance\Domain\Validation\InvoicePaymentTerms;
 use App\Finance\Infrastructure\Persistence\Doctrine\DoctrineInvoiceRepository;
 use App\SharedKernel\Domain\Trait\SoftDeletableTrait;
 use App\SharedKernel\Domain\Trait\TimestampableTrait;
@@ -53,6 +54,10 @@ class Invoice
     #[ORM\Column(name: 'project_label', length: 255, nullable: true)]
     private ?string $projectLabel;
 
+    /** @var list<string>|null */
+    #[ORM\Column(name: 'payment_terms', type: 'json', nullable: true)]
+    private ?array $paymentTerms = [];
+
     public function __construct(
         string $number,
         string $numberMonthly,
@@ -73,6 +78,15 @@ class Invoice
         $this->status = $status;
         $this->projectId = $projectId;
         $this->projectLabel = $projectLabel;
+    }
+
+    /** @return list<string> */
+    public function getPaymentTerms(): array { return $this->paymentTerms ?? []; }
+
+    public function setPaymentTerms(mixed $paymentTerms): void
+    {
+        $this->paymentTerms = InvoicePaymentTerms::normalize($paymentTerms);
+        $this->touch();
     }
 
     public function getNumber(): string { return $this->number; }

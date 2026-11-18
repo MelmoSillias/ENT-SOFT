@@ -1,0 +1,8 @@
+{% if data.invoice.paymentTerms|default([]) %}
+    <div><strong>Conditions de paiement</strong></div>
+    <ul class="invoice-payment-terms">
+        {% for term in data.invoice.paymentTerms %}
+            <li class="invoice-payment-term">{{ term }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}

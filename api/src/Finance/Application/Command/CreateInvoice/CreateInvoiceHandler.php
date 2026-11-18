@@ -10,6 +10,7 @@ use App\Finance\Application\Service\InvoiceVatValidator;
 use App\Finance\Domain\Entity\Invoice;
 use App\Finance\Domain\Enum\InvoiceStatus;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
+use App\Finance\Domain\Validation\InvoicePaymentTerms;
 use Symfony\Component\Uid\Uuid;
 
 final class CreateInvoiceHandler
@@ -25,6 +26,7 @@ final class CreateInvoiceHandler
     public function handle(CreateInvoiceCommand $command): InvoiceResponseDto
     {
         InvoiceVatValidator::validate($command->vatEnabled, $command->vatRate);
+        $paymentTerms = InvoicePaymentTerms::normalize($command->paymentTerms);
         $date = new \DateTimeImmutable($command->date);
         $numbers = $this->numberGenerator->generate($date);
         $projectLabel = $command->projectLabel !== null ? trim($command->projectLabel) : null;
@@ -42,6 +44,7 @@ final class CreateInvoiceHandler
             projectLabel: $command->projectId ? null : $projectLabel,
         );
         $invoice->setVat($command->vatEnabled, (float) $command->vatRate);
+        $invoice->setPaymentTerms($paymentTerms);
         $this->invoiceRepository->save($invoice);
         $this->lineWriter->replaceLines($invoice, $command->lines);
 

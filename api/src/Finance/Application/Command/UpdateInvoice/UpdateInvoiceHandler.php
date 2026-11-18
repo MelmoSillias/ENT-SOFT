@@ -11,6 +11,7 @@ use App\Finance\Domain\Exception\InvoiceCannotBeModifiedException;
 use App\Finance\Domain\Exception\InvoiceNotFoundException;
 use App\Finance\Domain\Repository\FinancialTransactionRepositoryInterface;
 use App\Finance\Domain\Repository\InvoiceRepositoryInterface;
+use App\Finance\Domain\Validation\InvoicePaymentTerms;
 use Symfony\Component\Uid\Uuid;
 
 final class UpdateInvoiceHandler
@@ -35,10 +36,16 @@ final class UpdateInvoiceHandler
             throw InvoiceCannotBeModifiedException::hasPayments();
         }
 
+        $paymentTerms = $command->paymentTerms !== null
+            ? InvoicePaymentTerms::normalize($command->paymentTerms)
+            : null;
         $vatEnabled = $command->vatEnabled ?? $invoice->isVatEnabled();
         $vatRate = $command->vatRate ?? $invoice->getVatRate();
         InvoiceVatValidator::validate($vatEnabled, $vatRate);
         $invoice->setVat($vatEnabled, (float) $vatRate);
+        if ($paymentTerms !== null) {
+            $invoice->setPaymentTerms($paymentTerms);
+        }
 
         if ($command->date !== null) {
             $invoice->setDate(new \DateTimeImmutable($command->date));

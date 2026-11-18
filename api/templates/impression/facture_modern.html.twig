@@ -58,7 +58,9 @@
     .invoice-totals .grand-total { border: 0; background: #294e74; color: #fff; font-weight: 800; font-size: 14px; }
     .invoice-totals .payment-date { font-size: 11px; }
     .invoice-closing { font-size: 12px; margin: 12px 0 17px; break-inside: avoid; page-break-inside: avoid; }
-    .invoice-signature { display: flex; justify-content: flex-end; margin: 23px 0 20px; break-inside: avoid; page-break-inside: avoid; }
+    .invoice-payment-terms { margin: 6px 0 0; padding-left: 18px; list-style-type: disc; }
+    .invoice-payment-term { margin: 0 0 6px; overflow-wrap: break-word; word-wrap: break-word; }
+    .invoice-signature { display: flex; justify-content: flex-end; margin: 43px 0 20px; break-inside: avoid; page-break-inside: avoid; }
     .invoice-signature .sig { text-align: center; min-width: 190px; border-top: 1px solid #a8b9bf; padding: 9px; color: #244465; font-size: 12px; }
     .invoice-footer { height: 105px; min-height: 105px; flex: none; position: relative; background: #f5f8fa; border-top: 3px solid #438d66; color: #244465; padding: 14px 20px 13px; display: grid; grid-template-columns: minmax(0,1fr) 72px minmax(0,1fr); align-items: start; gap: 10px; font-size: 10.5px; line-height: 1.45; }
     .invoice-footer:before { content: ''; position: absolute; left: 0; top: -3px; width: 40%; border-top: 3px solid #294e74; }
@@ -136,7 +138,11 @@
         </tr>{% else %}<tr><td colspan="6">Aucune ligne</td></tr>{% endfor %}</tbody>
     </table>
     <div class="bottom-area">
-        <div class="pay-info"><div class="pay-label">Informations de règlement</div>{% if profile.payee %}<p>Veuillez effectuer le paiement à l’ordre de <strong>{{ profile.payee }}</strong>.</p>{% endif %}</div>
+        <div class="pay-info">
+            <div class="pay-label">Informations de règlement</div>
+            {% if profile.payee %}<p>Veuillez effectuer le paiement à l’ordre de <strong>{{ profile.payee }}</strong>.</p>{% endif %}
+            {% include 'impression/_invoice_payment_terms.html.twig' %}
+        </div>
         <div class="totals-box"><div class="invoice-totals">
             <div class="trow"><span>Total HT</span><strong>{{ data.invoice.subtotal }} FCFA</strong></div>
             {% if data.invoice.vatEnabled %}<div class="trow tax-total"><span>TVA ({{ data.invoice.vatRate }} %)</span><strong>{{ data.invoice.vatAmount }} FCFA</strong></div>{% endif %}

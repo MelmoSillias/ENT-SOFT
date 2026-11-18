@@ -123,7 +123,7 @@ function mapFormLines(lines) {
 }
 
 function emptyForm() {
-  return { date: new Date(), clientId: null, projectId: null, projectLabel: '', status: 'draft', vatEnabled: false, vatRate: 18, lines: [emptyLine()] }
+  return { date: new Date(), clientId: null, projectId: null, projectLabel: '', status: 'draft', vatEnabled: false, vatRate: 18, paymentTerms: [], lines: [emptyLine()] }
 }
 
 const form = ref(emptyForm())
@@ -266,6 +266,7 @@ function openEdit(item) {
     status: item.status ?? 'draft',
     vatEnabled: item.vatEnabled ?? false,
     vatRate: item.vatRate ?? 18,
+    paymentTerms: [...(item.paymentTerms ?? [])],
     lines: mapFormLines(item.lines),
   }
   resetErrors()
@@ -282,6 +283,7 @@ function openDuplicate(item) {
     status: 'draft',
     vatEnabled: item.vatEnabled ?? false,
     vatRate: item.vatRate ?? 18,
+    paymentTerms: [...(item.paymentTerms ?? [])],
     lines: mapFormLines(item.lines),
   }
   resetErrors()
@@ -394,6 +396,7 @@ const { pending: saving, run: saveItem } = useAsyncAction(async () => {
     status: form.value.status,
     vatEnabled: Boolean(form.value.vatEnabled),
     vatRate: form.value.vatRate == null ? 18 : Number(form.value.vatRate),
+    paymentTerms: (form.value.paymentTerms ?? []).map((term) => term.trim()).filter(Boolean),
     lines: (form.value.lines ?? [])
       .filter((l) => String(l.description || '').trim())
       .map((l) => ({
@@ -746,7 +749,7 @@ const printFormatItems = computed(() => [
       @click="openCreate"
     />
 
-    <Dialog v-model:visible="dialog" :header="dialogTitle" modal style="width: min(1100px, 96vw)">
+    <Dialog v-model:visible="dialog" :header="dialogTitle" class="invoice-editor-dialog" modal style="width: min(1100px, 96vw)">
       <InvoiceFormFields v-model="form" :errors="fieldErrors" :client-options="clientOptions" :project-options="projectOptions" />
       <template #footer>
         <div style="width: 100%">
@@ -783,6 +786,11 @@ const printFormatItems = computed(() => [
 </template>
 
 <style scoped>
+@media (min-width: 768px) {
+  :global(.invoice-editor-dialog) { height: min(850px, 90dvh); }
+  :global(.invoice-editor-dialog .p-dialog-content) { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+}
+
 .invoice-cell-ellipsis {
   display: block;
   min-width: 0;

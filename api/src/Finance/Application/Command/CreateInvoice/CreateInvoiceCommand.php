@@ -14,6 +14,7 @@ final readonly class CreateInvoiceCommand
         public array $lines = [],
         public mixed $vatEnabled = false,
         public mixed $vatRate = 18,
+        public mixed $paymentTerms = [],
     ) {
     }
 }
