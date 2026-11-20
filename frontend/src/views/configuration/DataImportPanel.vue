@@ -293,22 +293,36 @@ function downloadReport() {
         <Message v-for="conflict in conflicts" :key="`${conflict.field}:${conflict.value}`" severity="error" :closable="false">{{ conflict.message }} Corrigez les fichiers avant de poursuivre.</Message>
         <Message v-if="rows.some(row => row.status === 'error')" severity="error" :closable="false">Corrigez chaque ligne en erreur dans le fichier source, puis sélectionnez le fichier corrigé et relancez l’analyse. Aucun fichier n’est importé tant que l’analyse contient une erreur.</Message>
         <Message v-if="attempted && batches.every(batch => batch.done)" severity="success" :closable="false">Import terminé : {{ created }} ligne(s) créée(s), {{ skipped }} ligne(s) déjà importée(s). Vous pouvez télécharger le bilan.</Message>
-        <DataTable v-if="rows.length" :value="rows" paginator :rows="10" :rows-per-page-options="[10, 25, 50]" scrollable data-key="key" size="small" :loading="busy" class="import-preview" :table-style="{ minWidth: '48rem' }">
-          <Column v-if="step === 3 && !attempted" header="Validation" frozen style="min-width: 8rem">
+        <DataTable v-if="rows.length" :value="rows" paginator :rows="10" :rows-per-page-options="[10, 25, 50]" scrollable scroll-height="min(55vh, 36rem)" data-key="key" size="small" :loading="busy" class="import-preview p-datatable-responsive-stack" :table-style="{ width: '100%' }">
+          <Column v-if="step === 3 && !attempted" header="Validation" style="min-width: 8rem">
+
             <template #body="{ data }">
+              <span class="p-column-title">Validation</span>
               <Checkbox v-if="data.status === 'ready'" v-model="confirmed" :value="data.key" :input-id="`${uid}-${data.key}`" :aria-label="`Valider la ligne ${data.line} de ${data.fileName} (${data.idImport})`" :disabled="busy" />
               <span v-else class="import-muted">Non requise</span>
             </template>
           </Column>
-          <Column field="fileName" header="Fichier" style="min-width: 10rem" />
-          <Column field="line" header="Ligne" />
-          <Column header="Statut" style="min-width: 10rem"><template #body="{ data }"><Tag :value="statusLabels[data.status] || data.status" :severity="statusSeverity[data.status] || 'secondary'" /></template></Column>
-          <Column field="message" header="Contrôle" style="min-width: 14rem" />
-          <Column v-for="column in columns" :key="column" :header="column" style="min-width: 10rem; max-width: 24rem">
-            <template #body="{ data }"><span class="import-cell">{{ data.data?.[column] || '—' }}</span></template>
+          <Column field="fileName" header="Fichier" style="min-width: clamp(14rem, 22vw, 20rem)">
+            <template #body="{ data }">
+              <span class="p-column-title">Fichier</span>
+              <div class="import-file-cell"><Tag :value="`Ligne ${data.line}`" severity="secondary" /><span class="import-cell" :title="data.fileName">{{ data.fileName }}</span></div>
+            </template>
           </Column>
-          <Column v-if="type === 'depenses' || type === 'revenus'" field="attachments" header="Justificatifs" />
-          <Column v-if="attempted" field="entityId" header="Identifiant créé" />
+          <Column header="Statut" style="min-width: 10rem">
+            <template #body="{ data }"><span class="p-column-title">Statut</span><Tag :value="statusLabels[data.status] || data.status" :severity="statusSeverity[data.status] || 'secondary'" /></template>
+          </Column>
+          <Column field="message" header="Contrôle" style="min-width: clamp(16rem, 25vw, 24rem)">
+            <template #body="{ data }"><span class="p-column-title">Contrôle</span><span class="import-cell import-cell-wide" :title="data.message">{{ data.message || '—' }}</span></template>
+          </Column>
+          <Column v-for="column in columns" :key="column" :header="column" style="min-width: clamp(12rem, 18vw, 18rem)">
+            <template #body="{ data }"><span class="p-column-title">{{ column }}</span><span class="import-cell" :title="String(data.data?.[column] ?? '')">{{ data.data?.[column] || '—' }}</span></template>
+          </Column>
+          <Column v-if="type === 'depenses' || type === 'revenus'" field="attachments" header="Justificatifs" style="min-width: clamp(12rem, 18vw, 18rem)">
+            <template #body="{ data }"><span class="p-column-title">Justificatifs</span><span class="import-cell" :title="String(data.attachments ?? '')">{{ data.attachments || '—' }}</span></template>
+          </Column>
+          <Column v-if="attempted" field="entityId" header="Identifiant créé" style="min-width: clamp(12rem, 18vw, 18rem)">
+            <template #body="{ data }"><span class="p-column-title">Identifiant créé</span><span class="import-cell" :title="data.entityId">{{ data.entityId || '—' }}</span></template>
+          </Column>
         </DataTable>
         <p v-if="step === 3 && !attempted" class="import-muted" aria-live="polite">{{ readyRows.filter(row => confirmed.includes(row.key)).length }} / {{ readyRows.length }} ligne(s) validée(s). Les lignes déjà importées sont ignorées automatiquement.</p>
         <Message v-if="step === 3 && !attempted" severity="info" :closable="false">Les fichiers sont importés dans l’ordre de sélection. Chaque fichier est enregistré intégralement ou annulé ; si un fichier échoue, les précédents restent enregistrés et les suivants ne sont pas traités.</Message>
@@ -355,7 +369,20 @@ input[type=file]::file-selector-button { padding: .5rem .75rem; margin-right: .7
 .import-files li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; border: 1px solid var(--p-content-border-color); border-radius: .5rem; padding: .5rem .75rem; }
 .import-files li > span { min-width: 0; overflow-wrap: anywhere; }
 .import-preview { min-width: 0; max-width: 100%; }
-.import-cell { display: block; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 10rem; overflow-y: auto; }
+.import-preview :deep(th), .import-preview :deep(td) { white-space: nowrap; }
+.import-preview :deep(.p-column-title) { display: none; }
+.import-file-cell { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.import-file-cell :deep(.p-tag) { flex-shrink: 0; }
+.import-cell { display: block; min-width: 0; max-width: clamp(12rem, 18vw, 18rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.import-cell-wide { max-width: clamp(16rem, 25vw, 24rem); }
+@media (max-width: 767px) {
+  .import-preview :deep(.p-datatable-table), .import-preview :deep(.p-datatable-tbody) { display: block; width: 100%; min-width: 0 !important; }
+  .import-preview :deep(.p-datatable-thead) { display: none; }
+  .import-preview :deep(.p-datatable-tbody > tr > td) { min-width: 0 !important; white-space: normal; }
+  .import-preview :deep(.p-column-title) { display: block; flex-shrink: 0; }
+  .import-cell { flex: 1; max-width: 100%; max-height: 8rem; white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; }
+  .import-file-cell { flex: 1; flex-wrap: wrap; }
+}
 .import-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-top: 1.25rem; border-top: 1px solid var(--p-content-border-color); }
 @media (max-width: 640px) {
   .import-steps { gap: .5rem; }
