@@ -3,13 +3,16 @@ import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import Card from 'primevue/card'
+import AppTablePanelHeader from '@/domains/shared/components/AppTablePanelHeader.vue'
+import AppTableState from '@/domains/shared/components/AppTableState.vue'
 import Dialog from 'primevue/dialog'
 import Select from 'primevue/select'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Textarea from 'primevue/textarea'
 import DatePicker from 'primevue/datepicker'
-import Menu from 'primevue/menu'
+import TieredMenu from 'primevue/tieredmenu'
 import { useConfirm } from 'primevue/useconfirm'
 import AppFieldError from '@/domains/shared/components/AppFieldError.vue'
 import AppDataImportButton from '@/domains/shared/components/AppDataImportButton.vue'
@@ -54,7 +57,8 @@ const filteredItems = computed(() => items.value.filter((item) => {
 }))
 const editingId = ref(null)
 const errors = ref({})
-const printMenu = ref()
+const actionMenu = ref()
+const actionItems = ref([])
 const printTarget = ref(null)
 let uid = 0
 const emptyLine = () => ({ _key: ++uid, description: '', quantity: 1, observation: 'RAS' })
@@ -190,9 +194,15 @@ function remove(item) {
   })
 }
 
-function openPrint(event, item) {
+function toggleMenu(event, item) {
   printTarget.value = item
-  printMenu.value.toggle(event)
+  actionItems.value = [
+    { label: 'Modifier', icon: 'pi pi-pencil', visible: canUpdate.value, command: () => openForm(item) },
+    { label: 'Imprimer ou télécharger', icon: 'pi pi-print', visible: canPrint.value, items: printOptions.value },
+    { separator: true, visible: canDelete.value && (canUpdate.value || canPrint.value) },
+    { label: 'Supprimer', icon: 'pi pi-trash', visible: canDelete.value, command: () => remove(item) },
+  ]
+  actionMenu.value.toggle(event)
 }
 function printSelected(template, pdf) {
   if (!printTarget.value) return
@@ -204,39 +214,54 @@ function printSelected(template, pdf) {
 
 <template>
   <section class="project-documents" :aria-label="project ? 'Documents du projet' : 'Tous les documents'">
-    <div class="documents-toolbar">
-      <div><h3>{{ project ? 'Documents du projet' : 'Tous les documents' }}</h3><p>{{ project ? 'Créez et retrouvez les documents rattachés à ce projet.' : 'Retrouvez tous vos documents, avec ou sans rattachement à un projet.' }}</p></div>
-      <div v-if="canUpdate" class="document-actions">
-        <AppDataImportButton v-if="project" :key="project.id" :types="['bons_livraison']" :project-id="project.id" label="Importer des documents du projet" @imported="load" />
-        <Button label="Ajouter un document" icon="pi pi-plus" @click="openForm()" />
-      </div>
-    </div>
-    <div v-if="error" role="alert" class="documents-error">
-      {{ error }} <Button label="Réessayer" text size="small" @click="load" />
-    </div>
-    <div class="documents-filters">
-      <InputText v-model="search" placeholder="Rechercher un document…" aria-label="Rechercher un document" />
-      <Select v-if="!project" v-model="projectFilter" :options="[{ label: 'Sans projet', value: 'unassigned' }, ...projectOptions]" option-label="label" option-value="value" filter show-clear :loading="projectsLoading" placeholder="Tous les projets" aria-label="Filtrer par projet" />
-      <span class="documents-count">{{ filteredItems.length }} document(s)</span>
-    </div>
-    <div v-if="!project && projectsError" role="alert" class="documents-error">{{ projectsError }} <Button label="Réessayer" text size="small" @click="loadProjects" /></div>
-    <DataTable v-if="!error" :value="filteredItems" :loading="loading" data-key="id" paginator :rows="10" :rows-per-page-options="[10, 25, 50]" scrollable>
-      <template #empty>Aucun document à afficher. Ajoutez un document ou modifiez vos filtres.</template>
+    <Card class="dashboard-panel">
+      <template #title>
+        <AppTablePanelHeader
+          :title="project ? 'Documents du projet' : 'Documents'"
+          :count-label="`${filteredItems.length} document${filteredItems.length > 1 ? 's' : ''}`"
+          create-label="Nouveau document"
+          :show-create="canUpdate"
+          show-search
+          v-model:search-term="search"
+          search-placeholder="Numéro, objet, client ou projet…"
+          :reloading="loading"
+          @create="openForm()"
+          @reload="load"
+        >
+          <template #actions>
+            <AppDataImportButton v-if="project && canUpdate" :key="project.id" :types="['bons_livraison']" :project-id="project.id" label="Importer des documents du projet" @imported="load" />
+          </template>
+        </AppTablePanelHeader>
+      </template>
+      <template #content>
+        <div v-if="!project" class="documents-filters">
+          <Select v-model="projectFilter" :options="[{ label: 'Sans projet', value: 'unassigned' }, ...projectOptions]" option-label="label" option-value="value" filter show-clear :loading="projectsLoading" placeholder="Tous les projets" aria-label="Filtrer par projet" />
+        </div>
+        <div v-if="!project && projectsError" role="alert" class="documents-error">{{ projectsError }} <Button label="Réessayer" text size="small" @click="loadProjects" /></div>
+        <AppTableState
+          :loading="loading"
+          :error="error"
+          :is-empty="!loading && !error && !filteredItems.length"
+          empty-icon="pi pi-file"
+          empty-title="Aucun document"
+          empty-text="Ajoutez un document ou modifiez vos filtres pour afficher des résultats."
+          @retry="load"
+        >
+    <DataTable :value="filteredItems" data-key="id" paginator :rows="15" striped-rows scrollable>
       <Column field="number" header="Numéro" sortable />
       <Column header="Type"><template #body="{ data }">{{ documentTypes.find((type) => type.value === data.type)?.label || data.type }}</template></Column>
       <Column field="date" header="Date" sortable><template #body="{ data }">{{ formatDateFr(data.date) }}</template></Column>
       <Column field="clientTitle" header="Client" sortable />
       <Column v-if="!project" field="projectId" header="Projet" sortable><template #body="{ data }">{{ projectLabel(data.projectId) }}</template></Column>
-      <Column header="Lignes"><template #body="{ data }">{{ data.lines.length }}</template></Column>
-      <Column header="Actions"><template #body="{ data }">
-        <div class="document-actions">
-          <Button v-if="canPrint" icon="pi pi-print" text rounded aria-label="Imprimer ou télécharger le document" @click="openPrint($event, data)" />
-          <Button v-if="canUpdate" icon="pi pi-pencil" text rounded aria-label="Modifier le document" @click="openForm(data)" />
-          <Button v-if="canDelete" icon="pi pi-trash" text rounded severity="danger" aria-label="Supprimer le document" @click="remove(data)" />
-        </div>
+      <Column header="Lignes" style="width: 6rem"><template #body="{ data }">{{ data.lines.length }}</template></Column>
+      <Column v-if="canPrint || canUpdate || canDelete" header="Actions" style="width: 5rem"><template #body="{ data }">
+        <Button icon="pi pi-ellipsis-v" text rounded aria-label="Actions du document" @click="toggleMenu($event, data)" />
       </template></Column>
     </DataTable>
-    <Menu ref="printMenu" :model="printOptions" popup />
+        </AppTableState>
+      </template>
+    </Card>
+    <TieredMenu ref="actionMenu" :model="actionItems" popup />
 
     <Dialog v-model:visible="dialog" :header="editingId ? 'Modifier le document' : 'Ajouter un document'" modal :draggable="false" :style="{ width: '1040px', maxWidth: '95vw' }" :breakpoints="{ '960px': '95vw' }" :closable="!saving" :close-on-escape="!saving">
       <form id="project-document-form" class="document-form" @submit.prevent="save">
@@ -311,13 +336,11 @@ function printSelected(template, pdf) {
 <style scoped>
 .project-documents, .document-form { display: flex; flex-direction: column; gap: 1rem; }
 .documents-toolbar { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; }
-.documents-toolbar h3 { margin: 0; }
-.documents-toolbar p, .field small { color: var(--p-text-muted-color); margin: .35rem 0 0; }
+.field small { color: var(--p-text-muted-color); margin: .35rem 0 0; }
 .document-actions { display: flex; gap: .25rem; flex-wrap: wrap; }
 .documents-filters { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
-.documents-filters > :first-child { flex: 1; min-width: 12rem; }
-.documents-filters :deep(.p-select) { min-width: 14rem; max-width: 100%; }
-.documents-count, .form-hint { color: var(--p-text-muted-color); font-size: .875rem; }
+.documents-filters :deep(.p-select) { width: min(100%, 22rem); }
+.form-hint { color: var(--p-text-muted-color); font-size: .875rem; }
 .form-hint { margin: 0; }
 .document-section { display: flex; flex-direction: column; gap: 1rem; min-width: 0; margin: 0; padding: 1rem; border: 1px solid var(--p-content-border-color); border-radius: .75rem; }
 .document-section legend { padding: 0 .5rem; font-weight: 600; }

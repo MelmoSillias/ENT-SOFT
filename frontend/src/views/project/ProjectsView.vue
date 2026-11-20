@@ -55,10 +55,10 @@ watch(activeTab, (tab) => {
       </template>
     </Card>
     <ProjectListView v-if="activeTab === 'projects'" />
+    <ProjectDocumentsPanel v-else-if="activeTab === 'documents'" />
     <Card v-else class="dashboard-panel">
       <template #content>
         <ProjectReportListPanel v-if="activeTab === 'reports'" />
-        <ProjectDocumentsPanel v-else-if="activeTab === 'documents'" />
       </template>
     </Card>
   </section>
