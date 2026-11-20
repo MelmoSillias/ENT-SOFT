@@ -13,6 +13,7 @@ use App\Project\Domain\Enum\ProjectDocumentType;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -71,8 +72,8 @@ final class ProjectDocumentDataImportTest extends WebTestCase
     private function csv(?array $rows = null): string
     {
         $stream = fopen('php://temp', 'r+');
-        fputcsv($stream, ['id_import', 'numero', 'date', 'client_code', 'lignes', 'objet'], ';', '"', '');
-        foreach ($rows ?? [$this->row()] as $row) { fputcsv($stream, $row, ';', '"', ''); }
+        fputcsv($stream, ['id_import', 'numero', 'date', 'client_code', 'objet', 'lignes'], ';', '"', '');
+        foreach ($rows ?? [$this->row()] as $row) { fputcsv($stream, [$row[0], $row[1], $row[2], $row[3], $row[5], $row[4]], ';', '"', ''); }
         rewind($stream);
         $csv = stream_get_contents($stream);
         fclose($stream);
@@ -96,8 +97,10 @@ final class ProjectDocumentDataImportTest extends WebTestCase
         $this->browser->request('GET', '/api/data-import/bons_livraison/template');
         self::assertResponseStatusCodeSame(403);
         foreach (['preview', 'execute'] as $action) {
-            $this->upload($action, ['projectId' => (string) $this->project->getId()]);
-            self::assertResponseStatusCodeSame(403);
+            foreach ([[], ['projectId' => (string) $this->project->getId()]] as $context) {
+                $this->upload($action, $context);
+                self::assertResponseStatusCodeSame(403);
+            }
         }
         $this->grant();
         $this->browser->request('GET', '/api/data-import/formats');
@@ -107,10 +110,17 @@ final class ProjectDocumentDataImportTest extends WebTestCase
         self::assertSame("\xEF\xBB\xBFid_import;numero;date;client_code;lignes;objet\r\n", $this->browser->getResponse()->getContent());
     }
 
-    public function testPreviewCreationAndIdempotenceAreScopedToProject(): void
+    public static function projectContexts(): iterable
+    {
+        yield 'avec projet' => [true];
+        yield 'sans projet' => [false];
+    }
+
+    #[DataProvider('projectContexts')]
+    public function testPreviewCreationAndIdempotenceAreScopedToProject(bool $withProject): void
     {
         $this->grant();
-        $context = ['projectId' => (string) $this->project->getId()];
+        $context = $withProject ? ['projectId' => (string) $this->project->getId()] : [];
         $preview = $this->upload('preview', $context);
         self::assertResponseIsSuccessful();
         self::assertTrue($preview['valid']);
@@ -123,7 +133,7 @@ final class ProjectDocumentDataImportTest extends WebTestCase
         self::assertSame($preview['rows'][0]['data'], $created['rows'][0]['data']);
         $document = $this->em->find(ProjectDocument::class, $created['rows'][0]['entityId']);
         self::assertSame(ProjectDocumentType::DELIVERY_NOTE, $document->getType());
-        self::assertSame((string) $this->project->getId(), (string) $document->getProjectId());
+        self::assertSame($context['projectId'] ?? null, $document->getProjectId()?->toRfc4122());
         self::assertSame((string) $this->client->getId(), (string) $document->getClientId());
         self::assertSame('BL-42', $document->getNumber());
         self::assertSame('Livraison matériel', $document->getObject());
@@ -143,12 +153,16 @@ final class ProjectDocumentDataImportTest extends WebTestCase
         self::assertSame(2, $this->em->getRepository(ProjectDocument::class)->count([]));
     }
 
-    public function testDigestRejectsChangedProjectFileAndMissingDigest(): void
+    #[DataProvider('projectContexts')]
+    public function testDigestRejectsChangedProjectFileAndMissingDigest(bool $withProject): void
     {
         $this->grant();
-        $context = ['projectId' => (string) $this->project->getId()];
+        $context = $withProject ? ['projectId' => (string) $this->project->getId()] : [];
         $preview = $this->upload('preview', $context);
         $this->upload('execute', ['projectId' => (string) $this->other->getId(), 'digest' => $preview['digest']]);
+        self::assertResponseStatusCodeSame(409);
+        $changedContext = $withProject ? [] : ['projectId' => (string) $this->project->getId()];
+        $this->upload('execute', $changedContext + ['digest' => $preview['digest']]);
         self::assertResponseStatusCodeSame(409);
         $this->upload('execute', $context + ['digest' => $preview['digest']], $this->csv([$this->row('BL2')]));
         self::assertResponseStatusCodeSame(409);
@@ -157,7 +171,7 @@ final class ProjectDocumentDataImportTest extends WebTestCase
         self::assertSame(0, $this->em->getRepository(ProjectDocument::class)->count([]));
     }
 
-    public function testProjectIsRequiredAndMustBeActiveForBothActionsEvenOnRetry(): void
+    public function testProvidedProjectMustBeValidAndActiveForBothActionsEvenOnRetry(): void
     {
         $this->grant();
         $context = ['projectId' => (string) $this->project->getId()];
@@ -167,7 +181,7 @@ final class ProjectDocumentDataImportTest extends WebTestCase
         $this->em->find(Project::class, $this->project->getId())->disable();
         $this->em->flush();
         foreach (['preview', 'execute'] as $action) {
-            foreach ([[[], 400], [['projectId' => 'invalid'], 400], [['projectId' => (string) Uuid::v4()], 404], [$context, 404]] as [$parameters, $status]) {
+            foreach ([[['projectId' => ''], 400], [['projectId' => 'null'], 400], [['projectId' => 'invalid'], 400], [['projectId' => (string) Uuid::v4()], 404], [$context, 404]] as [$parameters, $status]) {
                 $this->upload($action, $parameters + ['digest' => $preview['digest']]);
                 self::assertResponseStatusCodeSame($status);
             }
@@ -175,12 +189,13 @@ final class ProjectDocumentDataImportTest extends WebTestCase
         self::assertSame(1, $this->em->getRepository(ProjectDocument::class)->count([]));
     }
 
-    public function testClientReferencesAndInvalidRowsBlockWholeBatch(): void
+    #[DataProvider('projectContexts')]
+    public function testClientReferencesAndInvalidRowsBlockWholeBatch(bool $withProject): void
     {
         $this->grant();
         $service = self::getContainer()->get(DataImportService::class);
         $clientImport = $service->run('clients', ['csv' => "id_import;titre\nC1;Client importé", 'files' => []], true, false);
-        $context = ['projectId' => (string) $this->project->getId()];
+        $context = $withProject ? ['projectId' => (string) $this->project->getId()] : [];
         $csv = $this->csv([$this->row('BL1', '@C1')]);
         $preview = $this->upload('preview', $context, $csv);
         self::assertTrue($preview['valid']);
@@ -209,10 +224,11 @@ final class ProjectDocumentDataImportTest extends WebTestCase
         self::assertSame(1, $this->em->getRepository(ProjectDocument::class)->count([]));
     }
 
-    public function testCsvCannotOverrideProjectAndDuplicateIdsAreRejected(): void
+    #[DataProvider('projectContexts')]
+    public function testCsvCannotOverrideProjectAndDuplicateIdsAreRejected(bool $withProject): void
     {
         $this->grant();
-        $context = ['projectId' => (string) $this->project->getId()];
+        $context = $withProject ? ['projectId' => (string) $this->project->getId()] : [];
         $this->upload('preview', $context, "id_import;numero;date;client_code;lignes;projectId\nBL1;42;2026-11-20;CLI-1;[];".$this->other->getId());
         self::assertResponseStatusCodeSame(400);
         $csv = $this->csv([$this->row(), $this->row()]);
@@ -223,10 +239,11 @@ final class ProjectDocumentDataImportTest extends WebTestCase
         self::assertSame(0, $this->em->getRepository(ProjectDocument::class)->count([]));
     }
 
-    public function testDatabaseFailureRollsBackPreviouslyFlushedDocumentsAndImportRecords(): void
+    #[DataProvider('projectContexts')]
+    public function testDatabaseFailureRollsBackPreviouslyFlushedDocumentsAndImportRecords(bool $withProject): void
     {
         $this->grant();
-        $context = ['projectId' => (string) $this->project->getId()];
+        $context = $withProject ? ['projectId' => (string) $this->project->getId()] : [];
         $csv = $this->csv([$this->row(), $this->row('BL2')]);
         $preview = $this->upload('preview', $context, $csv);
         $connection = $this->em->getConnection();

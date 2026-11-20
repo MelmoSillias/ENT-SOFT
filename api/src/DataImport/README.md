@@ -1,27 +1,29 @@
 # DataImport
 
-## Import de documents projet : `bons_livraison`
+## Import de bons de livraison avec ou sans projet : `bons_livraison`
 
 Le registre `/api/data-import/formats` expose `bons_livraison` avec la permission
 `project.projects.update`. Les routes restent celles du système existant :
 
 - `GET /api/data-import/bons_livraison/template` : modèle CSV, sans contexte requis ;
-- `POST /api/data-import/bons_livraison/preview` : multipart `file` + `projectId` ;
-- `POST /api/data-import/bons_livraison/execute` : multipart `file` + `projectId` + `digest` retourné par preview.
+- `POST /api/data-import/bons_livraison/preview` : multipart `file`, `projectId` facultatif ;
+- `POST /api/data-import/bons_livraison/execute` : multipart `file` + `digest` retourné par preview, même contexte `projectId` facultatif.
 
-`projectId` est l’UUID du projet actif choisi dans l’UI. Il est **obligatoire dans
-le multipart** pour les deux POST, jamais dans le CSV ni dans ses lignes JSON.
-Le projet doit exister et être activé : contrôle en preview et à nouveau en
-execute, y compris lors d’un réimport entièrement `skipped`. Projet absent ou
-UUID invalide : 400 ; projet introuvable ou désactivé : 404. Permission absente :
-403. Aucun changement du wizard n’est inclus côté API : sa prop `projectId` doit
-alimenter le multipart, et son sélecteur peut proposer `bons_livraison` dès lors
-que ce type figure dans `/formats`.
+Sans champ `projectId` dans le multipart, les documents sont créés sans projet
+(`projectId = null`). Si fourni, ce champ doit être l’UUID d’un projet existant
+et actif, jamais une colonne CSV ni une propriété des lignes JSON. Une chaîne
+vide, la chaîne littérale `null` ou un UUID invalide donnent 400 ; un projet
+introuvable ou désactivé donne 404. Le contrôle est effectué en preview et à
+nouveau en execute, y compris lors d’un réimport entièrement `skipped`.
+La permission `project.projects.update` reste requise même sans projet (403
+sinon). Aucun changement frontend n’est inclus.
 
 Une ligne CSV représente un document. Seul le type métier `delivery_note` est
 actuellement supporté : `bons_livraison` le sélectionne côté serveur. Le CSV
 n’accepte ni `type` ni `projectId`. Les futurs types devront être enregistrés
-explicitement avant d’être proposés à l’import.
+explicitement avant d’être proposés à l’import. Le CSV existant
+`id_import;numero;date;client_code;objet;lignes` reste compatible sans projet :
+l’ordre des colonnes est libre et aucune colonne projet n’est nécessaire.
 
 | Colonne | Obligatoire | Contrat |
 | --- | --- | --- |
@@ -38,8 +40,9 @@ Chaque objet de `lignes` contient uniquement `description` (texte non vide,
 maximum ; défaut `RAS` si absente ou vide). Les clés inconnues sont refusées.
 Les validations et normalisations métier sont celles de `ProjectDocument` ; le
 preview construit une entité détachée sans écrire. Execute appelle
-`ProjectDocumentService::save`, avec les mêmes contrôles projet/client/date et
-les mêmes règles de création que la saisie manuelle. Le service n’est pas modifié.
+`ProjectDocumentService::save` avec projet, ou `saveGlobal` sans projet, avec les
+mêmes contrôles projet/client/date et les mêmes règles de création que la saisie
+manuelle. Le service n’est pas modifié.
 
 ```csv
 id_import;numero;date;client_code;lignes;objet
@@ -53,13 +56,15 @@ Le rapport preview/execute est inchangé (`data` contient les cellules CSV,
 ### Contexte, idempotence et atomicité
 
 - Pour `bons_livraison`, le `digest` est opaque et dépend du fichier, du type et
-  de l’UUID canonique du projet. Ne pas le recalculer côté UI. Un changement de
-  fichier ou de projet impose un nouveau preview ; sinon execute répond 409.
+  de l’UUID canonique du projet ou du contexte sans projet (`null`). Ne pas le
+  recalculer côté UI. Un changement de fichier ou de contexte (y compris ajout
+  ou retrait du projet) impose un nouveau preview ; sinon execute répond 409.
   Le digest des autres types n’est pas modifié. Ce contrôle ne remplace ni
   l’autorisation ni les validations, réexécutées côté serveur.
-- L’identifiant d’import et l’empreinte incluent le projet et le type. Le même
-  `id_import` est autorisé dans un autre projet. Dans le même projet/type :
-  même contenu → `skipped`, contenu modifié → erreur, aucune mise à jour.
+- L’idempotence est isolée par type et contexte : sans projet, ou dans chaque
+  projet. Le même `id_import` est autorisé sans projet et dans plusieurs projets.
+  Dans le même contexte/type : même contenu → `skipped`, contenu modifié → erreur,
+  aucune mise à jour. Les clés et empreintes des imports existants restent inchangées.
 - Une ligne invalide bloque tout le fichier (execute : 422). Une erreur pendant
   l’écriture provoque le rollback complet, y compris les documents déjà flushés
   par le service et les enregistrements d’idempotence. Aucun document financier,
@@ -74,9 +79,10 @@ php bin/phpunit tests/Unit/DataImport tests/Integration/DataImportTest.php tests
 ```
 
 Couverture : modèle et permission, validation métier sans écriture, références
-client par code et `@id_import`, idempotence par projet/type, digest de contexte,
-projet obligatoire/invalide/désactivé, CSV ne pouvant imposer un projet, lignes
-JSON incorrectes, doublons et rollback du fichier après échec en base.
+client par code et `@id_import`, import sans projet avec le CSV existant,
+idempotence par contexte/type, digest avec ajout/retrait/changement de projet,
+projet fourni invalide/désactivé, CSV ne pouvant imposer un projet, lignes JSON
+incorrectes, doublons et rollback du fichier après échec en base avec ou sans projet.
 
 ## Import de factures
 

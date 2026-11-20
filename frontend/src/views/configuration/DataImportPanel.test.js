@@ -132,37 +132,36 @@ test('allowedTypes filters other formats and rejects a preselected disallowed ty
   }
 })
 
-test('delivery notes require project context for analysis and execution', async () => {
-  const { wizard, select, confirmAll, calls } = await createWizard({
+test('delivery notes can be analyzed and imported without a project', async () => {
+  const { wizard, select, confirmAll, calls, events } = await createWizard({
     type: 'bons_livraison', allowedTypes: ['bons_livraison'],
   })
-  assert.equal(wizard.formats.value.length, 0)
-  assert.equal(wizard.definition.value, undefined)
-  assert.match(wizard.error.value, /pas disponible/)
+  assert.equal(wizard.formats.value.length, 1)
+  assert.equal(wizard.definition.value.type, 'bons_livraison')
+  assert.equal(wizard.error.value, '')
   select()
   await wizard.analyze()
-  assert.equal(calls.length, 0)
-  assert.equal(wizard.step.value, 1)
-
-  // Bypass format filtering to verify the operation guards independently.
-  wizard.formats.value = [{ type: 'bons_livraison', required: ['id_import'], optional: [] }]
-  await wizard.analyze()
-  assert.equal(calls.length, 0)
-  assert.equal(wizard.step.value, 1)
-  wizard.batches.value[0].report = report('a.csv')
-  confirmAll()
-  assert.equal(wizard.valid.value, false)
+  assert.equal(calls.length, 1)
+  assert.equal(wizard.step.value, 2)
+  assert.equal(wizard.valid.value, true)
   assert.equal(wizard.canExecute.value, false)
+  confirmAll()
+  assert.equal(wizard.canExecute.value, true)
   await wizard.execute()
-  assert.equal(calls.length, 0)
+  assert.equal(calls.length, 2)
+  assert.equal(calls[0].url, '/data-import/bons_livraison/preview')
+  assert.equal(calls[1].url, '/data-import/bons_livraison/execute')
+  for (const { body } of calls) assert.equal(body.has('projectId'), false)
+  assert.equal(calls[1].body.get('digest'), report('a.csv').digest)
+  assert.deepEqual(structuredClone(importedEvents(events)), [['imported', { type: 'bons_livraison', created: 2 }]])
 })
 
-test('the general panel excludes project-only types without projectId', async () => {
+test('the general panel offers delivery notes without projectId', async () => {
   const { wizard } = await createWizard({
     type: '', formatTypes: ['bons_livraison', 'sites', 'clients', 'factures'],
   })
-  assert.deepEqual(Array.from(wizard.formats.value, (item) => item.type), ['sites', 'clients', 'factures'])
-  assert.equal(wizard.type.value, 'sites')
+  assert.deepEqual(Array.from(wizard.formats.value, (item) => item.type), ['bons_livraison', 'sites', 'clients', 'factures'])
+  assert.equal(wizard.type.value, 'bons_livraison')
   assert.equal(wizard.error.value, '')
 })
 

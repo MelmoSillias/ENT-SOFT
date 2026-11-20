@@ -8,7 +8,7 @@ const definitions = {
   revenus: { label: 'revenus', permission: 'finance.transactions.create' },
   equipements: { label: 'équipements', permission: 'stock.equipment.create' },
   factures: { label: 'factures', permission: 'finance.invoices.create' },
-  bons_livraison: { label: 'bons de livraison', permission: 'project.projects.update', requiresProject: true },
+  bons_livraison: { label: 'bons de livraison', permission: 'project.projects.update', supportsProject: true },
 }
 
 const tableImportTypes = {

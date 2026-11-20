@@ -123,8 +123,9 @@ async function template() {
 async function request(batch, action) {
   const body = new FormData()
   body.append('file', batch.file)
-  if (getImportDefinition(type.value)?.requiresProject) {
-    if (!props.projectId) throw new Error('Projet requis pour cet import.')
+  const importDefinition = getImportDefinition(type.value)
+  if (importDefinition?.requiresProject && !props.projectId) throw new Error('Projet requis pour cet import.')
+  if (props.projectId && (importDefinition?.requiresProject || importDefinition?.supportsProject)) {
     body.append('projectId', props.projectId)
   }
   if (action === 'execute') body.append('digest', batch.report.digest)
@@ -238,7 +239,7 @@ function downloadReport() {
           </ul>
           <template v-if="type === 'bons_livraison'">
             <h4>Une ligne CSV = un bon de livraison</h4>
-            <p>Les documents sont rattachés au projet ouvert. <code>numero</code> est le numéro manuel ; <code>client_code</code> désigne un client existant ou <code>@id_import</code> d’un client déjà importé. <code>objet</code> est facultatif.</p>
+            <p>{{ props.projectId ? 'Les documents sont rattachés au projet ouvert.' : 'Les documents seront importés sans projet. Vous pourrez les rattacher ensuite depuis leur formulaire de modification.' }} <code>numero</code> est le numéro manuel ; <code>client_code</code> désigne un client existant ou <code>@id_import</code> d’un client déjà importé. <code>objet</code> est facultatif.</p>
             <p><code>lignes</code> contient une liste JSON non vide de désignations, quantités strictement positives et observations facultatives (RAS par défaut), par exemple avant échappement CSV :</p>
             <pre>[{"description":"Matériel livré","quantity":2,"observation":"RAS"}]</pre>
             <p>Les guillemets à l’intérieur d’une cellule CSV doivent être doublés. L’identifiant <code>id_import</code> est unique par projet et par type ; aucune fiche existante n’est modifiée.</p>

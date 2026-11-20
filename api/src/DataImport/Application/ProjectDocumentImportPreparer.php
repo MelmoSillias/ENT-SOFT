@@ -11,10 +11,10 @@ final class ProjectDocumentImportPreparer
 {
     public function __construct(private readonly ProjectDocumentService $documents) {}
 
-    public function projectId(?string $projectId): string
+    public function projectId(?string $projectId): ?string
     {
-        if ($projectId === null || $projectId === '') {
-            throw new \InvalidArgumentException('projectId est obligatoire dans le multipart pour les documents projet.');
+        if ($projectId === null) {
+            return null;
         }
         return $this->documents->project($projectId)->getId()->toRfc4122();
     }
@@ -45,19 +45,23 @@ final class ProjectDocumentImportPreparer
             $lines[$index] = get_object_vars($line);
         }
         // Detached entity: reuse domain validation without persistence during preview.
-        return new ProjectDocument(Uuid::fromString($projectId), ProjectDocumentType::DELIVERY_NOTE,
+        return new ProjectDocument($projectId === null ? null : Uuid::fromString($projectId), ProjectDocumentType::DELIVERY_NOTE,
             $row['numero'], $date, Uuid::fromString($clientId), $lines, ($row['objet'] ?? '') !== '' ? $row['objet'] : null);
     }
 
     public function create(ProjectDocument $document): array
     {
-        return $this->documents->save($document->getProjectId()->toRfc4122(), [
+        $data = [
             'type' => $document->getType()->value,
             'number' => $document->getNumber(),
             'date' => $document->getDate()->format('Y-m-d'),
             'clientId' => $document->getClientId()->toRfc4122(),
             'lines' => $document->getLines(),
             'object' => $document->getObject(),
-        ]);
+        ];
+        $projectId = $document->getProjectId();
+        return $projectId === null
+            ? $this->documents->saveGlobal($data)
+            : $this->documents->save($projectId->toRfc4122(), $data);
     }
 }

@@ -229,7 +229,7 @@ function printSelected(template, pdf) {
           @reload="load"
         >
           <template #actions>
-            <AppDataImportButton v-if="project && canUpdate" :key="project.id" :types="['bons_livraison']" :project-id="project.id" label="Importer des documents du projet" @imported="load" />
+            <AppDataImportButton v-if="canUpdate" :key="projectId ?? 'all'" :types="['bons_livraison']" :project-id="projectId ?? ''" label="Importer des bons de livraison" @imported="load" />
           </template>
         </AppTablePanelHeader>
       </template>
