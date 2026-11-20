@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1
 
-FROM composer:2 AS vendor
+# Keep dependency installation on the same PHP version as the runtime.
+FROM php:8.3-fpm-alpine AS php-base
+
+FROM php-base AS vendor
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Platform extensions required by composer.json + Impression (Dompdf / PhpSpreadsheet / PhpWord).
 RUN apk add --no-cache \
@@ -37,7 +42,7 @@ RUN composer dump-autoload --optimize --classmap-authoritative
 # Symfony requires a .env file at boot; entrypoint regenerates it from container env.
 COPY api/.env.docker.dist .env
 
-FROM php:8.3-fpm-alpine AS runtime
+FROM php-base AS runtime
 
 RUN apk add --no-cache \
         bash \
