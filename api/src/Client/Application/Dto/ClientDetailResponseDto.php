@@ -25,6 +25,7 @@ final readonly class ClientDetailResponseDto
         public int $invoiceCount,
         public array $comments,
         public array $contacts,
+        public ?string $logoUrl = null,
     ) {
     }
 
@@ -43,6 +44,7 @@ final readonly class ClientDetailResponseDto
             address: $client->getAddress(),
             postalBox: $client->getPostalBox(),
             city: $client->getCity(),
+            logoUrl: $client->getLogoUrl(),
             isEnabled: $client->isEnabled(),
             createdAt: $client->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $client->getUpdatedAt()->format(\DateTimeInterface::ATOM),
@@ -64,6 +66,7 @@ final readonly class ClientDetailResponseDto
             'address' => $this->address,
             'postalBox' => $this->postalBox,
             'city' => $this->city,
+            'logoUrl' => $this->logoUrl,
             'isEnabled' => $this->isEnabled,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,

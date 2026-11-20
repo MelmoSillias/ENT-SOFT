@@ -6,6 +6,7 @@ use App\Client\Application\Command\CreateClient\{CreateClientCommand, CreateClie
 use App\Client\Domain\Entity\Client;
 use App\DataImport\Domain\Entity\ImportRecord;
 use App\Finance\Application\Command\CreateFinancialTransaction\{CreateFinancialTransactionCommand, CreateFinancialTransactionHandler};
+use App\Finance\Application\Command\CreateInvoice\CreateInvoiceHandler;
 use App\Finance\Domain\Enum\TransactionStatus;
 use App\Geo\Domain\ValueObject\GeoPoint;
 use App\Prestataire\Application\Command\CreatePrestataire\{CreatePrestataireCommand, CreatePrestataireHandler};
@@ -30,14 +31,22 @@ final class ImportRowFactory
         private readonly CreatePrestationHandler $prestations,
         private readonly CreateFinancialTransactionHandler $transactions,
         private readonly CreateEquipmentHandler $equipements,
+        private readonly CreateInvoiceHandler $factures,
+        private readonly InvoiceImportPreparer $invoicePreparer,
+        private readonly ProjectDocumentImportPreparer $projectDocumentPreparer,
     ) {}
 
-    public static function key(string $type, string $externalId): string
+    public static function key(string $type, string $externalId, ?string $projectId = null): string
     {
-        return hash('sha256', $type.':'.$externalId);
+        return hash('sha256', $projectId === null ? $type.':'.$externalId : json_encode([$type, $projectId, $externalId], JSON_THROW_ON_ERROR));
     }
 
-    public function prepare(string $type, array $row): object
+    public function projectId(string $type, ?string $projectId): ?string
+    {
+        return $type === 'bons_livraison' ? $this->projectDocumentPreparer->projectId($projectId) : null;
+    }
+
+    public function prepare(string $type, array $row, ?string $projectId = null): object
     {
         foreach ($this->format->definition($type)['required'] as $field) {
             FieldValidator::requireNonEmpty($row[$field], $field);
@@ -51,6 +60,9 @@ final class ImportRowFactory
                 'prenom', 'nom', 'ville', 'boite_postale', 'categorie' => 100,
                 'description' => 10000,
                 'pieces_jointes' => 5000,
+                'lignes' => 100000,
+                'conditions_paiement' => 10000,
+                'objet' => 500,
                 default => 255,
             };
             if (mb_strlen($value) > $max) {
@@ -61,6 +73,12 @@ final class ImportRowFactory
         $clientId = isset($row['client_code']) ? $this->reference('clients', Client::class, 'code', $row['client_code']) : null;
         $siteId = isset($row['site_code']) ? $this->reference('sites', Site::class, 'code', $row['site_code']) : null;
 
+        if ($type === 'bons_livraison') {
+            return $this->projectDocumentPreparer->prepare($row, $clientId, $projectId);
+        }
+        if ($type === 'factures') {
+            return $this->invoicePreparer->prepare($row, $clientId);
+        }
         if ($type === 'sites') {
             if (mb_strlen($row['code']) > 50 || $this->em->getRepository(Site::class)->findOneBy(['code' => $row['code']])) {
                 throw new \InvalidArgumentException('Code site déjà utilisé ou supérieur à 50 caractères.');
@@ -118,10 +136,14 @@ final class ImportRowFactory
 
     public function create(string $type, object $command): array
     {
+        if ($type === 'bons_livraison') {
+            return $this->projectDocumentPreparer->create($command);
+        }
         $handler = match ($type) {
             'clients' => $this->clients, 'sites' => $this->sites, 'prestataires' => $this->prestataires,
             'prestations' => $this->prestations, 'equipements' => $this->equipements,
             'depenses', 'revenus' => $this->transactions,
+            'factures' => $this->factures,
         };
         return $handler->handle($command)->toArray();
     }

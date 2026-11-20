@@ -35,6 +35,9 @@ class Client
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $city = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $logoUrl = null;
+
     public function __construct(
         string $code,
         string $title,
@@ -59,10 +62,12 @@ class Client
     public function getAddress(): ?string { return $this->address; }
     public function getPostalBox(): ?string { return $this->postalBox; }
     public function getCity(): ?string { return $this->city; }
+    public function getLogoUrl(): ?string { return $this->logoUrl; }
 
     public function setTitle(string $title): void { $this->title = $title; $this->touch(); }
     public function setDescription(?string $description): void { $this->description = $description; $this->touch(); }
     public function setAddress(?string $address): void { $this->address = $address; $this->touch(); }
     public function setPostalBox(?string $postalBox): void { $this->postalBox = $postalBox; $this->touch(); }
     public function setCity(?string $city): void { $this->city = $city; $this->touch(); }
+    public function setLogoUrl(?string $logoUrl): void { $this->logoUrl = $logoUrl; $this->touch(); }
 }

@@ -16,6 +16,31 @@ final class ImportFormatTest extends TestCase
         self::assertSame(5, $rows[1]['line']);
     }
 
+    public function testInvoiceTemplateAndMinimalCsv(): void
+    {
+        $format = new ImportFormat();
+        self::assertSame('finance.invoices.create', $format->definition('factures')['permission']);
+        self::assertSame("\xEF\xBB\xBFid_import;date;client_code;lignes;statut;projet_libelle;tva_active;taux_tva;conditions_paiement\r\n", $format->template('factures'));
+        $rows = $format->parse('factures', 'id_import;date;client_code;lignes'."\n".'F1;2026-11-20;@C1;"[{""description"":""Service; test"",""quantity"":1,""unitPrice"":100}]"');
+        self::assertSame('[{"description":"Service; test","quantity":1,"unitPrice":100}]', $rows[0]['data']['lignes']);
+        self::assertSame('', $rows[0]['data']['tva_active']);
+    }
+
+    public function testDeliveryNoteTemplateAndMinimalCsv(): void
+    {
+        $format = new ImportFormat();
+        self::assertSame('project.projects.update', $format->definition('bons_livraison')['permission']);
+        self::assertSame("\xEF\xBB\xBFid_import;numero;date;client_code;lignes;objet\r\n", $format->template('bons_livraison'));
+        $rows = $format->parse('bons_livraison', "id_import;numero;date;client_code;lignes\nBL1;BL-42;2026-11-20;@C1;[]");
+        self::assertSame('', $rows[0]['data']['objet']);
+    }
+
+    public function testProjectIdCannotBeSuppliedInDeliveryNoteCsv(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        (new ImportFormat())->parse('bons_livraison', "id_import;numero;date;client_code;lignes;projectId\nBL1;42;2026-11-20;@C1;[];anything");
+    }
+
     public function testUnknownColumnsAreRejectedRatherThanSilentlyLost(): void
     {
         $this->expectException(\InvalidArgumentException::class);

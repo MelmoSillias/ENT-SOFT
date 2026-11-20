@@ -360,6 +360,7 @@ function onPendingPhoto(file) {
             </template>
           </AppTableSettingsPopover>
           <AppTablePrintExportBar
+            @imported="reload"
             :table-type="printExport.tableType"
             :title="printExport.title"
             :columns="printExport.columns"

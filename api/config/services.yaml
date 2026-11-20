@@ -94,6 +94,9 @@ services:
     App\Project\Domain\Repository\ProjectRepositoryInterface:
         alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectRepository
 
+    App\Project\Domain\Repository\ProjectDocumentRepositoryInterface:
+        alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectDocumentRepository
+
     App\Project\Domain\Repository\ProjectSiteRepositoryInterface:
         alias: App\Project\Infrastructure\Persistence\Doctrine\DoctrineProjectSiteRepository
 

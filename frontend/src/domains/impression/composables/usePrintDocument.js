@@ -54,6 +54,8 @@ export function usePrintDocument() {
         disposition: 'inline',
         from: options.from,
         to: options.to,
+        template: options.template,
+        projectId: options.projectId,
       })
       openBlob(blob, { openInNewTab: true })
     } catch (error) {
@@ -71,6 +73,8 @@ export function usePrintDocument() {
         page,
         orientation,
         disposition: format === 'html' ? 'inline' : 'attachment',
+                template: options.template,
+                projectId: options.projectId,
       })
       const filename = `${type}-${String(id).slice(0, 8)}.${extensionForFormat(format)}`
       const forceDownload = Boolean(options.download)

@@ -17,6 +17,7 @@ final readonly class ClientResponseDto
         public bool $isEnabled,
         public string $createdAt,
         public string $updatedAt,
+        public ?string $logoUrl = null,
     ) {
     }
 
@@ -30,6 +31,7 @@ final readonly class ClientResponseDto
             address: $client->getAddress(),
             postalBox: $client->getPostalBox(),
             city: $client->getCity(),
+            logoUrl: $client->getLogoUrl(),
             isEnabled: $client->isEnabled(),
             createdAt: $client->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $client->getUpdatedAt()->format(\DateTimeInterface::ATOM),
@@ -47,6 +49,7 @@ final readonly class ClientResponseDto
             'address' => $this->address,
             'postalBox' => $this->postalBox,
             'city' => $this->city,
+            'logoUrl' => $this->logoUrl,
             'isEnabled' => $this->isEnabled,
             'createdAt' => $this->createdAt,
             'updatedAt' => $this->updatedAt,

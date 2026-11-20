@@ -18,6 +18,7 @@ import DatePicker from 'primevue/datepicker'
 import AutoComplete from 'primevue/autocomplete'
 import { getProjectDetail, updateProject, createProjectEvent } from '@/domains/project/services/projectService'
 import ProjectSitesTable from '@/domains/project/components/ProjectSitesTable.vue'
+import ProjectDocumentsPanel from '@/domains/project/components/ProjectDocumentsPanel.vue'
 import TransactionAttachments from '@/domains/finance/components/TransactionAttachments.vue'
 import AppMobileSegmentTabs from '@/domains/shared/components/AppMobileSegmentTabs.vue'
 import AppDateTimeCell from '@/domains/shared/components/AppDateTimeCell.vue'
@@ -49,6 +50,7 @@ const loading = ref(true)
 const error = ref(null)
 const activeTab = ref('0')
 const sitesTabReady = ref(false)
+const documentsTabReady = ref(false)
 
 const projectTabItems = computed(() => [
   { value: '0', label: 'Informations', shortLabel: 'Infos' },
@@ -95,6 +97,7 @@ const canCreateEvent = computed(() => hasPermission('project.events.create'))
 
 watch(activeTab, (tab) => {
   if (tab === '1') sitesTabReady.value = true
+    if (tab === '3') documentsTabReady.value = true
 })
 
 async function load() {
@@ -400,6 +403,8 @@ onMounted(load)
               <p v-else class="dashboard-page__state">Aucun événement.</p>
             </TabPanel>
             <TabPanel value="3">
+              <ProjectDocumentsPanel v-if="documentsTabReady" :project="project" />
+              <h3 class="mt-6 mb-3">Pièces jointes</h3>
               <TransactionAttachments :owner-id="project.id" owner-type="project" />
             </TabPanel>
           </TabPanels>

@@ -13,6 +13,7 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dialog from 'primevue/dialog'
 import ClientFormFields from '@/domains/client/components/ClientFormFields.vue'
+import ClientLogoField from '@/domains/client/components/ClientLogoField.vue'
 import { getClientDetail, updateClient, deleteClient } from '@/domains/client/services/clientService'
 import { listInvoices } from '@/domains/finance/services/invoiceService'
 import { listProjects } from '@/domains/project/services/projectService'
@@ -190,6 +191,11 @@ const { pending: deleting, run: runDelete } = useAsyncAction(async () => {
             </TabList>
             <TabPanels>
               <TabPanel value="0">
+                <ClientLogoField
+                  :client="client"
+                  :editable="hasPermission('client.clients.update')"
+                  @updated="(updated) => Object.assign(client, updated)"
+                />
                 <AppDetailInfoList :items="infoItems">
                   <template #status>
                     <Tag :value="client.isEnabled ? 'Actif' : 'Inactif'" />

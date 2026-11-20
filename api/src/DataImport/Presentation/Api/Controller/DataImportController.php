@@ -44,12 +44,13 @@ final class DataImportController extends AbstractController
         if (!$file instanceof UploadedFile) {
             throw new \InvalidArgumentException('Fichier manquant. Vérifiez aussi les limites d’upload du serveur.');
         }
+        $projectId = $service->projectId($type, $request->request->get('projectId'));
         $package = $reader->read($file);
-        $digest = hash_file('sha256', $file->getPathname());
+        $digest = DataImportService::digest($type, hash_file('sha256', $file->getPathname()), $projectId);
         if ($action === 'execute' && !hash_equals($digest, (string) $request->request->get('digest', ''))) {
-            throw new ConflictHttpException('Le fichier a changé. Relancez le contrôle avant l’import.');
+            throw new ConflictHttpException('Le fichier ou le contexte d’import a changé. Relancez le contrôle avant l’import.');
         }
-        $report = $service->run($type, $package, $action === 'execute', $this->isGranted('document.documents.upload'));
+        $report = $service->run($type, $package, $action === 'execute', $this->isGranted('document.documents.upload'), $projectId);
         return $this->json(['digest' => $digest, ...$report], $action === 'execute' && !$report['valid'] ? 422 : 200);
     }
 }

@@ -11,6 +11,8 @@ final class ImportFormat
         'prestations' => ['label' => 'Prestations', 'permission' => 'employee.prestataires.create', 'required' => ['id_import', 'prestataire_email', 'description', 'montant', 'date'], 'optional' => ['site_code', 'statut_travail']],
         'depenses' => ['label' => 'Dépenses', 'permission' => 'finance.transactions.create', 'required' => ['id_import', 'date', 'montant', 'categorie', 'emetteur', 'beneficiaire'], 'optional' => ['description', 'client_code', 'site_code', 'pieces_jointes']],
         'revenus' => ['label' => 'Revenus', 'permission' => 'finance.transactions.create', 'required' => ['id_import', 'date', 'montant', 'categorie', 'emetteur', 'beneficiaire'], 'optional' => ['description', 'client_code', 'site_code', 'statut', 'pieces_jointes']],
+        'factures' => ['label' => 'Factures', 'permission' => 'finance.invoices.create', 'required' => ['id_import', 'date', 'client_code', 'lignes'], 'optional' => ['statut', 'projet_libelle', 'tva_active', 'taux_tva', 'conditions_paiement']],
+        'bons_livraison' => ['label' => 'Bons de livraison', 'permission' => 'project.projects.update', 'required' => ['id_import', 'numero', 'date', 'client_code', 'lignes'], 'optional' => ['objet']],
         'equipements' => ['label' => 'Équipements', 'permission' => 'stock.equipment.create', 'required' => ['id_import', 'titre'], 'optional' => ['description', 'unite', 'client_code']],
     ];
 

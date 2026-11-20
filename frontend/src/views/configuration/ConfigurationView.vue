@@ -24,7 +24,12 @@ const router = useRouter()
 const { hasPermission } = usePermissions()
 const { isAppMobile } = useAppMobileLayout()
 
-const activeTab = ref('appearance')
+const importBusy = ref(false)
+const selectedTab = ref('appearance')
+const activeTab = computed({
+  get: () => selectedTab.value,
+  set: (value) => { if (!importBusy.value) selectedTab.value = value },
+})
 const corbeillePanel = ref(null)
 
 const canViewSettings = computed(() => hasPermission('configuration.settings.update'))
@@ -103,7 +108,8 @@ syncFromQuery()
         <div v-show="activeTab === 'appearance'">
           <AppThemeControls />
         </div>
-        <DataImportPanel v-if="activeTab === 'imports'" />
+        <Message v-if="importBusy" severity="info" :closable="false">Opération d’import en cours. Patientez avant de quitter cet onglet.</Message>
+                <DataImportPanel v-if="activeTab === 'imports'" @busy-change="importBusy = $event" />
         <div v-if="canViewSettings" v-show="activeTab === 'agency'">
           <AgencySettingsPanel :can-edit="canEditSettings" />
         </div>

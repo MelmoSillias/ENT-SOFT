@@ -6,9 +6,9 @@ export const impressionService = {
     return data
   },
 
-  async fetchDocument(type, id, { format = 'html', page, orientation, disposition = 'inline', from, to } = {}) {
+  async fetchDocument(type, id, { format = 'html', page, orientation, disposition = 'inline', from, to, template, projectId } = {}) {
     const { data } = await api.get(`/impressions/documents/${type}/${id}`, {
-      params: { format, page, orientation, disposition, from, to },
+      params: { format, page, orientation, disposition, from, to, template, projectId },
       responseType: 'blob',
     })
     return data

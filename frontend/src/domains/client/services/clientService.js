@@ -1,4 +1,5 @@
 import api from '@/services/api'
+import { uploadEntityPhoto, deleteEntityPhoto } from '@/domains/shared/services/photoUploadService'
 
 export async function listClients(params = {}) {
   const { data } = await api.get('/clients', { params })
@@ -28,6 +29,14 @@ export async function updateClient(id, payload) {
 export async function deleteClient(id) {
   const { data } = await api.delete(`/clients/${id}`)
   return data
+}
+
+export function uploadClientLogo(id, file) {
+  return uploadEntityPhoto(`/clients/${id}/logo`, file)
+}
+
+export function deleteClientLogo(id) {
+  return deleteEntityPhoto(`/clients/${id}/logo`)
 }
 
 export async function createClientComment(clientId, content) {

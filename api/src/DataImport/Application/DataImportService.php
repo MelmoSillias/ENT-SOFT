@@ -19,8 +19,21 @@ final class DataImportService
         #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {}
 
-    public function run(string $type, array $package, bool $execute, bool $canUpload): array
+    public function projectId(string $type, ?string $projectId): ?string
     {
+        return $this->factory->projectId($type, $projectId);
+    }
+
+    public static function digest(string $type, string $fileHash, ?string $projectId): string
+    {
+        return $type === 'bons_livraison'
+            ? hash('sha256', json_encode([$type, $projectId, $fileHash], JSON_THROW_ON_ERROR))
+            : $fileHash;
+    }
+
+    public function run(string $type, array $package, bool $execute, bool $canUpload, ?string $projectId = null): array
+    {
+        $projectId = $this->projectId($type, $projectId);
         $rows = $this->format->parse($type, $package['csv']);
         $report = ['valid' => true, 'created' => 0, 'ready' => 0, 'skipped' => 0, 'errors' => 0, 'rows' => []];
         $prepared = [];
@@ -29,9 +42,9 @@ final class DataImportService
         $usedFiles = [];
         foreach ($rows as $entry) {
             $row = $entry['data'];
-            $result = ['line' => $entry['line'], 'idImport' => $row['id_import'], 'status' => 'ready', 'message' => 'Prêt à importer', 'entityId' => null, 'attachments' => 0];
+            $result = ['line' => $entry['line'], 'idImport' => $row['id_import'], 'status' => 'ready', 'message' => 'Prêt à importer', 'entityId' => null, 'attachments' => 0, 'data' => $row];
             try {
-                $key = ImportRowFactory::key($type, $row['id_import']);
+                $key = ImportRowFactory::key($type, $row['id_import'], $projectId);
                 if (isset($seen[$key])) {
                     throw new \InvalidArgumentException('id_import présent plusieurs fois dans le fichier.');
                 }
@@ -50,7 +63,7 @@ final class DataImportService
                 }
                 $result['attachments'] = count($paths);
                 ksort($hashes);
-                $fingerprint = hash('sha256', json_encode([$row, $hashes], JSON_THROW_ON_ERROR));
+                $fingerprint = hash('sha256', json_encode($projectId === null ? [$row, $hashes] : [$type, $projectId, $row, $hashes], JSON_THROW_ON_ERROR));
                 $record = $this->em->find(ImportRecord::class, $key);
                 if ($record) {
                     if ($record->getFingerprint() !== $fingerprint) {
@@ -64,7 +77,7 @@ final class DataImportService
                     if ($paths && !$canUpload) {
                         throw new \InvalidArgumentException('La permission document.documents.upload est requise pour les justificatifs.');
                     }
-                    $command = $this->factory->prepare($type, $row);
+                    $command = $this->factory->prepare($type, $row, $projectId);
                     $natural = match ($type) { 'sites' => $row['code'], 'prestataires' => strtolower($row['email']), default => null };
                     if ($natural !== null && isset($naturalKeys[$natural])) {
                         throw new \InvalidArgumentException('Code site ou email prestataire présent plusieurs fois dans le fichier.');

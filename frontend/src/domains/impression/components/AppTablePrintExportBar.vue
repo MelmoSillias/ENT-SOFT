@@ -4,6 +4,8 @@ import Button from 'primevue/button'
 import ExportFormatMenu from '@/domains/impression/components/ExportFormatMenu.vue'
 import { useTableExport, useTablePrint } from '@/domains/impression/composables/usePrintDocument'
 import { useAuthStore } from '@/domains/auth/stores/auth'
+import AppDataImportButton from '@/domains/shared/components/AppDataImportButton.vue'
+import { getImportDefinition, getTableImportTypes } from '@/domains/shared/utils/dataImport'
 
 const props = defineProps({
   tableType: { type: String, required: true },
@@ -19,6 +21,8 @@ const props = defineProps({
   permissionExport: { type: String, default: 'impression.tables.export' },
 })
 
+const emit = defineEmits(['imported'])
+
 const exportMenu = ref()
 const { printTable } = useTablePrint()
 const { exportTable } = useTableExport()
@@ -26,6 +30,9 @@ const authStore = useAuthStore()
 
 const canPrint = computed(() => authStore.hasPermission(props.permissionPrint))
 const canExport = computed(() => authStore.hasPermission(props.permissionExport))
+const importTypes = computed(() => getTableImportTypes(props.tableType).filter((type) =>
+  authStore.hasPermission(getImportDefinition(type).permission),
+))
 
 const payload = () => ({
   title: props.title,
@@ -54,7 +61,13 @@ const openExportMenu = (event) => {
 </script>
 
 <template>
-  <div v-if="canPrint || canExport" class="app-table-print-export-bar">
+  <div v-if="canPrint || canExport || importTypes.length" class="app-table-print-export-bar">
+    <AppDataImportButton
+      v-for="type in importTypes"
+      :key="type"
+      :type="type"
+      @imported="emit('imported', $event)"
+    />
     <Button
       v-if="canPrint"
       icon="pi pi-print"

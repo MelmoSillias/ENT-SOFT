@@ -18,6 +18,11 @@ use App\Client\Application\Query\GetClientDetail\GetClientDetailHandler;
 use App\Client\Application\Query\GetClientDetail\GetClientDetailQuery;
 use App\Client\Application\Query\ListClients\ListClientsHandler;
 use App\Client\Application\Query\ListClients\ListClientsQuery;
+use App\Client\Application\Dto\ClientResponseDto;
+use App\Client\Application\Service\ClientLogoUploadService;
+use App\Client\Domain\Repository\ClientRepositoryInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -95,6 +100,40 @@ final class ClientController extends AbstractController
     public function delete(string $id, DeleteClientHandler $handler): JsonResponse
     {
         return $this->json($handler->handle(new DeleteClientCommand($id))->toArray());
+    }
+
+    #[Route('/{id}/logo', name: 'api_clients_logo_upload', methods: ['POST'])]
+    #[IsGranted('client.clients.update')]
+    public function uploadLogo(string $id, Request $request, ClientRepositoryInterface $clients, ClientLogoUploadService $logos): JsonResponse
+    {
+        $client = Uuid::isValid($id) ? $clients->findById(Uuid::fromString($id)) : null;
+        if ($client === null || !$client->isEnabled()) {
+            return $this->json(['error' => 'Client introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+        $file = $request->files->get('file');
+        if (!$file instanceof UploadedFile) {
+            return $this->json(['error' => 'Fichier image requis (champ file).'], Response::HTTP_BAD_REQUEST);
+        }
+        try {
+            $logos->upload($client, $file);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        }
+
+        return $this->json(ClientResponseDto::fromEntity($client)->toArray());
+    }
+
+    #[Route('/{id}/logo', name: 'api_clients_logo_delete', methods: ['DELETE'])]
+    #[IsGranted('client.clients.update')]
+    public function deleteLogo(string $id, ClientRepositoryInterface $clients, ClientLogoUploadService $logos): JsonResponse
+    {
+        $client = Uuid::isValid($id) ? $clients->findById(Uuid::fromString($id)) : null;
+        if ($client === null || !$client->isEnabled()) {
+            return $this->json(['error' => 'Client introuvable.'], Response::HTTP_NOT_FOUND);
+        }
+        $logos->clear($client);
+
+        return $this->json(ClientResponseDto::fromEntity($client)->toArray());
     }
 
     #[Route('/{id}/comments', name: 'api_clients_comments_create', methods: ['POST'])]

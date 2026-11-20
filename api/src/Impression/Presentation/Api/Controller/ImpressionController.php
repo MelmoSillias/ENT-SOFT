@@ -3,6 +3,7 @@
 namespace App\Impression\Presentation\Api\Controller;
 
 use App\Impression\Application\Service\InvoiceImpressionService;
+use App\Impression\Application\Service\ProjectDocumentImpressionService;
 use App\Impression\Application\Service\TableImpressionService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -22,9 +23,22 @@ final class ImpressionController extends AbstractController
     }
 
     #[Route('/documents/{type}/{id}', name: 'api_impressions_document', methods: ['GET'])]
-    #[IsGranted('finance.invoices.view')]
-    public function document(string $type, string $id, Request $request, InvoiceImpressionService $service): Response
+    public function document(string $type, string $id, Request $request, InvoiceImpressionService $service, ProjectDocumentImpressionService $projectDocuments): Response
     {
+        if ($type === 'delivery_note') {
+            $this->denyAccessUnlessGranted('project.projects.view');
+            $this->denyAccessUnlessGranted('impression.documents.print');
+
+            return $projectDocuments->render(
+                (string) $request->query->get('projectId', ''), $id,
+                (string) $request->query->get('format', 'html'),
+                (string) $request->query->get('page', 'a4'),
+                (string) $request->query->get('orientation', 'portrait'),
+                (string) $request->query->get('disposition', 'inline'),
+                $request->query->get('template'),
+            );
+        }
+        $this->denyAccessUnlessGranted('finance.invoices.view');
         if ($type !== 'invoice') {
             return $this->json(['error' => 'Type de document non supporté.'], Response::HTTP_NOT_FOUND);
         }

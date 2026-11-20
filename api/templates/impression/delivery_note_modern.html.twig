@@ -1,0 +1,46 @@
+{# facture.html.twig is the actual navy/green modern design despite its name. #}
+{% extends 'impression/facture.html.twig' %}
+{% block extra_styles %}
+{{ parent() }}
+<style>
+    .delivery-table .description { width: 57%; white-space: pre-line; overflow-wrap: break-word; word-wrap: break-word; }
+    .delivery-table .quantity { width: 21%; text-align: center; }
+    .delivery-table .observation { width: 22%; white-space: pre-line; overflow-wrap: break-word; word-wrap: break-word; }
+    .delivery-table thead th { text-align: left; }
+    .delivery-table thead .quantity { text-align: center; }
+        .delivery-table thead .delivery-object { text-align: center; background: #f0f7f2; color: #244465; font-size: 14px; padding: 11px; border-top: 3px solid #438d66; overflow-wrap: break-word; }
+    .client-logo { max-width: 100px; max-height: 55px; margin: 8px 0; }
+    .delivery-signatures { width: 100%; border-collapse: collapse; margin-top: 55px; page-break-inside: avoid; break-inside: avoid; color: #244465; }
+    .delivery-signatures td { width: 50%; text-align: center; padding: 15px 10px 55px; border-top: 1px solid #a8b9bf; }
+</style>
+{% endblock %}
+{% block content %}
+{% if render_mode != 'pdf' %}<div class="toolbar no-print"><span>{{ profile.shop_name }} · Bon de livraison</span><button onclick="window.print()">Imprimer / Enregistrer en PDF</button></div>{% endif %}
+<div id="invoice-content">
+    <header class="brand-banner">
+        {% if render_mode == 'pdf' %}<img class="banner-art" alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI3NDkiIGhlaWdodD0iMTEwIiB2aWV3Qm94PSIwIDAgNzQ5IDExMCI+PHBhdGggZmlsbD0iIzM1Nzg1MSIgZD0iTTUxOSAxMDFINjY1TDY1OSAxMTBINTEzWiIvPjxwYXRoIGZpbGw9IiM0MzhkNjYiIGQ9Ik02NzUgMEg3NDlWMTEwSDYyMloiLz48L3N2Zz4=">{% endif %}
+        {% if profile.logo_url %}<div class="logo-wrap"><img src="{{ profile.logo_url }}" alt="Logo {{ profile.shop_name }}"></div>{% endif %}
+        <div class="brand-text"><div class="company-name">{{ profile.shop_name }}</div><h1 class="invoice-title">BON DE LIVRAISON</h1></div>
+    </header>
+    <div class="details"><div class="to"><div class="eyebrow">Client / Livré à</div><h2 class="client-name">{{ data.clientTitle }}</h2>{% if data.clientLogo %}<img class="client-logo" src="{{ data.clientLogo }}" alt="Logo {{ data.clientTitle }}">{% endif %}</div><div class="meta-wrap"><div class="invoice-meta"><b>N° bon</b><span>{{ data.number }}</span><b class="meta-date">Date</b><span>{{ data.dateDisplay }}</span></div></div></div>
+    <div class="project-block"><span class="project-label">Projet</span><span class="project-name">{{ data.projectName }}</span></div>
+    <table class="invoice-table delivery-table">
+        <colgroup><col style="width:57%"><col style="width:21%"><col style="width:22%"></colgroup>
+        <thead>{% if data.object %}<tr><th colspan="3" class="delivery-object">{{ data.object }}</th></tr>{% endif %}<tr><th class="description">ITEM</th><th class="quantity">Quantité</th><th class="observation">Observation</th></tr></thead>
+        <tbody>{% for line in data.lines %}<tr><td class="description">{{ line.description }}</td><td class="quantity">{{ line.quantity }}</td><td class="observation">{{ line.observation }}</td></tr>{% endfor %}</tbody>
+    </table>
+    <table class="delivery-signatures"><tr><td>Signature et cachet client<br>{{ data.clientTitle }}</td><td>Signature et cachet entreprise<br>{{ profile.shop_name }}</td></tr></table>
+</div>
+<footer id="invoice-footer" class="invoice-footer"><div class="footer-company">
+    <strong>{{ profile.shop_name }}</strong>
+    {% for line in profile.address_lines %}<div>{{ line }}</div>{% endfor %}
+    {% if profile.phone %}<div>Tél. : {{ profile.phone }}</div>{% endif %}
+    {% if profile.email %}<div>{{ profile.email }}</div>{% endif %}
+    {% if profile.website %}<div>{{ profile.website }}</div>{% endif %}
+</div><div class="footer-page"></div><div class="footer-reg">
+    {% if profile.nina %}<div>NINA : {{ profile.nina }}</div>{% endif %}
+    {% if profile.nif_fiscal %}<div>N° fiscal : {{ profile.nif_fiscal }}</div>{% endif %}
+    {% if profile.footer_text %}<div>{{ profile.footer_text }}</div>{% endif %}
+</div></footer>
+{% if render_mode != 'pdf' %}{% include 'impression/_invoice_modern_pagination.html.twig' %}{% endif %}
+{% endblock %}
