@@ -34,6 +34,11 @@ final class DoctrineProjectDocumentRepository extends ServiceEntityRepository im
         return $this->find($id);
     }
 
+    public function findAllOrdered(): array
+    {
+        return $this->findBy([], ['date' => 'DESC', 'id' => 'DESC']);
+    }
+
     public function findByProjectId(Uuid $projectId): array
     {
         $qb = $this->createQueryBuilder('d')->orderBy('d.date', 'DESC')->addOrderBy('d.id', 'DESC');

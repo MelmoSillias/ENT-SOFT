@@ -27,6 +27,17 @@ final class ProjectDocumentTest extends TestCase
         self::assertSame(1.25, $document->getLines()[1]['quantity']);
     }
 
+    public function testProjectIsNullableAndCanBeAssignedOrCleared(): void
+    {
+        $document = new ProjectDocument(null, ProjectDocumentType::DELIVERY_NOTE, '42', new \DateTimeImmutable('2026-11-20'), Uuid::v4(), [['description' => 'Routeur', 'quantity' => 1]]);
+        self::assertNull($document->getProjectId());
+        $projectId = Uuid::v4();
+        $document->assignProject($projectId);
+        self::assertTrue($document->getProjectId()->equals($projectId));
+        $document->assignProject(null);
+        self::assertNull($document->getProjectId());
+    }
+
     public function testOptionalObjectIsNormalizedAndClearedOnReplacement(): void
     {
         $document = $this->document('42', [['description' => 'Routeur', 'quantity' => 1]]);

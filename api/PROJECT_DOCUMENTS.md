@@ -1,4 +1,4 @@
-# Documents métier de projet
+# Documents métier, avec ou sans projet
 
 Les bons de livraison sont stockés dans `project_documents`, séparément des pièces jointes du module `Document`. Le type est stocké en chaîne et mappé par `ProjectDocumentType` (actuellement `delivery_note`). Ajouter un type nécessite d'étendre cet enum et son rendu, pas de créer une nouvelle table.
 
@@ -8,23 +8,38 @@ Authentification Bearer existante. Aucune nouvelle permission ni attribution imp
 
 | Méthode | Endpoint | Permission | Succès |
 | --- | --- | --- | --- |
+| GET | `/api/project-documents` | `project.projects.view` | 200, tableau transversal |
+| POST | `/api/project-documents` | `project.projects.update` | 201, document |
+| PUT | `/api/project-documents/{id}` | `project.projects.update` | 200, document |
+| DELETE | `/api/project-documents/{id}` | `project.projects.delete` | 204, sans corps |
 | GET | `/api/projects/{projectId}/documents` | `project.projects.view` | 200, tableau de documents |
 | POST | `/api/projects/{projectId}/documents` | `project.projects.update` | 201, document |
 | PUT | `/api/projects/{projectId}/documents/{id}` | `project.projects.update` | 200, document |
 | DELETE | `/api/projects/{projectId}/documents/{id}` | `project.projects.delete` | 204, sans corps |
 | GET | `/api/projects/{projectId}/documents/{id}/print` | `project.projects.view` **et** `impression.documents.print` | 200, HTML ou PDF |
-| GET | `/api/impressions/documents/delivery_note/{id}?projectId={projectId}` | mêmes deux permissions | même rendu |
+| GET | `/api/impressions/documents/delivery_note/{id}` | mêmes deux permissions | même rendu |
 
-La création d'un document modifie un projet existant : elle utilise donc `project.projects.update`, pas `project.projects.create`. La liste accepte le filtre facultatif `?type=delivery_note`. Pas de pagination ni d'endpoint GET individuel dans ce contrat.
+Les opérations transversales réutilisent exactement les permissions existantes, même sans projet : création et modification utilisent `project.projects.update`, pas `project.projects.create`. Aucune ACL utilisateur supplémentaire.
 
-Le projet doit exister et être actif. Un document d'un autre projet est inaccessible via PUT, DELETE et les deux routes d'impression (404). Ces contrôles ne constituent pas une ACL par utilisateur : comme pour les projets existants, les autorisations sont celles du catalogue global.
+- `GET /api/project-documents` liste tous les documents sans projet ou liés à un projet actif. Filtres facultatifs : `?type=delivery_note` et `?projectId={UUID}` (combinables). Sans `projectId`, aucun filtre projet ; une valeur vide ou la chaîne `null` est invalide (400). Il n’existe pas de filtre réservé aux documents sans projet.
+- `POST /api/project-documents` : `projectId` absent ou JSON `null` crée un document sans projet ; un UUID le rattache à un projet existant et actif.
+- `PUT /api/project-documents/{id}` remplace le contenu et l’affectation : `projectId` absent ou JSON `null` détache le document ; un UUID permet de le rattacher ou de le transférer à un autre projet actif.
+- `DELETE /api/project-documents/{id}` supprime définitivement un document accessible, sans exiger de projet.
+- Les routes imbriquées restent strictement filtrées par le projet de l’URL : jamais de document sans projet ou d’un autre projet. Dans leur corps POST/PUT, `projectId` peut être omis ; s’il est présent, il doit être un UUID égal à celui de l’URL (`null` et toute autre valeur sont refusés, 400). Aucun transfert ni détachement via ces routes.
+
+Les deux listes acceptent `?type=delivery_note`, renvoient un tableau JSON sans enveloppe et sont triées par date décroissante puis UUID décroissant. Pas de pagination ni d’endpoint GET individuel dans ce contrat.
+
+Tout projet référencé doit exister et être actif (404 sinon). Un document d’un autre projet ou sans projet est inaccessible via les routes imbriquées (404), ainsi que via l’impression générique si un `projectId` incompatible est fourni. Un document lié à un projet désactivé reste inaccessible, y compris en modification/suppression/impression transversale, et est exclu de la liste transversale ; ses données sont conservées.
+
+Erreurs : 401 sans authentification, 403 sans permission, 400 pour UUID ou données invalides (JSON `{ "error": "…" }`), 404 pour projet/document absent ou inaccessible. La validation métier commune reste identique pour les deux familles de routes.
 
 ## Corps POST et PUT
 
-PUT remplace intégralement le contenu ; les mêmes champs sont requis qu'à la création.
+PUT remplace intégralement le contenu ; les mêmes champs métier sont requis qu’à la création. Exemple transversal sans projet :
 
 ```json
 {
+  "projectId": null,
   "type": "delivery_note",
   "number": "BC-2026-042",
   "date": "2026-11-20",
@@ -48,6 +63,8 @@ Réponse POST/PUT et éléments de la liste :
 ```json
 {
   "id": "019a9e30-0000-7000-8000-000000000002",
+  "projectId": null,
+  "object": null,
   "type": "delivery_note",
   "number": "BC-2026-042",
   "date": "2026-11-20",
@@ -59,7 +76,7 @@ Réponse POST/PUT et éléments de la liste :
 }
 ```
 
-`clientTitle` est lu sur le client actuel, pas figé à la création. DELETE supprime définitivement le document. Un projet désactivé rend ses documents inaccessibles sans supprimer leurs données.
+`projectId` est toujours renvoyé (UUID ou `null`), y compris sur les routes imbriquées. `object` est toujours renvoyé (texte ou `null`). `clientTitle` est lu sur le client actuel, pas figé à la création. DELETE supprime définitivement le document. Un projet désactivé rend ses documents inaccessibles sans supprimer leurs données.
 
 Erreurs JSON `{ "error": "…" }` : 400 pour validation/UUID/paramètres invalides, 401 sans authentification valide, 403 si permission manquante, 404 si projet inexistant/désactivé ou document absent/hors projet.
 
@@ -74,9 +91,9 @@ Les deux routes acceptent les mêmes paramètres :
 | `orientation` | `portrait`, `landscape` | `portrait` |
 | `disposition` | `inline`, `attachment` | `inline` |
 | `template` | `classic`, `modern` | setting existant `IMPRESSION_INVOICE_TEMPLATE` (sinon `classic`) |
-| `projectId` | UUID du projet | **requis uniquement sur la route `/api/impressions/...`** |
+| `projectId` | UUID du projet | facultatif sur `/api/impressions/...` ; s’il est fourni, filtre strict (UUID vide/invalide : 400, projet absent/désactivé ou affectation incompatible : 404) |
 
-Exemple : `/api/projects/{projectId}/documents/{id}/print?format=pdf&template=modern&page=a4&orientation=portrait&disposition=attachment`.
+Exemples : `/api/projects/{projectId}/documents/{id}/print?format=pdf&template=modern&page=a4&orientation=portrait&disposition=attachment` ; sans projet : `/api/impressions/documents/delivery_note/{id}?format=pdf&template=modern&disposition=attachment`. Sur la route générique, omettre `projectId` permet aussi d’imprimer un document lié à un projet actif ; le nom du projet provient alors du document. Sans affectation, le contexte de rendu fournit `projectName: null`.
 
 HTML inline déclenche `window.print()` après chargement. HTML attachment ne l'ouvre pas. PDF est généré par le support Dompdf existant ; les formats CSV/Excel/Word ne font pas partie de ce contrat. Les paramètres hors liste sont refusés (400), pas silencieusement convertis en HTML.
 
@@ -89,6 +106,8 @@ HTML inline déclenche `window.print()` après chargement. HTML attachment ne l'
 ## Déploiement et tests
 
 Appliquer `php bin/console doctrine:migrations:migrate --no-interaction` avant utilisation. Migrations réversibles : `Version20261120120000` (documents), `Version20261120130000` (logo client) et `Version20261120131000` (objet BL nullable). Les documents existants conservent leur date et n’ont pas d’objet par défaut.
+
+La migration `Version20261120132000` rend `project_id` nullable sans changer les affectations existantes ni supprimer l’index projet. Son rollback rétablit NOT NULL uniquement si aucun document sans projet n’existe ; sinon il refuse explicitement, sans suppression ni réaffectation automatique. Réaffecter ou supprimer ces documents avant un rollback.
 
 Tests ciblés :
 

@@ -23,7 +23,7 @@ final class ProjectDocumentImpressionService
     ) {
     }
 
-    public function render(string $projectId, string $id, string $format = 'html', string $page = 'a4', string $orientation = 'portrait', string $disposition = 'inline', ?string $template = null): Response
+    public function render(?string $projectId, string $id, string $format = 'html', string $page = 'a4', string $orientation = 'portrait', string $disposition = 'inline', ?string $template = null): Response
     {
         $document = $this->documents->get($projectId, $id);
         if ($document->getType() !== ProjectDocumentType::DELIVERY_NOTE) {
@@ -40,7 +40,9 @@ final class ProjectDocumentImpressionService
         $data['documentLabel'] = 'Bon de livraison';
         $data['clientName'] = $data['clientTitle'];
         $data['clientLogo'] = $this->clientLogo($document->getClientId());
-        $data['projectName'] = $this->documents->project($projectId)->getTitle();
+        $data['projectName'] = $document->getProjectId() === null
+            ? null
+            : $this->documents->project($document->getProjectId()->toRfc4122())->getTitle();
         // The shared modern invoice paginator reads this metadata for continuation pages.
         $data['invoice'] = ['number' => $document->getNumber()];
         $data['dateDisplay'] = $document->getDate()->format('d/m/Y');

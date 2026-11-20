@@ -12,6 +12,7 @@ import { useAppMobileLayout } from '@/domains/layout/composables/useAppMobileLay
 import { usePermissions } from '@/domains/auth/composables/usePermissions'
 import ProjectListView from '@/views/project/ProjectListView.vue'
 import ProjectReportListPanel from '@/views/project/ProjectReportListPanel.vue'
+import ProjectDocumentsPanel from '@/domains/project/components/ProjectDocumentsPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,10 +23,11 @@ const canViewReports = computed(() => hasPermission('project.reports.view'))
 const tabItems = computed(() => [
   { value: 'projects', label: 'Projets', shortLabel: 'Projets' },
   ...(canViewReports.value ? [{ value: 'reports', label: 'Rapports', shortLabel: 'Rapports' }] : []),
+  { value: 'documents', label: 'Documents', shortLabel: 'Docs' },
 ])
 
 watch(() => route.query.tab, (tab) => {
-  activeTab.value = tab === 'reports' && canViewReports.value ? 'reports' : 'projects'
+  activeTab.value = tabItems.value.some((item) => item.value === tab) ? tab : 'projects'
 }, { immediate: true })
 
 watch(activeTab, (tab) => {
@@ -42,10 +44,12 @@ watch(activeTab, (tab) => {
           <TabList>
             <Tab value="projects">Projets</Tab>
             <Tab v-if="canViewReports" value="reports">Rapports</Tab>
+            <Tab value="documents">Documents</Tab>
           </TabList>
           <TabPanels>
             <TabPanel value="projects" />
             <TabPanel v-if="canViewReports" value="reports" />
+            <TabPanel value="documents" />
           </TabPanels>
         </Tabs>
       </template>
@@ -53,7 +57,8 @@ watch(activeTab, (tab) => {
     <ProjectListView v-if="activeTab === 'projects'" />
     <Card v-else class="dashboard-panel">
       <template #content>
-        <ProjectReportListPanel />
+        <ProjectReportListPanel v-if="activeTab === 'reports'" />
+        <ProjectDocumentsPanel v-else-if="activeTab === 'documents'" />
       </template>
     </Card>
   </section>

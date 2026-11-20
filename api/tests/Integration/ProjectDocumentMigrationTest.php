@@ -47,6 +47,31 @@ final class ProjectDocumentMigrationTest extends TestCase
         self::assertNull($connection->fetchOne('SELECT object FROM project_documents'));
         $connection->executeStatement('UPDATE project_documents SET object = ?', ['Livraison du site']);
         self::assertSame('Livraison du site', $connection->fetchOne('SELECT object FROM project_documents'));
+        require_once dirname(__DIR__, 2).'/migrations/Version20261120132000.php';
+        $nullableMigration = new \DoctrineMigrations\Version20261120132000($connection, new NullLogger());
+        $before = clone $schema;
+        $nullableMigration->up($schema);
+        self::assertFalse($schema->getTable('project_documents')->getColumn('project_id')->getNotnull());
+        self::assertTrue($schema->getTable('project_documents')->hasIndex('idx_project_document_project'));
+        $diff = $manager->createComparator()->compareSchemas($before, $schema);
+        foreach ($connection->getDatabasePlatform()->getAlterSchemaSQL($diff) as $sql) { $connection->executeStatement($sql); }
+        self::assertSame('BC-42', $connection->fetchOne('SELECT number FROM project_documents'));
+        $originalProjectId = $connection->fetchOne('SELECT project_id FROM project_documents');
+        $connection->executeStatement('UPDATE project_documents SET project_id = NULL');
+        self::assertNull($connection->fetchOne('SELECT project_id FROM project_documents'));
+        try {
+            $nullableMigration->down(clone $schema);
+            self::fail('Rollback must refuse to lose standalone documents.');
+        } catch (\Doctrine\Migrations\Exception\AbortMigration $e) {
+            self::assertStringContainsString('Réaffecter', $e->getMessage());
+        }
+        $connection->executeStatement('UPDATE project_documents SET project_id = ?', [$originalProjectId]);
+        $before = clone $schema;
+        $nullableMigration->down($schema);
+        $diff = $manager->createComparator()->compareSchemas($before, $schema);
+        foreach ($connection->getDatabasePlatform()->getAlterSchemaSQL($diff) as $sql) { $connection->executeStatement($sql); }
+        self::assertTrue($connection->createSchemaManager()->introspectTable('project_documents')->getColumn('project_id')->getNotnull());
+        self::assertSame('Livraison du site', $connection->fetchOne('SELECT object FROM project_documents'));
         $before = clone $schema;
         $objectMigration->down($schema);
         $diff = $manager->createComparator()->compareSchemas($before, $schema);

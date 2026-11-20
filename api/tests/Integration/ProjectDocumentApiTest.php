@@ -74,7 +74,7 @@ final class ProjectDocumentApiTest extends WebTestCase
         $this->grant('project.projects.view', 'project.projects.update', 'project.projects.delete', 'impression.documents.print');
         $created = $this->request('POST', $this->base, $this->payload);
         self::assertResponseStatusCodeSame(201);
-        self::assertSame(['id', 'type', 'number', 'object', 'date', 'clientId', 'clientTitle', 'lines'], array_keys($created));
+        self::assertSame(['id', 'projectId', 'type', 'number', 'object', 'date', 'clientId', 'clientTitle', 'lines'], array_keys($created));
         self::assertSame('Client livraison', $created['clientTitle']);
                 self::assertNull($created['object']);
                 self::assertSame('2026-11-20', $created['date']);
@@ -167,7 +167,7 @@ final class ProjectDocumentApiTest extends WebTestCase
             self::assertResponseStatusCodeSame(400);
         }
         $this->request('GET', '/api/impressions/documents/delivery_note/'.$id);
-        self::assertResponseStatusCodeSame(400);
+        self::assertResponseIsSuccessful();
         $this->request('GET', $this->base.'?type=unknown');
         self::assertResponseStatusCodeSame(400);
         $this->request('GET', $this->base.'/'.Uuid::v4().'/print');
@@ -181,6 +181,115 @@ final class ProjectDocumentApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
         $this->request('GET', $this->base);
         self::assertResponseIsSuccessful();
+    }
+
+    public function testGlobalCrudSupportsStandaloneDocumentsAndProjectReassignment(): void
+    {
+        $this->grant('project.projects.view', 'project.projects.update', 'project.projects.delete', 'impression.documents.print');
+        $global = '/api/project-documents';
+        $standalone = $this->request('POST', $global, $this->payload);
+        self::assertResponseStatusCodeSame(201);
+        self::assertNull($standalone['projectId']);
+        $id = $standalone['id'];
+        $this->em->clear();
+        self::assertNull($this->em->find(ProjectDocument::class, Uuid::fromString($id))->getProjectId());
+        $linked = $this->request('POST', $global, $this->payload + ['projectId' => $this->projectId]);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($this->projectId, $linked['projectId']);
+        self::assertCount(2, $this->request('GET', $global.'?type=delivery_note'));
+        self::assertCount(1, $this->request('GET', $global.'?projectId='.$this->projectId));
+        self::assertCount(1, $this->request('GET', $this->base));
+        foreach (['PUT', 'DELETE'] as $method) {
+            $this->request($method, $this->base.'/'.$id, $this->payload);
+            self::assertResponseStatusCodeSame(404);
+        }
+        $this->request('GET', $this->base.'/'.$id.'/print');
+        self::assertResponseStatusCodeSame(404);
+        $this->request('GET', '/api/impressions/documents/delivery_note/'.$id.'?projectId='.$this->projectId);
+        self::assertResponseStatusCodeSame(404);
+        foreach (['classic', 'modern'] as $template) {
+            foreach (['html', 'pdf'] as $format) {
+                $this->browser->request('GET', '/api/impressions/documents/delivery_note/'.$id.'?template='.$template.'&format='.$format.'&disposition=attachment');
+                self::assertResponseIsSuccessful();
+                self::assertResponseHeaderSame('content-type', $format === 'pdf' ? 'application/pdf' : 'text/html; charset=UTF-8');
+                self::assertStringContainsString($format === 'pdf' ? '%PDF-' : 'BON DE LIVRAISON', $this->browser->getResponse()->getContent());
+            }
+        }
+        $updated = $this->request('PUT', $global.'/'.$id, $this->payload + ['projectId' => $this->projectId]);
+        self::assertResponseIsSuccessful();
+        self::assertSame($this->projectId, $updated['projectId']);
+        self::assertCount(2, $this->request('GET', $this->base));
+        $otherProjectId = explode('/', $this->otherBase)[3];
+        $updated = $this->request('PUT', $global.'/'.$id, $this->payload + ['projectId' => $otherProjectId]);
+        self::assertResponseIsSuccessful();
+        self::assertSame($otherProjectId, $updated['projectId']);
+        self::assertCount(1, $this->request('GET', $this->otherBase));
+        foreach ([['projectId' => null], []] as $change) {
+            $updated = $this->request('PUT', $global.'/'.$id, $this->payload + $change);
+            self::assertResponseIsSuccessful();
+            self::assertNull($updated['projectId']);
+        }
+        self::assertCount(1, $this->request('GET', $this->base));
+        $this->request('DELETE', $global.'/'.$id);
+        self::assertResponseStatusCodeSame(204);
+        $this->request('DELETE', $global.'/'.$linked['id']);
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame([], $this->request('GET', $global));
+    }
+
+    public function testGlobalValidationAndNestedProjectCannotBeOverridden(): void
+    {
+        $this->grant('project.projects.view', 'project.projects.update', 'impression.documents.print');
+        foreach (['', 'null', 'invalid', 123, [], false] as $projectId) {
+            $this->request('POST', '/api/project-documents', $this->payload + ['projectId' => $projectId]);
+            self::assertResponseStatusCodeSame(400);
+        }
+        $this->request('POST', '/api/project-documents', $this->payload + ['projectId' => (string) Uuid::v4()]);
+        self::assertResponseStatusCodeSame(404);
+        foreach (['projectId=', 'projectId=null', 'type=unknown'] as $query) {
+            $this->request('GET', '/api/project-documents?'.$query);
+            self::assertResponseStatusCodeSame(400);
+        }
+        foreach ([null, explode('/', $this->otherBase)[3]] as $projectId) {
+            $this->request('POST', $this->base, $this->payload + ['projectId' => $projectId]);
+            self::assertResponseStatusCodeSame(400);
+        }
+        $nested = $this->request('POST', $this->base, $this->payload + ['projectId' => $this->projectId]);
+        self::assertResponseStatusCodeSame(201);
+        foreach ([null, explode('/', $this->otherBase)[3]] as $projectId) {
+            $this->request('PUT', $this->base.'/'.$nested['id'], $this->payload + ['projectId' => $projectId]);
+            self::assertResponseStatusCodeSame(400);
+        }
+        $this->request('PUT', '/api/project-documents/'.$nested['id'], array_replace($this->payload, ['lines' => []]));
+        self::assertResponseStatusCodeSame(400);
+        $this->em->clear();
+        self::assertSame($this->projectId, $this->em->find(ProjectDocument::class, Uuid::fromString($nested['id']))->getProjectId()->toRfc4122());
+        $created = $this->request('POST', '/api/project-documents', $this->payload + ['projectId' => null]);
+        self::assertResponseStatusCodeSame(201);
+        $this->request('PUT', '/api/project-documents/'.$created['id'], array_replace($this->payload, ['lines' => []]));
+        self::assertResponseStatusCodeSame(400);
+        $this->request('GET', '/api/impressions/documents/delivery_note/'.$created['id'].'?projectId=');
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    public function testGlobalPermissionsAndAuthentication(): void
+    {
+        $id = (string) Uuid::v4();
+        $routes = [['GET', '/api/project-documents'], ['POST', '/api/project-documents'], ['PUT', '/api/project-documents/'.$id], ['DELETE', '/api/project-documents/'.$id], ['GET', '/api/impressions/documents/delivery_note/'.$id]];
+        foreach ($routes as [$method, $uri]) {
+            $this->request($method, $uri, $this->payload);
+            self::assertResponseStatusCodeSame(403);
+        }
+        $this->grant('project.projects.view');
+        $this->request('GET', '/api/project-documents');
+        self::assertResponseIsSuccessful();
+        $this->request('GET', '/api/impressions/documents/delivery_note/'.$id);
+        self::assertResponseStatusCodeSame(403);
+        $this->browser->setServerParameter('HTTP_AUTHORIZATION', '');
+        foreach ($routes as [$method, $uri]) {
+            $this->request($method, $uri, $this->payload);
+            self::assertResponseStatusCodeSame(401);
+        }
     }
 
     public function testAuthenticationIsRequired(): void
@@ -197,8 +306,9 @@ final class ProjectDocumentApiTest extends WebTestCase
         $project = $this->em->find(Project::class, Uuid::fromString($this->projectId));
         $project->disable();
         $this->em->flush();
-        foreach ([['GET', $this->base], ['POST', $this->base], ['PUT', $this->base.'/'.$created['id']], ['DELETE', $this->base.'/'.$created['id']], ['GET', $this->base.'/'.$created['id'].'/print']] as [$method, $uri]) {
-            $this->request($method, $uri, $this->payload);
+        self::assertSame([], $this->request('GET', '/api/project-documents'));
+        foreach ([['GET', '/api/project-documents?projectId='.$this->projectId], ['POST', '/api/project-documents'], ['PUT', '/api/project-documents/'.$created['id']], ['DELETE', '/api/project-documents/'.$created['id']], ['GET', '/api/impressions/documents/delivery_note/'.$created['id']], ['GET', $this->base], ['POST', $this->base], ['PUT', $this->base.'/'.$created['id']], ['DELETE', $this->base.'/'.$created['id']], ['GET', $this->base.'/'.$created['id'].'/print']] as [$method, $uri]) {
+            $this->request($method, $uri, $this->payload + ['projectId' => $this->projectId]);
             self::assertResponseStatusCodeSame(404);
         }
     }

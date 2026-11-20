@@ -30,22 +30,31 @@ final class ProjectDocumentService
         return $project;
     }
 
-    public function get(string $projectId, string $id): ProjectDocument
+    public function get(?string $projectId, string $id): ProjectDocument
     {
-        $project = $this->project($projectId);
+        $project = $projectId === null ? null : $this->project($projectId);
         $document = $this->documents->findById($this->uuid($id, 'id'));
-        if ($document === null || !$document->getProjectId()->equals($project->getId())) {
+        if ($document === null || ($project !== null && !($document->getProjectId()?->equals($project->getId()) ?? false))) {
             throw new NotFoundHttpException('Document de projet introuvable.');
+        }
+        if ($project === null && $document->getProjectId() !== null) {
+            $this->project($document->getProjectId()->toRfc4122());
         }
 
         return $document;
     }
 
-    public function list(string $projectId, ?string $type = null): array
+    public function list(?string $projectId, ?string $type = null): array
     {
-        $project = $this->project($projectId);
+        $project = $projectId === null ? null : $this->project($projectId);
         $filter = $type === null ? null : $this->type($type);
-        $items = $this->documents->findByProjectId($project->getId());
+        $items = $project === null ? $this->documents->findAllOrdered() : $this->documents->findByProjectId($project->getId());
+        if ($project === null) {
+            $items = array_filter($items, function (ProjectDocument $item): bool {
+                $id = $item->getProjectId();
+                return $id === null || ($this->projects->findById($id)?->isEnabled() ?? false);
+            });
+        }
 
         return array_values(array_map($this->toArray(...), array_filter($items, static fn (ProjectDocument $item) => $filter === null || $item->getType() === $filter)));
     }
@@ -54,6 +63,24 @@ final class ProjectDocumentService
     {
         $project = $this->project($projectId);
         $document = $id === null ? null : $this->get($projectId, $id);
+        if (array_key_exists('projectId', $data) && !$this->uuid($data['projectId'], 'projectId')->equals($project->getId())) {
+            throw new \InvalidArgumentException('projectId doit correspondre au projet de la route.');
+        }
+
+        return $this->persist($project->getId(), $data, $document);
+    }
+
+    public function saveGlobal(array $data, ?string $id = null): array
+    {
+        $document = $id === null ? null : $this->get(null, $id);
+        $rawProjectId = $data['projectId'] ?? null;
+        $projectId = $rawProjectId === null ? null : $this->project($this->uuid($rawProjectId, 'projectId')->toRfc4122())->getId();
+
+        return $this->persist($projectId, $data, $document);
+    }
+
+    private function persist(?Uuid $projectId, array $data, ?ProjectDocument $document): array
+    {
         $type = $this->type($data['type'] ?? null);
         $number = $data['number'] ?? null;
         if (!is_string($number)) {
@@ -79,16 +106,17 @@ final class ProjectDocumentService
             throw new \InvalidArgumentException('L’objet doit être un texte.');
         }
         if ($document === null) {
-            $document = new ProjectDocument($project->getId(), $type, $number, $date, $clientId, $data['lines'], $object);
+            $document = new ProjectDocument($projectId, $type, $number, $date, $clientId, $data['lines'], $object);
         } else {
             $document->replace($type, $number, $date, $clientId, $data['lines'], $object);
+            $document->assignProject($projectId);
         }
         $this->documents->save($document);
 
         return $this->toArray($document);
     }
 
-    public function delete(string $projectId, string $id): void
+    public function delete(?string $projectId, string $id): void
     {
         $this->documents->remove($this->get($projectId, $id));
     }
@@ -97,6 +125,7 @@ final class ProjectDocumentService
     {
         return [
             'id' => $document->getId()->toRfc4122(),
+            'projectId' => $document->getProjectId()?->toRfc4122(),
             'type' => $document->getType()->value,
             'number' => $document->getNumber(),
                         'object' => $document->getObject(),

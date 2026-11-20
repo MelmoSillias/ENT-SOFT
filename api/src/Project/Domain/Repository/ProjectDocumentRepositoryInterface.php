@@ -12,4 +12,6 @@ interface ProjectDocumentRepositoryInterface
     public function findById(Uuid $id): ?ProjectDocument;
     /** @return list<ProjectDocument> */
     public function findByProjectId(Uuid $projectId): array;
+    /** @return list<ProjectDocument> */
+    public function findAllOrdered(): array;
 }

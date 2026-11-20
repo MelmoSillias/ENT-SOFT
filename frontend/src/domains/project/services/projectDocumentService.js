@@ -1,6 +1,6 @@
 import api from '@/services/api'
 
-const basePath = (projectId) => `/projects/${projectId}/documents`
+const basePath = (projectId) => projectId ? `/projects/${projectId}/documents` : '/project-documents'
 
 export async function listProjectDocuments(projectId) {
   const { data } = await api.get(basePath(projectId))

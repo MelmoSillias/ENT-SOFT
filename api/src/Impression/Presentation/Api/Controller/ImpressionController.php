@@ -30,7 +30,7 @@ final class ImpressionController extends AbstractController
             $this->denyAccessUnlessGranted('impression.documents.print');
 
             return $projectDocuments->render(
-                (string) $request->query->get('projectId', ''), $id,
+                $request->query->get('projectId'), $id,
                 (string) $request->query->get('format', 'html'),
                 (string) $request->query->get('page', 'a4'),
                 (string) $request->query->get('orientation', 'portrait'),

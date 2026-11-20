@@ -17,8 +17,8 @@ class ProjectDocument
     use UuidEntityTrait;
     use TimestampableTrait;
 
-    #[ORM\Column(type: 'uuid')]
-    private Uuid $projectId;
+    #[ORM\Column(type: 'uuid', nullable: true)]
+    private ?Uuid $projectId;
 
     #[ORM\Column(length: 50, enumType: ProjectDocumentType::class)]
     private ProjectDocumentType $type;
@@ -39,7 +39,7 @@ class ProjectDocument
     #[ORM\Column(type: 'json')]
     private array $lines;
 
-    public function __construct(Uuid $projectId, ProjectDocumentType $type, string $number, \DateTimeImmutable $date, Uuid $clientId, array $lines, ?string $object = null)
+    public function __construct(?Uuid $projectId, ProjectDocumentType $type, string $number, \DateTimeImmutable $date, Uuid $clientId, array $lines, ?string $object = null)
     {
         $this->initializeUuid();
         $this->initializeTimestamps();
@@ -84,7 +84,12 @@ class ProjectDocument
         $this->touch();
     }
 
-    public function getProjectId(): Uuid { return $this->projectId; }
+    public function getProjectId(): ?Uuid { return $this->projectId; }
+    public function assignProject(?Uuid $projectId): void
+    {
+        $this->projectId = $projectId;
+        $this->touch();
+    }
     public function getType(): ProjectDocumentType { return $this->type; }
     public function getNumber(): string { return $this->number; }
         public function getObject(): ?string { return $this->object; }
